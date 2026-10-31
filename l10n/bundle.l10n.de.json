@@ -1,4 +1,5 @@
 {
+  "Readback": "Readback",
   "Python {0}": "Python {0}",
   "Readback: Python interpreter for the analysis engine": "Readback: Python-Interpreter für die Analyse-Engine",
   "Python 3.10 or newer": "Python 3.10 oder neuer",
@@ -64,5 +65,15 @@
   "Allow": "Zulassen",
   "Ignore Workspace Setting": "Arbeitsbereichseinstellung ignorieren",
   "This workspace wants Readback to run \"{0}\" as its Python interpreter.": "Dieser Arbeitsbereich möchte, dass Readback „{0}“ als Python-Interpreter ausführt.",
-  "The path comes from the workspace settings ({0}). Readback will execute this program. Only allow it if you trust the files in this workspace.": "Der Pfad stammt aus den Arbeitsbereichseinstellungen ({0}). Readback führt dieses Programm aus. Lassen Sie es nur zu, wenn Sie den Dateien in diesem Arbeitsbereich vertrauen."
+  "The path comes from the workspace settings ({0}). Readback will execute this program. Only allow it if you trust the files in this workspace.": "Der Pfad stammt aus den Arbeitsbereichseinstellungen ({0}). Readback führt dieses Programm aus. Lassen Sie es nur zu, wenn Sie den Dateien in diesem Arbeitsbereich vertrauen.",
+  "Readback could not display this view. See the Readback log for details.": "Readback konnte diese Ansicht nicht anzeigen. Details stehen im Readback-Protokoll.",
+  "Graph canvas": "Zeichenfläche des Graphen",
+  "Press Enter or Space to select a node.": "Drücken Sie die Eingabe- oder Leertaste, um einen Knoten auszuwählen.",
+  "Graph controls": "Steuerelemente des Graphen",
+  "Zoom in": "Vergrößern",
+  "Zoom out": "Verkleinern",
+  "Fit view": "Ansicht einpassen",
+  "Press Enter or Space to select an edge.": "Drücken Sie die Eingabe- oder Leertaste, um eine Kante auszuwählen.",
+  "No graph to show yet.": "Noch kein Graph vorhanden.",
+  "Readback visualizations will appear here.": "Hier erscheinen die Visualisierungen von Readback."
 }

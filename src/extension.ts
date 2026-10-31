@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { registerEngineCommands } from './engine/commands';
 import { EngineService } from './engine/engineService';
+import { registerGraphPanel } from './views/graphPanel';
 
 let engine: EngineService | undefined;
 
@@ -8,7 +9,12 @@ let engine: EngineService | undefined;
 export function activate(context: vscode.ExtensionContext): void {
   const log = vscode.window.createOutputChannel('Readback', { log: true });
   engine = new EngineService(context, log);
-  context.subscriptions.push(log, engine, registerEngineCommands(engine, log));
+  context.subscriptions.push(
+    log,
+    engine,
+    registerEngineCommands(engine, log),
+    registerGraphPanel(context, log),
+  );
 }
 
 /** Stops the engine gracefully (shutdown, exit, kill after 2 s). */

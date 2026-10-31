@@ -1,13 +1,9 @@
 // HTML document of Readback's webview panels. Pure functions without 'vscode' so the Content
 // Security Policy and the attribute escaping can be unit-tested.
 import { randomBytes } from 'node:crypto';
-import type { WebviewBootData } from '../shared/webviewProtocol';
+import { BOOT_ELEMENT_ID, ROOT_ELEMENT_ID, type WebviewBootData } from '../shared/webviewProtocol';
 
-/** Id of the <meta> element whose data-boot attribute carries the WebviewBootData (read by webview/src/bootData.ts). */
-export const BOOT_ELEMENT_ID = 'readback-boot';
-
-/** Id of the element the webview app renders into (webview/src/bootstrap.tsx). */
-export const ROOT_ELEMENT_ID = 'root';
+export { BOOT_ELEMENT_ID, ROOT_ELEMENT_ID };
 
 export interface WebviewHtmlOptions {
   /** webview.cspSource: where resources loaded through asWebviewUri come from. */

@@ -4,6 +4,7 @@ import * as l10n from '@vscode/l10n';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { ROOT_ELEMENT_ID } from '../../src/shared/webviewProtocol';
 import { readBootData } from './bootData';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ViewError } from './components/ViewError';
@@ -12,8 +13,7 @@ import type { HostApi } from './hostApi';
 import { describeError, truncate } from './text';
 import { checkLayoutWorkerInBrowser, type WorkerCheck } from './workerCheck';
 
-/** Must match ROOT_ELEMENT_ID in src/views/webviewHtml.ts. */
-export const ROOT_ELEMENT_ID = 'root';
+export { ROOT_ELEMENT_ID };
 
 export interface BootstrapOptions {
   readonly view: Window;

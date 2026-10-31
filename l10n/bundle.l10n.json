@@ -1,4 +1,5 @@
 {
+  "Readback": "Readback",
   "Python {0}": "Python {0}",
   "Readback: Python interpreter for the analysis engine": "Readback: Python interpreter for the analysis engine",
   "Python 3.10 or newer": "Python 3.10 or newer",
@@ -64,5 +65,15 @@
   "Allow": "Allow",
   "Ignore Workspace Setting": "Ignore Workspace Setting",
   "This workspace wants Readback to run \"{0}\" as its Python interpreter.": "This workspace wants Readback to run \"{0}\" as its Python interpreter.",
-  "The path comes from the workspace settings ({0}). Readback will execute this program. Only allow it if you trust the files in this workspace.": "The path comes from the workspace settings ({0}). Readback will execute this program. Only allow it if you trust the files in this workspace."
+  "The path comes from the workspace settings ({0}). Readback will execute this program. Only allow it if you trust the files in this workspace.": "The path comes from the workspace settings ({0}). Readback will execute this program. Only allow it if you trust the files in this workspace.",
+  "Readback could not display this view. See the Readback log for details.": "Readback could not display this view. See the Readback log for details.",
+  "Graph canvas": "Graph canvas",
+  "Press Enter or Space to select a node.": "Press Enter or Space to select a node.",
+  "Graph controls": "Graph controls",
+  "Zoom in": "Zoom in",
+  "Zoom out": "Zoom out",
+  "Fit view": "Fit view",
+  "Press Enter or Space to select an edge.": "Press Enter or Space to select an edge.",
+  "No graph to show yet.": "No graph to show yet.",
+  "Readback visualizations will appear here.": "Readback visualizations will appear here."
 }
