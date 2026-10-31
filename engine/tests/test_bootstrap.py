@@ -1,4 +1,5 @@
-"""engine/run_engine.py: version check, sys.path setup and machine-readable startup failures."""
+"""engine/run_engine.py: version check, sys.path setup, the sandbox before the server, and
+machine-readable startup failures."""
 
 from __future__ import annotations
 
@@ -6,9 +7,11 @@ import ast
 import importlib
 import io
 import json
+import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +74,38 @@ def test_prepend_paths_puts_them_first_without_duplicates(monkeypatch: pytest.Mo
     assert sys.path == ["/a", "/b", "/stdlib", "/stdlib/lib-dynload"]
 
 
+# Stand-ins that start() imports from a test folder instead of readback_engine. The real sandbox
+# must never be installed in the pytest process: audit hooks cannot be removed, and it would
+# refuse every later subprocess.
+FAKE_SANDBOX = "EVENTS = []\n\ndef install():\n    EVENTS.append('install')\n    return True\n"
+FAKE_SERVER = """\
+import rb_fake_sandbox
+rb_fake_sandbox.EVENTS.append('import server')
+
+def main():
+    rb_fake_sandbox.EVENTS.append('main')
+    return 7
+"""
+
+
+@pytest.fixture
+def modules(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """A folder with the stand-in modules; start() puts it first on sys.path."""
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    (tmp_path / "rb_fake_sandbox.py").write_text(FAKE_SANDBOX, encoding="utf-8")
+    (tmp_path / "rb_fake_server.py").write_text(FAKE_SERVER, encoding="utf-8")
+    yield tmp_path
+    for name in [name for name in sys.modules if name.startswith("rb_")]:
+        del sys.modules[name]
+
+
+def test_start_installs_the_sandbox_before_it_imports_the_server(modules: Path) -> None:
+    stream = io.StringIO()
+    assert run_engine.start([str(modules)], stream, "rb_fake_server", "rb_fake_sandbox") == 7
+    assert sys.modules["rb_fake_sandbox"].EVENTS == ["install", "import server", "main"]
+    assert stream.getvalue() == ""
+
+
 @pytest.mark.parametrize(
     ("source", "detail"),
     [
@@ -80,34 +115,70 @@ def test_prepend_paths_puts_them_first_without_duplicates(monkeypatch: pytest.Mo
     ],
 )
 def test_failures_before_the_server_runs_are_reported(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    protocol_schema: dict[str, Any],
-    source: str | None,
-    detail: str,
+    modules: Path, protocol_schema: dict[str, Any], source: str | None, detail: str
 ) -> None:
-    monkeypatch.setattr(sys, "path", list(sys.path))
-    monkeypatch.delitem(sys.modules, "rb_missing_server", raising=False)
     if source is not None:
-        (tmp_path / "rb_missing_server.py").write_text(source, encoding="utf-8")
+        (modules / "rb_missing_server.py").write_text(source, encoding="utf-8")
     stream = io.StringIO()
-    assert run_engine.start([str(tmp_path)], stream, "rb_missing_server") == 4
+    assert run_engine.start([str(modules)], stream, "rb_missing_server", "rb_fake_sandbox") == 4
     payload = fatal_payload(stream.getvalue())
     assert payload == {"code": "bootstrap-failed", "detail": detail}
     support.assert_valid(protocol_schema, "FatalStartupError", payload)
-    assert sys.path[0] == str(tmp_path)
-    sys.modules.pop("rb_missing_server", None)
+    assert sys.path[0] == str(modules)
 
 
-def test_start_returns_the_server_exit_code(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("source", "detail"),
+    [
+        (None, "ModuleNotFoundError: No module named 'rb_missing_sandbox'"),
+        ("def install():\n    raise RuntimeError('no hook')\n", "RuntimeError: no hook"),
+        ("x = 1\n", "AttributeError: module 'rb_missing_sandbox' has no attribute 'install'"),
+    ],
+)
+def test_without_a_sandbox_the_server_is_not_even_imported(
+    modules: Path, source: str | None, detail: str
 ) -> None:
-    monkeypatch.setattr(sys, "path", list(sys.path))
-    (tmp_path / "rb_fake_server.py").write_text("def main():\n    return 7\n", encoding="utf-8")
-    try:
-        assert run_engine.start([str(tmp_path)], io.StringIO(), "rb_fake_server") == 7
-    finally:
-        sys.modules.pop("rb_fake_server", None)
+    if source is not None:
+        (modules / "rb_missing_sandbox.py").write_text(source, encoding="utf-8")
+    stream = io.StringIO()
+    assert run_engine.start([str(modules)], stream, "rb_fake_server", "rb_missing_sandbox") == 4
+    assert fatal_payload(stream.getvalue()) == {"code": "bootstrap-failed", "detail": detail}
+    assert "rb_fake_server" not in sys.modules
+
+
+def test_the_server_is_imported_under_the_real_sandbox(
+    tmp_path: Path, protocol_schema: dict[str, Any]
+) -> None:
+    """Module-level code of the server already runs under the audit hook (in a subprocess,
+    because the hook cannot be removed again)."""
+    (tmp_path / "rb_eager_server.py").write_text(
+        "import os\nos.system('exit 0')\n\n\ndef main():\n    return 0\n", encoding="utf-8"
+    )
+    code = (
+        "import sys; sys.path[0:0] = [sys.argv[1]]; import run_engine;"
+        "sys.exit(run_engine.start([sys.argv[2], *run_engine.engine_paths()], None,"
+        " 'rb_eager_server'))"
+    )
+    result = subprocess.run(
+        [*support.isolated_python(code), str(support.ENGINE_DIR), str(tmp_path)],
+        cwd=tmp_path,
+        env=support.sanitized_env(),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 4, result.stderr
+    # Before logging is set up, the sandbox's warning goes to stderr as a plain line (the
+    # command is bytes on POSIX and str on Windows).
+    warning, fatal = result.stderr.splitlines()
+    assert re.fullmatch(r"Sandbox blocked os\.system \(b?'exit 0'\)\.", warning), warning
+    payload = fatal_payload(fatal + "\n")
+    assert payload == {
+        "code": "bootstrap-failed",
+        "detail": "PermissionError: Readback engine sandbox: os.system is not allowed",
+    }
+    support.assert_valid(protocol_schema, "FatalStartupError", payload)
 
 
 def test_main_runs_the_version_check_first(monkeypatch: pytest.MonkeyPatch) -> None:

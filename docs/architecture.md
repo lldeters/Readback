@@ -25,7 +25,7 @@ VS Code, Cursor, Windsurf, Kiro, VSCodium (engines.vscode ^1.105.0)
 │       Git and agent hooks (Phase 4), LLM providers (Phase 5)
 │
 ├── Analysis engine: CPython ≥ 3.10, one process per window               engine/
-│   ├── run_engine.py: version check, sandbox, sys.path, stdio
+│   ├── run_engine.py: version check, sys.path, sandbox, then the server
 │   ├── readback_engine/: JSON-RPC server and handshake; from Phase 1
 │   │   python_analysis/ (ast, symtable, optional Jedi) and
 │   │   sql_analysis/ (sqlglot, dbt adapter)
@@ -52,7 +52,7 @@ VS Code, Cursor, Windsurf, Kiro, VSCodium (engines.vscode ^1.105.0)
 | Graph panel               | `src/views/graphPanel.ts`, `graphPanelState.ts`, `webviewHtml.ts` | Creates the webview panel, renders the HTML with CSP and boot data, validates and records webview messages.                                             |
 | Webview app               | `webview/src/`                                                    | React app with an empty React Flow canvas, theme mapping, CSP and error reporting, layout worker check.                                                 |
 | Layout worker             | `webview/worker/layout.worker.ts`                                 | Phase 0 answers a ping; from Phase 1 it runs the graph layout off the UI thread.                                                                        |
-| Engine bootstrap          | `engine/run_engine.py`                                            | Stays parseable by old Pythons, checks the version, installs the sandbox, sets `sys.path`, claims stdout, starts the server.                            |
+| Engine bootstrap          | `engine/run_engine.py`                                            | Stays parseable by old Pythons, checks the version, sets `sys.path`, installs the sandbox, then imports and starts the server.                          |
 | Engine package            | `engine/readback_engine/`                                         | JSON-RPC server (`engine/*` methods); the Python and SQL analyses from Phase 1. Version constants in `__init__.py`.                                     |
 | Contracts                 | `shared/`, `src/engine/protocol.ts`, `src/shared/`                | JSON Schemas (source of truth), generated TypeScript types, protocol constants, the webview message contract.                                           |
 | Build and release scripts | `esbuild.mjs`, `scripts/`                                         | Bundling, schema type generation, vendoring, license gate and notices, the Restricted Mode test launcher.                                               |
@@ -222,8 +222,17 @@ explains each measure:
 - `-X utf8` enables UTF-8 mode, the only UTF-8 switch that works under `-I` before Python 3.15.
 - The engine keeps a private duplicate of the original stdout for the protocol and points file
   descriptor 1 at stderr, so a stray `print()` in a library cannot corrupt the framing.
-- An audit hook (`sys.addaudithook`) installed before anything else refuses to create processes,
-  open sockets or load native code through `ctypes`. `InitializeResult.sandboxed` reports it.
+- An audit hook (`sys.addaudithook`) refuses to create processes, open sockets or load native code
+  through `ctypes`. The bootstrap installs it right after the version check and the `sys.path`
+  setup and before it imports the server, so the module-level code of the server and of everything
+  it imports already runs under it. The server claims stdout first and then asks the sandbox
+  again, which adds no second hook and returns the state verified by a probe event;
+  `InitializeResult.sandboxed` reports that state.
+- `multiprocessing` (and with it `ProcessPoolExecutor`) starts spawn children, the fork server and
+  its resource tracker through `_posixsubprocess.fork_exec` instead of `subprocess.Popen`, and only
+  Python 3.14 and later raise an audit event there. On POSIX the sandbox therefore wraps that
+  function, so that every call raises the `_posixsubprocess.fork_exec` event first, on every
+  version.
 
 Spec section 5.2 says the engine "imports no network modules". The approved interpretation: the
 engine never opens sockets and never starts processes. The vendored libraries import `socket` or
@@ -231,7 +240,9 @@ engine never opens sockets and never starts processes. The vendored libraries im
 jedi and parso through `subprocess`), so the rule is enforced on behavior, not on imports, in three
 ways: the audit hook at runtime, a ruff `banned-api` lint for the engine's own code
 (`engine/pyproject.toml`: `socket`, `ssl`, `http`, `urllib.request`, `ftplib`, `smtplib`,
-`subprocess`, `multiprocessing`, `ctypes`, `os.system`, `os.popen`, `os.startfile`) and a test.
+`subprocess`, `multiprocessing`, `concurrent.futures.ProcessPoolExecutor`,
+`concurrent.futures.process`, `_posixsubprocess`, `ctypes`, `os.system`, `os.popen`,
+`os.startfile`) and a test.
 
 The audit hook is defense in depth, not a security boundary: native code can bypass it. The
 guarantee that matters is that the engine only parses (with `ast` and sqlglot) and never imports or

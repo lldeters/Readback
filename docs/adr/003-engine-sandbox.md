@@ -24,6 +24,9 @@ with pip at runtime. Experiments on Python 3.10 to 3.15 found:
 - The vendored libraries import network and process modules transitively without using them:
   sqlglot imports `importlib.metadata`, which imports `email` and, on Python 3.10 to 3.12,
   `socket`; jedi and parso import `subprocess`. A rule against importing such modules cannot hold.
+- `multiprocessing` (and with it `ProcessPoolExecutor`) starts spawn children, the fork server and
+  its resource tracker through `_posixsubprocess.fork_exec`, not through `subprocess.Popen`. Only
+  Python 3.14 and later raise an audit event (`_posixsubprocess.fork_exec`) there.
 
 ## Decision
 
@@ -32,14 +35,21 @@ with pip at runtime. Experiments on Python 3.10 to 3.15 found:
   environment without `PYTHON*`, `VIRTUAL_ENV`, `CONDA_PREFIX` (and the other conda activation
   variables) and `__PYVENV_LAUNCHER__`.
 - `run_engine.py` stays parseable by old Python versions so it can report a version that is too
-  old. It checks the version (exit code 3 with a `READBACK_ENGINE_FATAL` line on stderr), installs
-  the audit hook, puts `engine/` and `engine/vendor/` on `sys.path`, claims stdout and starts the
-  server. Any other startup failure exits with code 4 and the same kind of line.
-- The engine claims stdout for the protocol: it keeps a private duplicate of file descriptor 1 for
+  old. It checks the version (exit code 3 with a `READBACK_ENGINE_FATAL` line on stderr), puts
+  `engine/` and `engine/vendor/` on `sys.path`, installs the audit hook and only then imports and
+  starts the server, so the module-level code of the server and of everything it imports already
+  runs under the hook. Any other startup failure, an error while installing the hook included,
+  exits with code 4 and the same kind of line.
+- The server claims stdout for the protocol: it keeps a private duplicate of file descriptor 1 for
   JSON-RPC and points descriptor 1 at stderr, so stray output ends up in the log.
 - An audit hook (`sys.addaudithook`) blocks process creation (`subprocess.Popen`, `os.system`,
-  `os.exec*`, `os.spawn*`, `os.posix_spawn`, `os.fork`), sockets (`socket.connect`, `socket.bind`,
-  `socket.getaddrinfo`, …) and `ctypes`. `engine/initialize` reports `sandboxed: true`.
+  `os.exec*`, `os.spawn*`, `os.posix_spawn`, `os.fork`, `os.forkpty`, `os.startfile`, `pty.spawn`,
+  `_winapi.CreateProcess`, `_posixsubprocess.fork_exec`), sockets (`socket.connect`, `socket.bind`,
+  `socket.getaddrinfo`, …) and `ctypes`. On POSIX the sandbox also wraps
+  `_posixsubprocess.fork_exec` so that every call raises the `_posixsubprocess.fork_exec` event
+  first, on every Python version. A probe event confirms that the hook runs. The server asks the
+  sandbox again, which adds no second hook and returns the verified state; `engine/initialize`
+  reports it as `sandboxed`.
 - The engine exits at end of stdin, so it cannot outlive the extension host.
 - **Approved interpretation of "imports no network modules" (spec 5.2):** the engine never opens
   sockets and never starts processes. This is enforced three ways: by the audit hook at runtime, by
@@ -54,7 +64,8 @@ with pip at runtime. Experiments on Python 3.10 to 3.15 found:
   a connection fails loudly instead.
 - The audit hook is defense in depth, not a security boundary: native code can bypass it. The real
   guarantee is that the engine parses and never imports or executes user code.
-- The engine can never use subprocesses, so Jedi features that need another interpreter are out.
+- The engine can never use subprocesses or process pools (`multiprocessing`, `ProcessPoolExecutor`),
+  so Jedi features that need another interpreter are out, and parallel work has to use threads.
 - Under `-S`, Jedi does not see the project's site-packages. Phase 1 may pass virtual environment
   paths explicitly, computed without running `.pth` files and only in trusted workspaces.
 

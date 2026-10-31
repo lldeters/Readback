@@ -26,8 +26,9 @@ and the fix and its disclosure will be coordinated with you.
   accounts and no telemetry, and the analysis needs no network access.
 - **The engine never runs your code.** The Python engine only parses (with `ast` and sqlglot). It
   starts in isolated mode (`-I -S -X utf8`) with its own vendored dependencies, so nothing from
-  your Python environment runs, and an audit hook blocks process creation, network sockets and
-  `ctypes` inside the engine.
+  your Python environment runs. Before it loads its server and the analysis libraries, it installs
+  an audit hook that blocks process creation (`multiprocessing` included), network sockets and
+  `ctypes` inside the engine. The hook is defense in depth, not a security boundary.
 - **Interpreter selection.** Readback runs only the interpreter it found through
   `readback.engine.pythonPath`, the Python extension or `PATH`, after checking it with a minimal
   probe. A `readback.engine.pythonPath` from workspace settings is used only after a one-time

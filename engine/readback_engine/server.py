@@ -1,4 +1,4 @@
-"""The engine process: claims stdio, installs the sandbox, and serves the engine/* methods.
+"""The engine process: claims stdio, checks the sandbox, and serves the engine/* methods.
 
 Lifecycle (protocol version 1, LSP-like): engine/initialize must be the first request;
 engine/shutdown makes every later request fail; the engine/exit notification or the end of input
@@ -188,6 +188,8 @@ def main() -> int:
     """Entry point used by engine/run_engine.py; returns the process exit code."""
     try:
         protocol_in, protocol_out = claim_stdio()
+        # run_engine.py installed the sandbox before it imported this module; install() then
+        # only returns the verified state (and installs it if main() was started another way).
         sandboxed = sandbox.install()
         logs.install(sys.stderr)
         engine = Engine(protocol_in, protocol_out, sandboxed=sandboxed)

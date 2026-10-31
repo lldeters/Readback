@@ -7,7 +7,7 @@ Vendored libraries import some of these transitively; the sandbox covers them at
 from __future__ import annotations
 
 import ast
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from pathlib import Path
 
 import pytest
@@ -22,11 +22,17 @@ BANNED_MODULES = (
     "smtplib",
     "subprocess",
     "multiprocessing",
+    "concurrent.futures.ProcessPoolExecutor",
+    "concurrent.futures.process",
+    "_posixsubprocess",
     "ctypes",
 )
 # Process creation through os itself.
 BANNED_OS_ATTRIBUTES = {"system", "popen", "startfile", "fork", "forkpty", "posix_spawn"}
 BANNED_OS_PREFIXES = ("exec", "spawn")
+# The sandbox wraps _posixsubprocess.fork_exec so that it raises an audit event on every Python
+# version (ruff's banned-api has a noqa on the same import).
+ALLOWED_IMPORTS = {"readback_engine/sandbox.py": {"_posixsubprocess"}}
 
 ENGINE_SOURCES = [
     *sorted((support.ENGINE_DIR / "readback_engine").rglob("*.py")),
@@ -65,23 +71,39 @@ def process_calls(tree: ast.AST) -> Iterator[tuple[int, str]]:
             yield node.lineno, f"os.{node.attr}"
 
 
-def violations(source: str) -> list[str]:
+def violations(source: str, allowed: Collection[str] = ()) -> list[str]:
+    """Banned imports and os calls; ``allowed`` lists modules that may be imported anyway."""
     tree = ast.parse(source)
     found = [
-        f"{line}: import {module}" for line, module in imported_modules(tree) if banned(module)
+        f"{line}: import {module}"
+        for line, module in imported_modules(tree)
+        if banned(module) and module not in allowed
     ]
     found += [f"{line}: {call}" for line, call in process_calls(tree)]
     return found
 
 
+def relative_name(path: Path) -> str:
+    return path.relative_to(support.ENGINE_DIR).as_posix()
+
+
 @pytest.mark.parametrize("path", ENGINE_SOURCES, ids=lambda path: path.name)
 def test_engine_code_avoids_network_and_processes(path: Path) -> None:
-    assert violations(path.read_text(encoding="utf-8")) == []
+    allowed = ALLOWED_IMPORTS.get(relative_name(path), set())
+    assert violations(path.read_text(encoding="utf-8"), allowed) == []
 
 
 def test_every_engine_module_is_checked() -> None:
-    names = {path.relative_to(support.ENGINE_DIR).as_posix() for path in ENGINE_SOURCES}
+    names = {relative_name(path) for path in ENGINE_SOURCES}
     assert {"run_engine.py", "readback_engine/server.py", "readback_engine/rpc.py"} <= names
+    assert set(ALLOWED_IMPORTS) <= names
+
+
+def test_the_allowed_imports_are_needed() -> None:
+    """An exception that nothing uses any more is removed, not kept as a loophole."""
+    for name, modules in ALLOWED_IMPORTS.items():
+        found = violations((support.ENGINE_DIR / name).read_text(encoding="utf-8"))
+        assert {entry.partition(": import ")[2] for entry in found} == modules, found
 
 
 @pytest.mark.parametrize(
@@ -93,6 +115,10 @@ def test_every_engine_module_is_checked() -> None:
         "from urllib import request",
         "from subprocess import run",
         "import multiprocessing.pool",
+        "from concurrent.futures import ProcessPoolExecutor",
+        "import concurrent.futures.process",
+        "from concurrent.futures.process import _process_worker",
+        "import _posixsubprocess",
         "import ctypes.util",
         "__import__('ssl')",
         "importlib.import_module('socket')",
@@ -107,7 +133,21 @@ def test_the_check_finds_violations(source: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "source", ["import urllib.parse", "import socketlike", "from os import path", "os.getpid()"]
+    "source",
+    [
+        "import urllib.parse",
+        "import socketlike",
+        "from os import path",
+        "os.getpid()",
+        "from concurrent.futures import ThreadPoolExecutor",
+    ],
 )
 def test_the_check_allows_harmless_code(source: str) -> None:
     assert violations(source) == []
+
+
+def test_allowed_imports_are_exact() -> None:
+    assert violations("import _posixsubprocess", {"_posixsubprocess"}) == []
+    assert violations("import subprocess\nimport _posixsubprocess", {"_posixsubprocess"}) == [
+        "1: import subprocess"
+    ]

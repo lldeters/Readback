@@ -2,7 +2,9 @@
 
 The extension starts it as ``<python> -I -S -X utf8 <extension>/engine/run_engine.py`` with
 the engine folder as working directory. Under -I neither the script's folder nor the working
-directory is on sys.path, so this file puts engine/ and engine/vendor/ there itself.
+directory is on sys.path, so this file puts engine/ and engine/vendor/ there itself. Then it
+installs the audit-hook sandbox (readback_engine/sandbox.py) and only after that imports the
+server, so that no module-level code of the server or of what it imports runs outside the hook.
 
 This file must stay parseable by Python 2.7 and 3.6 (ASCII only; no f-strings, annotations,
 walrus or keyword-only parameters; type comments instead), so that an interpreter that is too
@@ -26,6 +28,7 @@ FATAL_PREFIX = "READBACK_ENGINE_FATAL "
 EXIT_PYTHON_TOO_OLD = 3
 EXIT_BOOTSTRAP_FAILED = 4
 SERVER_MODULE = "readback_engine.server"
+SANDBOX_MODULE = "readback_engine.sandbox"
 
 
 def report_fatal(payload, stream=None):
@@ -68,12 +71,16 @@ def prepend_paths(paths):
         sys.path.insert(0, path)
 
 
-def start(paths, stream=None, module_name=SERVER_MODULE):
-    # type: (list[str], TextIO | None, str) -> int
-    """Import the server and run it; a failure before it runs becomes a bootstrap-failed line."""
+def start(paths, stream=None, server_module=SERVER_MODULE, sandbox_module=SANDBOX_MODULE):
+    # type: (list[str], TextIO | None, str, str) -> int
+    """Install the sandbox, then import the server and run it; a failure before the server runs
+    becomes a bootstrap-failed line."""
     try:
         prepend_paths(paths)
-        server = importlib.import_module(module_name)
+        # Only after the version check: the sandbox module needs Python 3.10. Its install()
+        # result is not needed here; server.main() asks for the verified state again.
+        importlib.import_module(sandbox_module).install()
+        server = importlib.import_module(server_module)
         run = server.main
     except Exception as exc:  # noqa: BLE001 - reported to the extension instead of a traceback
         report_fatal({"code": "bootstrap-failed", "detail": describe(exc)}, stream)

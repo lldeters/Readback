@@ -6,17 +6,27 @@ of banning imports the engine refuses the operations at runtime. Together with t
 banned-api lint and the import test for the engine's own code this is the approved reading of
 "the engine imports no network modules": it never opens sockets and never starts processes.
 
-The hook is defense in depth against libraries that try such operations (jedi spawns an
-interpreter unless it is configured not to), not a boundary against hostile code in the engine
-process. Audit hooks cannot be removed, so tests install it in subprocesses only.
+engine/run_engine.py installs the hook before it imports the server, so the module-level code of
+the server and of everything it imports already runs under it. The hook is defense in depth
+against libraries that try such operations (jedi spawns an interpreter unless it is configured
+not to), not a boundary against hostile code in the engine process. Audit hooks cannot be
+removed, so tests install it in subprocesses only.
 """
 
+import functools
 import logging
 import sys
-from typing import Final
+from collections.abc import Callable
+from typing import Any, Final
+
+if sys.platform != "win32":
+    import _posixsubprocess  # noqa: TID251 - only the sandbox may use it: install() wraps it
 
 log = logging.getLogger("readback.sandbox")
 
+# _posixsubprocess.fork_exec raises it itself from Python 3.14 on; install() makes it raise the
+# event on older versions too (see audited_fork_exec()).
+FORK_EXEC_EVENT: Final = "_posixsubprocess.fork_exec"
 PROCESS_EVENTS: Final = frozenset(
     {
         "subprocess.Popen",
@@ -29,6 +39,7 @@ PROCESS_EVENTS: Final = frozenset(
         "os.startfile",
         "pty.spawn",
         "_winapi.CreateProcess",
+        FORK_EXEC_EVENT,
     }
 )
 NETWORK_EVENTS: Final = frozenset(
@@ -72,16 +83,50 @@ def install() -> bool:
 
     sys.addaudithook() silently skips the new hook when an existing hook vetoes it, so a probe
     event checks that ours really runs. initialize reports the outcome as ``sandboxed``.
+    engine/run_engine.py installs the hook before it imports the server; the call in
+    server.main() then adds no second hook and returns the state verified the first time.
     """
+    return _installed_hook().active
+
+
+@functools.cache
+def _installed_hook() -> SandboxHook:
+    """The hook, added and verified on the first call only, so that the second install()
+    neither adds a second hook nor wraps fork_exec twice."""
     hook = SandboxHook()
     sys.addaudithook(hook)
     sys.audit(PROBE_EVENT)
-    return hook.active
+    if sys.platform != "win32":
+        # Also if the probe failed: the wrapper only raises the event, the hooks decide.
+        _posixsubprocess.fork_exec = audited_fork_exec(_posixsubprocess.fork_exec)
+    return hook
+
+
+def audited_fork_exec(original: Callable[..., int]) -> Callable[..., int]:
+    """_posixsubprocess.fork_exec that raises FORK_EXEC_EVENT before every call.
+
+    multiprocessing (and so ProcessPoolExecutor) starts spawn children, the fork server and the
+    resource tracker through multiprocessing.util.spawnv_passfds, which calls fork_exec directly
+    instead of going through subprocess.Popen. Python 3.10 to 3.13 raise no audit event on that
+    path; 3.14 and later raise FORK_EXEC_EVENT in C. The wrapper raises it first, with the same
+    arguments, so the hook decides and logs on every version. spawnv_passfds looks fork_exec up
+    at each call. subprocess.Popen raises its own event before it calls fork_exec, so its
+    behavior does not change.
+    """
+
+    def fork_exec(*args: Any) -> int:
+        # fork_exec(args, executable_list, close_fds, pass_fds, cwd, env, ...); the native event
+        # carries executable_list, args and env.
+        sys.audit(FORK_EXEC_EVENT, args[1], args[0], args[5])
+        return original(*args)
+
+    return fork_exec
 
 
 def _subject(event: str, args: tuple[object, ...]) -> str:
-    """The program, command or address for the log, and nothing else: subprocess.Popen's
-    arguments include the environment, which may hold secrets."""
+    """The program, command or address for the log, and nothing else: the arguments of
+    subprocess.Popen and _posixsubprocess.fork_exec include the environment, which may hold
+    secrets."""
     if not args:
         return "no arguments"
     subject = args[0]
