@@ -48,28 +48,28 @@ These come from section 0 of the product specification and apply to every change
 Node 24 (`.nvmrc`) and npm. Install with `npm ci`; never add, remove or upgrade dependencies
 without approval.
 
-| Command                    | Purpose                                                                                                                      |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `npm run build`            | Type check, then development bundles in `dist/` (linked source maps) and metafiles in `out/meta/`.                           |
-| `npm run build:prod`       | Minified bundles without source maps, as packaged.                                                                           |
-| `npm run watch`            | Incremental rebuilds; the F5 pre-launch task.                                                                                |
-| `npm run typecheck`        | `tsc -p` for `src`, `webview`, `webview/worker`, `test` and `test/repo`.                                                     |
-| `npm run lint`             | ESLint, then `prettier --check .`.                                                                                           |
-| `npm run format`           | `prettier --write .`.                                                                                                        |
-| `npm test`                 | Unit tests, then integration tests.                                                                                          |
-| `npm run test:unit`        | Vitest projects `extension`, `webview` and `repo`; one project: `npx vitest run --project repo`.                             |
-| `npm run test:coverage`    | Unit tests with V8 coverage in `coverage/`.                                                                                  |
-| `npm run test:integration` | Bundles the tests into `out/test` and runs them in VS Code (`VSCODE_TEST_VERSION`, default `stable`; CI uses `1.105.1` too). |
-| `npm run test:untrusted`   | Restricted Mode tests through `scripts/test-untrusted.mjs` (Linux and macOS; `xvfb-run -a` on headless Linux).               |
-| `npm run test:engine`      | `pytest` for the engine through `scripts/python.mjs` (`READBACK_PYTHON` selects the interpreter).                            |
-| `npm run vendor`           | Downloads and unpacks the pinned engine dependencies into `engine/vendor/`.                                                  |
-| `npm run vendor:check`     | Verifies `engine/vendor/` against the pins.                                                                                  |
-| `npm run schema:generate`  | Regenerates `src/shared/generated/*.ts` from `shared/*.json`.                                                                |
-| `npm run schema:check`     | Fails if the generated types are out of date.                                                                                |
-| `npm run l10n:export`      | Extracts runtime strings into `l10n/bundle.l10n.json`.                                                                       |
-| `npm run notices`          | License gate, then writes `THIRD_PARTY_NOTICES.md` (run `npm run build:prod` first).                                         |
-| `npm run notices:check`    | License gate, and fails if `THIRD_PARTY_NOTICES.md` is out of date.                                                          |
-| `npm run package`          | `vsce package --pre-release --no-dependencies`; runs `vscode:prepublish` (`vendor:check`, `build:prod`, `notices:check`).    |
+| Command                    | Purpose                                                                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run build`            | Type check, then development bundles in `dist/` (linked source maps) and metafiles in `out/meta/`.                                               |
+| `npm run build:prod`       | Deletes `dist/`, then minified bundles without source maps, as packaged.                                                                         |
+| `npm run watch`            | Incremental rebuilds; the F5 pre-launch task.                                                                                                    |
+| `npm run typecheck`        | `tsc -p` for `src`, `webview`, `webview/worker`, `test` and `test/repo`.                                                                         |
+| `npm run lint`             | ESLint, then `prettier --check .`.                                                                                                               |
+| `npm run format`           | `prettier --write .`.                                                                                                                            |
+| `npm test`                 | Unit tests, then integration tests.                                                                                                              |
+| `npm run test:unit`        | Vitest projects `extension`, `webview` and `repo`; one project: `npx vitest run --project repo`.                                                 |
+| `npm run test:coverage`    | Unit tests with V8 coverage in `coverage/`.                                                                                                      |
+| `npm run test:integration` | Bundles the tests into `out/test` and runs them in VS Code (`VSCODE_TEST_VERSION`, default `stable`; CI uses `1.105.1` too).                     |
+| `npm run test:untrusted`   | Restricted Mode tests through `scripts/test-untrusted.mjs` (Linux and macOS; `xvfb-run -a` on headless Linux).                                   |
+| `npm run test:engine`      | `pytest` for the engine through `scripts/python.mjs` (`READBACK_PYTHON` selects the interpreter).                                                |
+| `npm run vendor`           | Downloads and unpacks the pinned engine dependencies into `engine/vendor/`.                                                                      |
+| `npm run vendor:check`     | Verifies `engine/vendor/` against the pins.                                                                                                      |
+| `npm run schema:generate`  | Regenerates `src/shared/generated/*.ts` from `shared/*.json`.                                                                                    |
+| `npm run schema:check`     | Fails if the generated types are out of date.                                                                                                    |
+| `npm run l10n:export`      | Extracts runtime strings into `l10n/bundle.l10n.json`.                                                                                           |
+| `npm run notices`          | License gate, then writes `THIRD_PARTY_NOTICES.md` (run `npm run build:prod` first).                                                             |
+| `npm run notices:check`    | License gate, and fails if `THIRD_PARTY_NOTICES.md` is out of date.                                                                              |
+| `npm run package`          | `vsce package --pre-release --no-dependencies`; `vscode:prepublish` removes engine bytecode, then `vendor:check`, `build:prod`, `notices:check`. |
 
 Engine tooling, from `engine/` with the development requirements installed in a virtual
 environment (`python -m pip install -r requirements-dev.txt`, for example in `engine/.venv`):
@@ -145,5 +145,13 @@ Debugging:
 - **The engine starts with `-I -S`.** Neither the script directory nor site-packages are on
   `sys.path` (the bootstrap adds `engine/` and `engine/vendor/`), and `PYTHONUTF8` is ignored, hence
   `-X utf8`.
+- **Hidden commands do not activate the extension.** `readback._test.*` commands are not contributed,
+  so tests must activate the extension first (the root-level hook in
+  `test/integration/activation.test.ts` does it for the integration suites).
+- **Mocha loads the integration test files in no fixed order.** Never rely on one suite running
+  before another; use root-level hooks for global setup.
+- **vsce includes a file as soon as any `!` pattern in `.vscodeignore` matches it.** Exclusions after
+  an allow pattern have no effect; `scripts/clean.mjs` removes source maps and bytecode before
+  packaging, and CI rejects a VSIX that contains them.
 - **Integration tests do not run in the cloud sandbox:** the VS Code download host
   (`vscode.download.prss.microsoft.com`) is blocked there. Rely on CI for them.
