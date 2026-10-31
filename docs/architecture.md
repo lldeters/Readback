@@ -128,7 +128,11 @@ file version (modification time and size).
 workspace or folder settings is only used after a one-time confirmation per (workspace, path), even
 in trusted workspaces. The answer is stored in `globalState`. A declined value is ignored for the
 rest of the session (the user-level value applies) and asked about again in a later session.
-Automatic restarts never show the prompt. The reasons:
+Automatic restarts never show the prompt. The confirmation covers this setting only: in trusted
+workspaces (always, in editors without Workspace Trust) the Python extension's active environment
+is used as that extension chose it, which a repository can influence with a committed `.venv` or
+`python.defaultInterpreterPath` ([ADR 004](adr/004-interpreter-discovery.md), known limit). The
+reasons for the confirmation:
 
 - Cursor ships with Workspace Trust disabled, so every folder counts as trusted and
   `restrictedConfigurations` never removes a malicious repository's setting there.
@@ -137,9 +141,12 @@ Automatic restarts never show the prompt. The reasons:
   startup even under `-I -S`. That is why paths are checked before any spawn, including the probe.
 - On Windows, `spawn()` with a bare name searches the current directory before PATH.
 
-Readback: Select Python Interpreter lists the interpreters it found (with their versions or the
-reason they were rejected), offers a file picker and an "automatic" entry, and writes the choice to
-the user settings, never to the workspace.
+Readback: Select Python Interpreter lists the usable interpreters it found with their versions,
+shows rejected ones with the reason under "Not usable" (they cannot be picked), and offers "Enter
+interpreter path…", "Browse…" and "Use automatic detection". It writes the choice to the user
+settings, never to the workspace. Because workspace and folder values take precedence, it first
+asks whether to ignore such a value in this workspace (remembered in `globalState`) or to open the
+workspace settings. Failure messages name the settings scope a bad value came from.
 
 ## Engine protocol
 
@@ -347,7 +354,8 @@ English is the base language and German is complete (spec sections 0 and 8).
   `!` pattern matches, so exclusions after an allow pattern have no effect; the clean steps make sure
   no source maps or Python bytecode exist when packaging, and CI rejects a VSIX that contains them.
 - **Bytecode cache:** CPython writes `__pycache__` next to the engine files when the engine first
-  runs. If the extension folder is read-only, the engine runs with
+  runs. If the extension folder is read-only (detected by creating a temporary folder in it, because
+  `fs.access()` reports every directory as writable on Windows), the engine runs with
   `-X pycache_prefix=<globalStorage>/pycache/<version>` instead.
 
 ## Testing

@@ -32,7 +32,9 @@ and the fix and its disclosure will be coordinated with you.
   `readback.engine.pythonPath`, the Python extension or `PATH`, after checking it with a minimal
   probe. A `readback.engine.pythonPath` from workspace settings is used only after a one-time
   confirmation, also in trusted workspaces, because some editors ship with Workspace Trust
-  disabled.
+  disabled. In a trusted workspace, the Python extension's active environment is used without a
+  prompt, as the Python extension itself does; a repository can influence that choice (for example
+  with a committed `.venv`), so open untrusted code in Restricted Mode.
 - **Restricted Mode.** In an untrusted workspace, Readback ignores `readback.engine.pythonPath` from
   workspace settings, does not consult the Python extension and never starts an interpreter that
   lies inside the workspace; static analysis keeps working.

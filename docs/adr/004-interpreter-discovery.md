@@ -56,15 +56,25 @@ missing, and the Windows Python install manager can download a runtime when aske
   spawned. The engine still runs with an interpreter from outside the workspace.
 - **Approved addition:** a `readback.engine.pythonPath` from workspace or folder settings is used
   only after a one-time confirmation per (workspace, path), stored in `globalState`, whether or not
-  the workspace is trusted. This closes the gap of editors without Workspace Trust.
+  the workspace is trusted. This closes that setting's gap in editors without Workspace Trust.
 - Readback: Select Python Interpreter writes the chosen path to the user settings, never to the
-  workspace.
+  workspace. Workspace and folder values take precedence over user settings, so when one is set the
+  picker asks first: ignore it in this workspace (stored in `globalState`, no further questions) or
+  open the workspace settings. Interpreters that failed the probe are listed but cannot be picked.
 - The Python Environments extension (`@vscode/python-environments`) is not used in Phase 0.
 
 ## Consequences
 
-- Readback works without the Python extension and in Restricted Mode, and a cloned repository
-  cannot make it execute a program without the user's explicit consent, also in Cursor.
+- Readback works without the Python extension and in Restricted Mode. In an untrusted workspace a
+  cloned repository cannot make it run a program from the repository at all, and a
+  `readback.engine.pythonPath` in workspace settings never runs without the user's consent, in
+  trusted workspaces and in editors without Workspace Trust too.
+- **Known limit:** in a trusted workspace (and therefore always in editors that ship with Workspace
+  Trust disabled, such as Cursor), Readback uses the Python extension's active environment as that
+  extension chose it, without a prompt. A repository can steer that choice, for example with a
+  committed `.venv` or `python.defaultInterpreterPath`, and the Python extension itself runs that
+  interpreter too. Extending the confirmation to such interpreters inside the workspace would need
+  the owner's decision.
 - Readback: Show Engine Status can explain exactly which source was used and why the other
   candidates were rejected.
 - Per-project interpreters cost one extra confirmation; after declining, the user-level value

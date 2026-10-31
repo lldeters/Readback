@@ -45,13 +45,13 @@ changes since a Git base) follow in Phase 1 as the pre-release 0.1.0.
 
 ## Commands
 
-| Command                             | What it does                                                                                                                                                                                          |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Readback: Show Engine Status        | Starts the engine if needed and shows the interpreter and where it came from, the Python, engine and bundled package versions, the sandbox and trust state and every interpreter that was considered. |
-| Readback: Select Python Interpreter | Lists the interpreters Readback found, lets you browse for another one or return to automatic detection, and saves the choice in your user settings.                                                  |
-| Readback: Restart Engine            | Restarts the engine, also after automatic restarts were paused.                                                                                                                                       |
-| Readback: Show Log                  | Opens the "Readback" output channel.                                                                                                                                                                  |
-| Readback: Open Graph View           | Opens the graph view (still empty in Phase 0).                                                                                                                                                        |
+| Command                             | What it does                                                                                                                                                                                                                                    |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Readback: Show Engine Status        | Starts the engine if needed and shows the interpreter and where it came from, the Python, engine and bundled package versions, the sandbox and trust state and every interpreter that was considered.                                           |
+| Readback: Select Python Interpreter | Lists the interpreters Readback found, lets you enter or browse for another one or return to automatic detection, and saves the choice in your user settings (a value in workspace settings takes precedence; the command offers to ignore it). |
+| Readback: Restart Engine            | Restarts the engine, also after automatic restarts were paused.                                                                                                                                                                                 |
+| Readback: Show Log                  | Opens the "Readback" output channel.                                                                                                                                                                                                            |
+| Readback: Open Graph View           | Opens the graph view (still empty in Phase 0).                                                                                                                                                                                                  |
 
 ## Settings
 
