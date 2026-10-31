@@ -1,6 +1,7 @@
 // End-to-end without VS Code: our own interpreter discovery, EngineConnection and the real Python
 // engine in engine/. Skipped when no CPython >= 3.10 is on PATH (set READBACK_TEST_PYTHON to pick
-// one explicitly).
+// one explicitly). CI's package job points READBACK_ENGINE_DIR at the engine inside the unpacked
+// VSIX and sets READBACK_EXPECT_VENDORED=1, so the shipped layout is executed too.
 import { Ajv2020 } from 'ajv/dist/2020';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -13,7 +14,9 @@ import { probeCandidate, runProcess } from './interpreter/probe';
 import type { InterpreterCandidate } from './interpreter/types';
 import { Methods, PROTOCOL_VERSION } from './protocol';
 
-const engineDirectory = fileURLToPath(new URL('../../engine', import.meta.url));
+const engineDirectory =
+  process.env.READBACK_ENGINE_DIR ?? fileURLToPath(new URL('../../engine', import.meta.url));
+const expectVendored = process.env.READBACK_EXPECT_VENDORED === '1';
 
 async function findPython(): Promise<string | undefined> {
   const explicit = process.env.READBACK_TEST_PYTHON;
@@ -81,6 +84,9 @@ describe.skipIf(python === undefined)('the real engine', () => {
       expect(result.sandboxed).toBe(true);
       expect(result.pid).toBe(connection.pid);
       expect(result.capabilities.methods).toEqual(Object.values(Methods));
+      if (expectVendored) {
+        expect(result.vendored.map((pkg) => pkg.name)).toEqual(['jedi', 'parso', 'sqlglot']);
+      }
       await expect(connection.request(PingRequest, { timeoutMs: 10_000 })).resolves.toEqual({
         pong: true,
       });
