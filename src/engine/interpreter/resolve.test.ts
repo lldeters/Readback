@@ -225,8 +225,10 @@ describe('resolveInterpreter', () => {
     expect(result.attempts[0]).toEqual({
       source: 'setting',
       command: './evil/python',
+      scope: 'workspace',
       outcome: { kind: 'skipped', reason: 'declined' },
     });
+    expect(result.attempts[1]).toMatchObject({ source: 'setting', scope: 'user' });
     expect(result.interpreter?.candidate.command).toBe('/opt/python');
   });
 
@@ -305,15 +307,22 @@ describe('expandSettingPath', () => {
       kind: 'path',
       path: '/work/repo/.venv/bin/python',
     });
-    expect(expandSettingPath('.venv/bin/python', { ...base, trusted: false }).kind).toBe('invalid');
-    expect(expandSettingPath('${workspaceFolder}/python', { ...base, trusted: false }).kind).toBe(
-      'invalid',
-    );
+    expect(expandSettingPath('.venv/bin/python', { ...base, trusted: false })).toEqual({
+      kind: 'invalid',
+      problem: 'relativeUntrusted',
+    });
+    expect(expandSettingPath('${workspaceFolder}/python', { ...base, trusted: false })).toEqual({
+      kind: 'invalid',
+      problem: 'workspaceFolderUntrusted',
+    });
   });
 
   it('treats bare names as commands and rejects unknown variables', () => {
     expect(expandSettingPath('python3.13', base)).toEqual({ kind: 'command', name: 'python3.13' });
-    expect(expandSettingPath('${env:HOME}/python', base).kind).toBe('invalid');
+    expect(expandSettingPath('${env:HOME}/python', base)).toEqual({
+      kind: 'invalid',
+      problem: 'unsupportedVariable',
+    });
   });
 
   it('understands Windows paths', () => {

@@ -5,6 +5,7 @@ import type { PathLookup, PathSearchResult } from './pathSearch';
 import type {
   AttemptOutcome,
   InterpreterCandidate,
+  PathProblem,
   ResolutionAttempt,
   ResolutionResult,
   SettingScope,
@@ -42,7 +43,7 @@ export interface ResolveContext {
 type Expansion =
   | { readonly kind: 'path'; readonly path: string }
   | { readonly kind: 'command'; readonly name: string }
-  | { readonly kind: 'invalid'; readonly detail: string };
+  | { readonly kind: 'invalid'; readonly problem: PathProblem };
 
 /** Expands ~, ${userHome} and (trusted only) ${workspaceFolder}; bare names are looked up on PATH. */
 export function expandSettingPath(
@@ -55,10 +56,7 @@ export function expandSettingPath(
   value = value.replaceAll('${userHome}', context.homeDirectory);
   if (value.includes('${workspaceFolder}')) {
     if (!context.trusted || folder === undefined) {
-      return {
-        kind: 'invalid',
-        detail: '${workspaceFolder} is only expanded in trusted workspaces',
-      };
+      return { kind: 'invalid', problem: 'workspaceFolderUntrusted' };
     }
     value = value.replaceAll('${workspaceFolder}', folder);
   }
@@ -66,7 +64,7 @@ export function expandSettingPath(
     value = api.join(context.homeDirectory, value.slice(1));
   }
   if (/\$\{[^}]*\}/.test(value)) {
-    return { kind: 'invalid', detail: `unsupported variable in ${raw}` };
+    return { kind: 'invalid', problem: 'unsupportedVariable' };
   }
   if (api.isAbsolute(value)) {
     return { kind: 'path', path: api.normalize(value) };
@@ -77,7 +75,7 @@ export function expandSettingPath(
   if (context.trusted && folder !== undefined) {
     return { kind: 'path', path: api.resolve(folder, value) };
   }
-  return { kind: 'invalid', detail: 'relative paths are only resolved in trusted workspaces' };
+  return { kind: 'invalid', problem: 'relativeUntrusted' };
 }
 
 async function insideWorkspace(path: string, context: ResolveContext): Promise<boolean> {
@@ -105,21 +103,28 @@ export async function resolveInterpreter(context: ResolveContext): Promise<Resol
     attempts.push({
       source: 'setting',
       command: setting.declinedWorkspaceValue,
+      scope: 'workspace',
       outcome: { kind: 'skipped', reason: 'declined' },
     });
   }
+  const scope = setting.scope === undefined ? {} : { scope: setting.scope };
   const raw = setting.value?.trim() ?? '';
   if (raw.length === 0) {
     attempts.push({ source: 'setting', outcome: { kind: 'skipped', reason: 'notConfigured' } });
   } else {
     const blocked = (command: string, outcome: AttemptOutcome): ResolutionResult => {
-      attempts.push({ source: 'setting', command, outcome });
+      attempts.push({ source: 'setting', command, ...scope, outcome });
       return done({ interpreter: undefined, blockedBySetting: true });
     };
     const expansion = expandSettingPath(raw, context);
     let candidate: InterpreterCandidate;
     if (expansion.kind === 'invalid') {
-      return blocked(raw, { kind: 'failed', reason: 'invalidPath', detail: expansion.detail });
+      return blocked(raw, {
+        kind: 'failed',
+        reason: 'invalidPath',
+        detail: raw,
+        pathProblem: expansion.problem,
+      });
     } else if (expansion.kind === 'command') {
       // A bare name such as "python3.12": the first PATH match, under the same rules as step 3.
       const lookup = await context.findOnPath(expansion.name);
@@ -140,7 +145,7 @@ export async function resolveInterpreter(context: ResolveContext): Promise<Resol
     if (outcome.kind !== 'ok') {
       return blocked(candidate.command, outcome);
     }
-    attempts.push({ source: 'setting', command: candidate.command, outcome });
+    attempts.push({ source: 'setting', command: candidate.command, ...scope, outcome });
     return done({ interpreter: { candidate, probe: outcome.probe }, blockedBySetting: false });
   }
 

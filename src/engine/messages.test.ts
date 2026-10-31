@@ -81,9 +81,9 @@ describe('formatStatus', () => {
       'Startup: 412 ms · ping 3 ms',
       '',
       'Interpreter search:',
-      '  · readback.engine.pythonPath: not set',
-      '  · Python extension: not installed',
-      '  ✓ PATH (/usr/bin/python3): Python 3.12.3',
+      '  · readback.engine.pythonPath – not set',
+      '  · Python extension – not installed',
+      '  ✓ PATH: /usr/bin/python3 – Python 3.12.3',
     ]);
   });
 
@@ -105,6 +105,15 @@ describe('formatStatus', () => {
   });
 });
 
+describe('formatStatus with a failed ping', () => {
+  it('reports an engine that does not answer instead of a healthy status', async () => {
+    const { EngineRequestFailure } = await import('./engineConnection');
+    const text = formatStatus(running, undefined, new EngineRequestFailure('timeout', 'x'));
+    expect(text).toContain('Ping: failed (no answer in time)');
+    expect(text).toContain('Problem: The Readback engine does not respond.');
+  });
+});
+
 describe('describeFailure', () => {
   it('explains an unusable setting with the reason', () => {
     expect(
@@ -118,13 +127,14 @@ describe('describeFailure', () => {
             {
               source: 'setting',
               command: '/work/.venv/bin/python',
+              scope: 'user',
               outcome: { kind: 'failed', reason: 'insideWorkspace' },
             },
           ],
         },
       }),
     ).toBe(
-      'The interpreter in readback.engine.pythonPath cannot be used: rejected: lies inside the untrusted workspace.',
+      'The interpreter in readback.engine.pythonPath (user settings) cannot be used: rejected: lies inside the untrusted workspace.',
     );
   });
 
@@ -151,6 +161,6 @@ describe('describeAttempt', () => {
         command: '/usr/bin/python3',
         outcome: { kind: 'failed', reason: 'tooOld', detail: '3.8.10' },
       }),
-    ).toBe('· PATH (/usr/bin/python3): Python 3.8.10 is too old (needs 3.10 or newer)');
+    ).toBe('· PATH: /usr/bin/python3 – Python 3.8.10 is too old (needs 3.10 or newer)');
   });
 });

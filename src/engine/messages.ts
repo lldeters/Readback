@@ -1,14 +1,17 @@
 // Localized texts for interpreter attempts, engine failures and the status report.
 import * as vscode from 'vscode';
+import type { EngineRequestFailure, EngineStartFailure } from './engineConnection';
 import type { EngineFailure, EngineStatus } from './engineService';
 import { formatVersion } from './interpreter/probe';
 import { PYTHON_PATH_SETTING } from './settings';
 import type {
   AttemptOutcome,
   InterpreterSource,
+  PathProblem,
   PythonProbe,
   ResolutionAttempt,
   ResolutionResult,
+  SettingScope,
 } from './interpreter/types';
 import { MIN_PYTHON } from './protocol';
 
@@ -22,6 +25,36 @@ export function sourceLabel(source: InterpreterSource): string {
       return vscode.l10n.t('Python extension');
     case 'path':
       return 'PATH';
+  }
+}
+
+export function scopeLabel(scope: SettingScope): string {
+  switch (scope) {
+    case 'user':
+      return vscode.l10n.t('user settings');
+    case 'workspace':
+      return vscode.l10n.t('workspace settings');
+    case 'workspaceFolder':
+      return vscode.l10n.t('folder settings');
+  }
+}
+
+/** The setting name plus where its value came from, e.g. "readback.engine.pythonPath (workspace settings)". */
+export function settingLabel(scope: SettingScope | undefined): string {
+  return scope === undefined
+    ? PYTHON_PATH_SETTING
+    : `${PYTHON_PATH_SETTING} (${scopeLabel(scope)})`;
+}
+
+function describePathProblem(problem: PathProblem | undefined, value: string): string {
+  switch (problem) {
+    case 'workspaceFolderUntrusted':
+      return vscode.l10n.t('{0} is only replaced in trusted workspaces', '${workspaceFolder}');
+    case 'relativeUntrusted':
+      return vscode.l10n.t('relative paths are only resolved in trusted workspaces');
+    case 'unsupportedVariable':
+    case undefined:
+      return vscode.l10n.t('unsupported variable in {0}', value);
   }
 }
 
@@ -56,7 +89,10 @@ export function describeOutcome(outcome: AttemptOutcome): string {
     case 'notExecutable':
       return vscode.l10n.t('not executable');
     case 'invalidPath':
-      return vscode.l10n.t('invalid path: {0}', detail);
+      return vscode.l10n.t(
+        'invalid path: {0}',
+        describePathProblem(outcome.pathProblem, outcome.detail ?? ''),
+      );
     case 'tooOld':
       return vscode.l10n.t('Python {0} is too old (needs {1} or newer)', detail, REQUIRED);
     case 'notCPython':
@@ -72,10 +108,57 @@ export function describeOutcome(outcome: AttemptOutcome): string {
 
 export function describeAttempt(attempt: ResolutionAttempt): string {
   const marker = attempt.outcome.kind === 'ok' ? '✓' : '·';
-  const where = attempt.command
-    ? `${sourceLabel(attempt.source)} (${attempt.command})`
-    : sourceLabel(attempt.source);
-  return `${marker} ${where}: ${describeOutcome(attempt.outcome)}`;
+  const source =
+    attempt.source === 'setting' ? settingLabel(attempt.scope) : sourceLabel(attempt.source);
+  const where = attempt.command ? `${source}: ${attempt.command}` : source;
+  return `${marker} ${where} – ${describeOutcome(attempt.outcome)}`;
+}
+
+/** A start failure in the user's language; engine and OS details are appended as they are. */
+function describeStartFailure(error: EngineStartFailure): string {
+  switch (error.kind) {
+    case 'pythonTooOld':
+      return vscode.l10n.t(
+        'Python {0} is too old for Readback. Python {1} or newer is required.',
+        error.fatal?.version ?? '?',
+        REQUIRED,
+      );
+    case 'startupTimeout':
+      return vscode.l10n.t('The Readback engine did not start in time.');
+    case 'spawnFailed':
+      return vscode.l10n.t('The Readback engine could not be started: {0}', error.message);
+    case 'bootstrapFailed':
+      return error.fatal?.detail
+        ? vscode.l10n.t('The Readback engine could not load its files: {0}', error.fatal.detail)
+        : vscode.l10n.t('The Readback engine could not load its files.');
+    case 'exitedDuringStartup':
+      return vscode.l10n.t(
+        'The Readback engine exited during startup ({0}).',
+        error.exit?.signal
+          ? vscode.l10n.t('signal {0}', error.exit.signal)
+          : vscode.l10n.t('exit code {0}', String(error.exit?.code ?? '?')),
+      );
+    case 'protocolMismatch':
+      return vscode.l10n.t(
+        'The Readback engine does not match this version of the extension. Reinstall Readback.',
+      );
+    case 'initializeFailed':
+      return vscode.l10n.t('The Readback engine rejected the start: {0}', error.message);
+  }
+}
+
+/** Why a request to a running engine failed, for the status report. */
+export function describeRequestFailure(error: EngineRequestFailure): string {
+  switch (error.kind) {
+    case 'timeout':
+      return vscode.l10n.t('no answer in time');
+    case 'unavailable':
+      return vscode.l10n.t('the engine stopped while answering');
+    case 'cancelled':
+      return vscode.l10n.t('cancelled');
+    case 'engineError':
+      return vscode.l10n.t('engine error {0}', String(error.code ?? '?'));
+  }
 }
 
 function lastProblem(resolution: ResolutionResult): ResolutionAttempt | undefined {
@@ -94,23 +177,12 @@ export function describeFailure(failure: EngineFailure): string {
       const attempt = lastProblem(failure.resolution);
       return vscode.l10n.t(
         'The interpreter in {0} cannot be used: {1}.',
-        PYTHON_PATH_SETTING,
+        settingLabel(attempt?.scope),
         attempt ? describeOutcome(attempt.outcome) : vscode.l10n.t('unknown reason'),
       );
     }
     case 'start':
-      switch (failure.error.kind) {
-        case 'pythonTooOld':
-          return vscode.l10n.t(
-            'Python {0} is too old for Readback. Python {1} or newer is required.',
-            failure.error.fatal?.version ?? '?',
-            REQUIRED,
-          );
-        case 'startupTimeout':
-          return vscode.l10n.t('The Readback engine did not start in time.');
-        default:
-          return vscode.l10n.t('The Readback engine could not start: {0}', failure.error.message);
-      }
+      return describeStartFailure(failure.error);
     case 'crashLoop':
       return vscode.l10n.t(
         'The Readback engine crashed repeatedly. Automatic restarts are paused.',
@@ -136,7 +208,11 @@ function stateLabel(status: EngineStatus): string {
 }
 
 /** The multi-line report shown by "Readback: Show Engine Status" and copied to the clipboard. */
-export function formatStatus(status: EngineStatus, pingMs?: number): string {
+export function formatStatus(
+  status: EngineStatus,
+  pingMs?: number,
+  pingError?: EngineRequestFailure,
+): string {
   const lines: string[] = [];
   lines.push(vscode.l10n.t('State: {0}', stateLabel(status)));
   const interpreter = status.resolution?.interpreter;
@@ -196,8 +272,15 @@ export function formatStatus(status: EngineStatus, pingMs?: number): string {
           ),
     );
   }
+  if (pingError) {
+    lines.push(vscode.l10n.t('Ping: failed ({0})', describeRequestFailure(pingError)));
+  }
   if (status.failure) {
     lines.push(vscode.l10n.t('Problem: {0}', describeFailure(status.failure)));
+  } else if (pingError) {
+    lines.push(
+      vscode.l10n.t('Problem: {0}', vscode.l10n.t('The Readback engine does not respond.')),
+    );
   }
   if (status.resolution) {
     lines.push('', vscode.l10n.t('Interpreter search:'));

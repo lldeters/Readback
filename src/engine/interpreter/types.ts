@@ -47,15 +47,26 @@ export type FailureReason =
   | 'timeout'
   | 'apiError';
 
+/** Why a readback.engine.pythonPath value could not be turned into a path (localized later). */
+export type PathProblem = 'workspaceFolderUntrusted' | 'relativeUntrusted' | 'unsupportedVariable';
+
 export type AttemptOutcome =
   | { readonly kind: 'ok'; readonly probe: PythonProbe }
   | { readonly kind: 'skipped'; readonly reason: SkipReason; readonly detail?: string }
-  | { readonly kind: 'failed'; readonly reason: FailureReason; readonly detail?: string };
+  | {
+      readonly kind: 'failed';
+      readonly reason: FailureReason;
+      /** Raw technical detail (OS or interpreter output, a version); shown as is. */
+      readonly detail?: string;
+      readonly pathProblem?: PathProblem;
+    };
 
 export interface ResolutionAttempt {
   readonly source: InterpreterSource;
   /** Path or command that was looked at, if any. */
   readonly command?: string;
+  /** For the setting source: which settings scope the value came from. */
+  readonly scope?: SettingScope;
   readonly outcome: AttemptOutcome;
 }
 
