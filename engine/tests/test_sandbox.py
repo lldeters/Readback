@@ -24,10 +24,16 @@ report = {"installed": sandbox.install()}
 def attempt(name, action):
     try:
         action()
-    except PermissionError as error:
-        report[name] = "blocked: " + str(error)
     except Exception as error:
-        report[name] = "failed differently: %r" % (error,)
+        # Libraries may wrap the sandbox's PermissionError: on Windows, importing ctypes loads
+        # kernel32 and ctypes turns the refusal into AttributeError('kernel32').
+        cause = error
+        while cause is not None and not isinstance(cause, PermissionError):
+            cause = cause.__cause__ or cause.__context__
+        if cause is not None:
+            report[name] = "blocked: " + str(cause)
+        else:
+            report[name] = "failed differently: %r" % (error,)
     else:
         report[name] = "allowed"
 
@@ -45,7 +51,7 @@ def connect():
 attempt("socket.connect", connect)
 attempt("getaddrinfo", lambda: socket.getaddrinfo("localhost", 80))
 def load_native():
-    import ctypes  # importing ctypes already dlopens the interpreter on POSIX
+    import ctypes  # POSIX: dlopens the interpreter; Windows: loads kernel32 (both audited)
     ctypes.CDLL("kernel32" if os.name == "nt" else None)
 attempt("ctypes", load_native)
 

@@ -3,7 +3,7 @@
 import * as assert from 'node:assert';
 import { existsSync } from 'node:fs';
 import * as vscode from 'vscode';
-import { command, type Resolution, type Status } from '../integration/helpers';
+import { command, extension, type Resolution, type Status } from '../integration/helpers';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -17,6 +17,11 @@ const fakeInterpreter = required('READBACK_FAKE_INTERPRETER');
 
 suite('Restricted Mode', function () {
   this.timeout(60_000);
+
+  // The hidden readback._test.* commands are not contributed, so they do not activate the extension.
+  suiteSetup(async () => {
+    await extension().activate();
+  });
 
   test('the workspace is not trusted', () => {
     assert.strictEqual(vscode.workspace.isTrusted, false);
