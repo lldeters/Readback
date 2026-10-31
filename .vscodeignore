@@ -1,18 +1,18 @@
-# Allowlist: everything is excluded unless re-included below.
+# Allowlist: everything is excluded unless re-included below. vsce includes a file as soon as
+# any "!" pattern matches it, so the patterns are narrow, and "npm run build:prod" plus
+# vscode:prepublish (scripts/clean.mjs) delete source maps and Python bytecode beforehand.
 **
 !package.json
 !package.nls.json
 !package.nls.*.json
-!l10n/**
+!l10n/bundle.l10n.*.json
 !dist/extension.js
-!dist/webview/**
+!dist/webview/*.js
+!dist/webview/*.css
 !engine/run_engine.py
-!engine/readback_engine/**
+!engine/readback_engine/**/*.py
 !engine/vendor/**
 !README.md
 !CHANGELOG.md
 !LICENSE
 !THIRD_PARTY_NOTICES.md
-**/*.map
-**/__pycache__/**
-**/*.pyc

@@ -70,10 +70,11 @@ VS Code, Cursor, Windsurf, Kiro, VSCodium (engines.vscode ^1.105.0)
   that start. The `engine/initialize` handshake must finish within 20 seconds.
 - **Request timeouts.** Each request has a deadline of `readback.engine.timeoutMs` (default
   30,000 ms). At the deadline the client sends `$/cancelRequest`. If the engine has still not
-  answered two seconds later, the client kills it; the next request starts a fresh engine.
-  Cancellation inside the engine is cooperative, so the kill is the backstop for a single long call.
-- **Crashes.** An unexpected exit restarts the engine after 1 s, doubling with every further crash
-  up to 30 s. More than five crashes within three minutes count as a crash loop: automatic restarts
+  answered two seconds later, the client kills it. A hung engine counts as a crash (see below), so
+  it restarts with backoff. Cancellation inside the engine is cooperative, so the kill is the
+  backstop for a single long call.
+- **Crashes.** An unexpected exit (or a kill after a hang) restarts the engine after 1 s, doubling
+  with every further crash up to 30 s. More than five crashes within three minutes count as a crash loop: automatic restarts
   stop until the user runs Readback: Restart Engine.
 - **Interpreter changes.** Changes to `readback.engine.pythonPath`, granting Workspace Trust,
   installing or removing the Python extension and a new active environment in the Python extension
@@ -339,10 +340,15 @@ English is the base language and German is complete (spec sections 0 and 8).
   license is not allowed, a license text is missing or the committed file is out of date.
 - **Packaging:** `npm run package` runs `vsce package --pre-release --no-dependencies`; the bundles
   contain all JavaScript, so `node_modules` is not shipped. vsce first runs `vscode:prepublish`:
-  `vendor:check`, `build:prod`, `notices:check`. `.vscodeignore` is an allowlist (the manifest and
-  its translations, `l10n/`, the bundles, `engine/run_engine.py`, `engine/readback_engine/`,
-  `engine/vendor/`, README, CHANGELOG, LICENSE and the notices) that drops source maps and Python
-  bytecode. CPython writes `__pycache__` next to the engine files when the engine first runs.
+  `scripts/clean.mjs pycache`, `vendor:check`, `build:prod` (which deletes `dist/` first),
+  `notices:check`. `.vscodeignore` is an allowlist (the manifest and its translations, the German
+  runtime bundle, the bundles, `engine/run_engine.py`, the `.py` files of `engine/readback_engine/`,
+  `engine/vendor/`, README, CHANGELOG, LICENSE and the notices). vsce includes a file as soon as any
+  `!` pattern matches, so exclusions after an allow pattern have no effect; the clean steps make sure
+  no source maps or Python bytecode exist when packaging, and CI rejects a VSIX that contains them.
+- **Bytecode cache:** CPython writes `__pycache__` next to the engine files when the engine first
+  runs. If the extension folder is read-only, the engine runs with
+  `-X pycache_prefix=<globalStorage>/pycache/<version>` instead.
 
 ## Testing
 

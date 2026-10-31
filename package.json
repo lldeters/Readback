@@ -107,7 +107,7 @@
   },
   "scripts": {
     "build": "npm run typecheck && node esbuild.mjs",
-    "build:prod": "node esbuild.mjs --production",
+    "build:prod": "node scripts/clean.mjs dist && node esbuild.mjs --production",
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc -p src && tsc -p webview && tsc -p webview/worker && tsc -p test && tsc -p test/repo",
     "lint": "eslint . && prettier --check .",
@@ -126,7 +126,7 @@
     "notices": "node scripts/notices.mjs",
     "notices:check": "node scripts/notices.mjs --check",
     "package": "vsce package --pre-release --no-dependencies",
-    "vscode:prepublish": "npm run vendor:check && npm run build:prod && npm run notices:check"
+    "vscode:prepublish": "node scripts/clean.mjs pycache && npm run vendor:check && npm run build:prod && npm run notices:check"
   },
   "dependencies": {
     "@vscode/l10n": "0.0.18",

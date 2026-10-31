@@ -42,6 +42,14 @@ PRUNE_PATTERNS: Final = (
     "jedi/third_party/django-stubs/**",
     "**/__pycache__/**",
 )
+# The declared metadata license understates what these wheels ship, so the manifest (and with
+# it THIRD_PARTY_NOTICES.md) carries the full SPDX expression; the license texts are kept anyway.
+LICENSE_OVERRIDES: Final = {
+    # jedi bundles typeshed's stdlib stubs, which are Apache-2.0 (parts MIT).
+    "jedi": "MIT AND Apache-2.0",
+    # parso/pgen2/*, parso/tokenize.py and parso/token.py come from CPython (PSF-2.0).
+    "parso": "MIT AND PSF-2.0",
+}
 # License files survive every prune pattern (approved decision: keep every license file).
 LICENSE_STEMS: Final = ("LICENSE", "LICENCE", "COPYING", "NOTICE", "AUTHORS")
 NATIVE_SUFFIXES: Final = (".so", ".pyd", ".dll", ".dylib", ".exe")
@@ -323,7 +331,10 @@ def _first(headers: dict[str, list[str]], key: str) -> str:
 
 
 def license_of(metadata: dict[str, list[str]]) -> str:
-    """License-Expression, else License, else the license classifiers."""
+    """LICENSE_OVERRIDES, else License-Expression, else License, else the license classifiers."""
+    override = LICENSE_OVERRIDES.get(_first(metadata, "Name").lower())
+    if override:
+        return override
     expression = _first(metadata, "License-Expression")
     if expression:
         return expression

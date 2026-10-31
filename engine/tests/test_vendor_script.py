@@ -152,7 +152,8 @@ def test_vendor_unpacks_prunes_and_writes_the_manifest(project: Project) -> None
                 "version": "1.0",
                 "wheel": jedi_like.name,
                 "sha256": sha256(jedi_like),
-                "license": "MIT",
+                # LICENSE_OVERRIDES: the bundled typeshed stubs are Apache-2.0.
+                "license": "MIT AND Apache-2.0",
                 "licenseFiles": [
                     "jedi-1.0.dist-info/licenses/LICENSE",
                     "jedi/third_party/django-stubs/LICENSE.txt",
@@ -562,3 +563,10 @@ def test_the_script_runs_standalone() -> None:
     )
     assert result.returncode == 0
     assert "--check" in result.stdout
+
+
+def test_license_overrides_reflect_bundled_third_party_code() -> None:
+    jedi = vendor_engine.parse_headers("Name: jedi\nLicense: MIT\n")
+    parso = vendor_engine.parse_headers("Name: Parso\nLicense-Expression: MIT\n")
+    assert vendor_engine.license_of(jedi) == "MIT AND Apache-2.0"
+    assert vendor_engine.license_of(parso) == "MIT AND PSF-2.0"
