@@ -145,6 +145,9 @@ Debugging:
 - **The engine starts with `-I -S`.** Neither the script directory nor site-packages are on
   `sys.path` (the bootstrap adds `engine/` and `engine/vendor/`), and `PYTHONUTF8` is ignored, hence
   `-X utf8`.
+- **Audit hooks cannot be removed.** Never call `sandbox.install()` in the pytest process: it would
+  refuse every later subprocess. Tests install it in a subprocess, and the bootstrap tests pass
+  stand-in modules to `run_engine.start()`.
 - **Hidden commands do not activate the extension.** `readback._test.*` commands are not contributed,
   so tests must activate the extension first (the root-level hook in
   `test/integration/activation.test.ts` does it for the integration suites).

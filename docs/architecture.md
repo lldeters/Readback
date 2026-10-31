@@ -364,6 +364,9 @@ English is the base language and German is complete (spec sections 0 and 8).
   `engine/vendor/`, README, CHANGELOG, LICENSE and the notices). vsce includes a file as soon as any
   `!` pattern matches, so exclusions after an allow pattern have no effect; the clean steps make sure
   no source maps or Python bytecode exist when packaging, and CI rejects a VSIX that contains them.
+  A pattern that is too narrow drops files silently, so CI also unpacks the VSIX, checks that every
+  engine, vendored and bundle file of the tree is in it, runs `vendor_engine.py --check` on the
+  packaged vendor folder and starts the packaged engine with the extension's own connection code.
 - **Bytecode cache:** CPython writes `__pycache__` next to the engine files when the engine first
   runs. If the extension folder is read-only (detected by creating a temporary folder in it, because
   `fs.access()` reports every directory as writable on Windows), the engine runs with
@@ -397,14 +400,14 @@ English is the base language and German is complete (spec sections 0 and 8).
 - **CI** ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs on every push and pull
   request:
 
-  | Job         | Runs on                                          | What                                                                                                                                 |
-  | ----------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-  | lint        | Ubuntu                                           | ESLint, Prettier, type check, schema types, l10n bundle freshness                                                                    |
-  | unit        | Ubuntu, Windows, macOS                           | Vitest; coverage report on Ubuntu                                                                                                    |
-  | engine      | Ubuntu, Windows, macOS × Python 3.10, 3.15       | vendoring and its check, ruff, ruff format, mypy, pytest with coverage                                                               |
-  | integration | Ubuntu, Windows, macOS × VS Code 1.105.1, stable | build and integration tests (Linux under `xvfb-run`)                                                                                 |
-  | untrusted   | Ubuntu, VS Code stable                           | the Restricted Mode launcher under `xvfb-run`                                                                                        |
-  | package     | Ubuntu                                           | `vsce package` (with the license gate); fails on tests, fixtures, source maps or more than 2,000 files in the VSIX; uploads the VSIX |
+  | Job         | Runs on                                          | What                                                                                                                                                                                                                                                 |
+  | ----------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | lint        | Ubuntu                                           | ESLint, Prettier, type check, schema types, l10n bundle freshness                                                                                                                                                                                    |
+  | unit        | Ubuntu, Windows, macOS                           | Vitest; coverage report on Ubuntu                                                                                                                                                                                                                    |
+  | engine      | Ubuntu, Windows, macOS × Python 3.10, 3.15       | vendoring and its check, ruff, ruff format, mypy, pytest with coverage                                                                                                                                                                               |
+  | integration | Ubuntu, Windows, macOS × VS Code 1.105.1, stable | build and integration tests (Linux under `xvfb-run`)                                                                                                                                                                                                 |
+  | untrusted   | Ubuntu, VS Code stable                           | the Restricted Mode launcher under `xvfb-run`                                                                                                                                                                                                        |
+  | package     | Ubuntu                                           | `vsce package` (with the license gate); fails on tests, fixtures, source maps or more than 2,000 files in the VSIX and on missing engine, vendored or bundle files; checks the packaged vendor folder and runs the packaged engine; uploads the VSIX |
 
 - **Manual checks:** German strings with the German language pack, and the editors that
   test-electron cannot drive (Cursor, Windsurf, Kiro, VSCodium) before each release.
