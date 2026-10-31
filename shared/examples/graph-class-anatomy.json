@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "view": "classAnatomy",
+  "nodes": [
+    {
+      "id": "py:client.RetryingClient",
+      "kind": "class",
+      "label": "RetryingClient",
+      "range": {
+        "file": "/workspace/client.py",
+        "start": { "line": 6, "character": 0 },
+        "end": { "line": 40, "character": 35 }
+      },
+      "props": { "bases": ["BaseClient"], "decorators": [] },
+      "change": "modified"
+    },
+    {
+      "id": "py:client.RetryingClient.get",
+      "kind": "method",
+      "label": "get",
+      "parent": "py:client.RetryingClient",
+      "props": { "signature": "(self, url: str) -> bytes", "async": false, "complexity": 2 },
+      "change": "added",
+      "attribution": "unknown"
+    },
+    {
+      "id": "py:client.RetryingClient._cache",
+      "kind": "attribute",
+      "label": "_cache",
+      "parent": "py:client.RetryingClient"
+    },
+    {
+      "id": "unresolved:py:client.RetryingClient.call_by_name#1",
+      "kind": "unresolved",
+      "label": "getattr(self, name)()",
+      "reason": "dynamic call via getattr"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "kind": "mutates",
+      "source": "py:client.RetryingClient.get",
+      "target": "py:client.RetryingClient._cache",
+      "confidence": "certain",
+      "evidence": [
+        {
+          "file": "/workspace/client.py",
+          "start": { "line": 21, "character": 8 },
+          "end": { "line": 21, "character": 31 }
+        }
+      ]
+    },
+    {
+      "id": "e2",
+      "kind": "calls",
+      "source": "py:client.RetryingClient.get",
+      "target": "unresolved:py:client.RetryingClient.call_by_name#1",
+      "confidence": "unresolved"
+    }
+  ],
+  "diagnostics": [
+    {
+      "severity": "information",
+      "code": "self-unused",
+      "message": "_log_retry does not use self.",
+      "args": { "method": "_log_retry" },
+      "nodeId": "py:client.RetryingClient.get"
+    }
+  ],
+  "meta": { "engineVersion": "0.0.1", "durationMs": 12.5, "baseRevision": "HEAD" }
+}

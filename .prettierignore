@@ -1,0 +1,13 @@
+dist/
+out/
+coverage/
+.vscode-test/
+.vitest/
+.cache/
+node_modules/
+engine/vendor/
+engine/.venv/
+package-lock.json
+l10n/bundle.l10n.json
+THIRD_PARTY_NOTICES.md
+*.vsix

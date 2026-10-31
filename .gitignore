@@ -1,0 +1,26 @@
+# Node / build output
+node_modules/
+dist/
+out/
+coverage/
+.vscode-test/
+.vitest/
+.cache/
+*.vsix
+
+# Python engine
+engine/vendor/
+engine/.venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# OS
+.DS_Store
+Thumbs.db

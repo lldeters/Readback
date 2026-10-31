@@ -1,0 +1,18 @@
+# Allowlist: everything is excluded unless re-included below.
+**
+!package.json
+!package.nls.json
+!package.nls.*.json
+!l10n/**
+!dist/extension.js
+!dist/webview/**
+!engine/run_engine.py
+!engine/readback_engine/**
+!engine/vendor/**
+!README.md
+!CHANGELOG.md
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+**/*.map
+**/__pycache__/**
+**/*.pyc

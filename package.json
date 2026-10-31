@@ -1,0 +1,172 @@
+{
+  "name": "readback-code",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "0.0.1",
+  "publisher": "lldeters",
+  "license": "MIT",
+  "author": {
+    "name": "Leif Deters"
+  },
+  "homepage": "https://github.com/lldeters/Readback#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lldeters/Readback.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lldeters/Readback/issues"
+  },
+  "engines": {
+    "vscode": "^1.105.0"
+  },
+  "categories": [
+    "Visualization",
+    "Data Science",
+    "Other"
+  ],
+  "keywords": [
+    "python",
+    "sql",
+    "dbt",
+    "visualization",
+    "call graph",
+    "class diagram",
+    "data lineage",
+    "code comprehension",
+    "ai"
+  ],
+  "pricing": "Free",
+  "main": "./dist/extension.js",
+  "l10n": "./l10n",
+  "extensionKind": [
+    "workspace"
+  ],
+  "activationEvents": [],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "%capabilities.untrustedWorkspaces.description%",
+      "restrictedConfigurations": [
+        "readback.engine.pythonPath"
+      ]
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "%capabilities.virtualWorkspaces.description%"
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "readback.showEngineStatus",
+        "title": "%command.showEngineStatus.title%",
+        "category": "Readback"
+      },
+      {
+        "command": "readback.selectInterpreter",
+        "title": "%command.selectInterpreter.title%",
+        "category": "Readback"
+      },
+      {
+        "command": "readback.restartEngine",
+        "title": "%command.restartEngine.title%",
+        "category": "Readback"
+      },
+      {
+        "command": "readback.showLog",
+        "title": "%command.showLog.title%",
+        "category": "Readback"
+      },
+      {
+        "command": "readback.openGraphView",
+        "title": "%command.openGraphView.title%",
+        "category": "Readback"
+      }
+    ],
+    "configuration": {
+      "title": "Readback",
+      "properties": {
+        "readback.engine.pythonPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "order": 0,
+          "markdownDescription": "%config.engine.pythonPath.markdownDescription%"
+        },
+        "readback.engine.timeoutMs": {
+          "type": "integer",
+          "default": 30000,
+          "minimum": 1000,
+          "maximum": 600000,
+          "scope": "window",
+          "order": 1,
+          "markdownDescription": "%config.engine.timeoutMs.markdownDescription%"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "npm run typecheck && node esbuild.mjs",
+    "build:prod": "node esbuild.mjs --production",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc -p src && tsc -p webview && tsc -p webview/worker && tsc -p test && tsc -p test/repo",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "node esbuild.mjs --tests && vscode-test",
+    "test:untrusted": "node esbuild.mjs --tests && node scripts/test-untrusted.mjs",
+    "test:engine": "node scripts/python.mjs -m pytest engine",
+    "vendor": "node scripts/python.mjs scripts/vendor_engine.py",
+    "vendor:check": "node scripts/python.mjs scripts/vendor_engine.py --check",
+    "schema:generate": "node scripts/gen-schema-types.mjs",
+    "schema:check": "node scripts/gen-schema-types.mjs --check",
+    "l10n:export": "vscode-l10n-dev export --outDir ./l10n ./src ./webview/src",
+    "notices": "node scripts/notices.mjs",
+    "notices:check": "node scripts/notices.mjs --check",
+    "package": "vsce package --pre-release --no-dependencies",
+    "vscode:prepublish": "npm run vendor:check && npm run build:prod && npm run notices:check"
+  },
+  "dependencies": {
+    "@vscode/l10n": "0.0.18",
+    "@vscode/python-extension": "1.0.6",
+    "@xyflow/react": "12.12.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "vscode-jsonrpc": "10.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@types/mocha": "10.0.10",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/vscode": "1.105.0",
+    "@vitest/coverage-v8": "5.0.5",
+    "@vscode/l10n-dev": "0.0.35",
+    "@vscode/test-cli": "0.0.15",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.1.0",
+    "ajv": "8.20.0",
+    "esbuild": "0.28.2",
+    "eslint": "10.14.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "jsdom": "30.1.3",
+    "json-schema-to-typescript": "16.0.0",
+    "mocha": "11.8.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "@vscode/vsce-sign@2.1.0": true
+  }
+}

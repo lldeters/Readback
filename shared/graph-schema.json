@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lldeters/Readback/blob/main/shared/graph-schema.json",
+  "title": "GraphDocument",
+  "description": "Readback graph model. Single source of truth for the analysis engine (Python), the extension host and the webview (TypeScript). Positions are zero-based; 'character' counts UTF-16 code units (LSP semantics).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "view", "nodes", "edges", "diagnostics", "meta"],
+  "properties": {
+    "schemaVersion": {
+      "description": "Major version of this schema. Bumped on every incompatible change.",
+      "const": 1
+    },
+    "view": {
+      "$ref": "#/$defs/ViewKind"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Edge"
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Diagnostic"
+      }
+    },
+    "meta": {
+      "$ref": "#/$defs/Meta"
+    }
+  },
+  "$defs": {
+    "ViewKind": {
+      "title": "ViewKind",
+      "description": "Which visualization the document feeds.",
+      "type": "string",
+      "enum": [
+        "classAnatomy",
+        "stateMatrix",
+        "callGraph",
+        "controlFlow",
+        "moduleGraph",
+        "queryAnatomy",
+        "columnLineage",
+        "tableLineage",
+        "dbtModelGraph",
+        "tableAccess"
+      ]
+    },
+    "NodeKind": {
+      "title": "NodeKind",
+      "description": "Python structure, SQL/dbt objects, control-flow elements, and placeholders for external or unresolvable targets.",
+      "type": "string",
+      "enum": [
+        "package",
+        "module",
+        "class",
+        "function",
+        "method",
+        "attribute",
+        "property",
+        "parameter",
+        "variable",
+        "statement",
+        "query",
+        "subquery",
+        "cte",
+        "table",
+        "view",
+        "column",
+        "model",
+        "source",
+        "seed",
+        "snapshot",
+        "entry",
+        "exit",
+        "block",
+        "condition",
+        "loop",
+        "try",
+        "handler",
+        "finally",
+        "with",
+        "match",
+        "case",
+        "return",
+        "raise",
+        "break",
+        "continue",
+        "external",
+        "unresolved"
+      ]
+    },
+    "EdgeKind": {
+      "title": "EdgeKind",
+      "type": "string",
+      "enum": [
+        "calls",
+        "reads",
+        "writes",
+        "mutates",
+        "inherits",
+        "overrides",
+        "imports",
+        "depends_on",
+        "lineage",
+        "joins",
+        "raises",
+        "catches",
+        "flow"
+      ]
+    },
+    "Confidence": {
+      "title": "Confidence",
+      "description": "certain: proven by static analysis; inferred: plausible (heuristic, f-string SQL, type inference); unresolved: target unknown.",
+      "type": "string",
+      "enum": ["certain", "inferred", "unresolved"]
+    },
+    "ChangeStatus": {
+      "title": "ChangeStatus",
+      "description": "Change relative to the diff base. Absent when no base was compared.",
+      "type": "string",
+      "enum": ["added", "modified", "deleted", "unchanged"]
+    },
+    "Attribution": {
+      "title": "Attribution",
+      "description": "Who wrote the change (filled from agent hooks, phase 4).",
+      "type": "string",
+      "enum": ["ai", "human", "unknown"]
+    },
+    "Severity": {
+      "title": "Severity",
+      "type": "string",
+      "enum": ["error", "warning", "information", "hint"]
+    },
+    "Position": {
+      "title": "Position",
+      "description": "Zero-based line and UTF-16 code unit offset within the line.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line", "character"],
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "character": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "Range": {
+      "title": "Range",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "start", "end"],
+      "properties": {
+        "file": {
+          "description": "Absolute file system path, exactly as the extension passed it to the engine.",
+          "type": "string",
+          "minLength": 1
+        },
+        "start": {
+          "$ref": "#/$defs/Position"
+        },
+        "end": {
+          "$ref": "#/$defs/Position"
+        }
+      }
+    },
+    "Props": {
+      "title": "Props",
+      "description": "View-specific facts such as decorators, visibility, async, complexity, side effects or a lineage transformation.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "Node": {
+      "title": "Node",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "label"],
+      "properties": {
+        "id": {
+          "description": "Stable identifier, e.g. py:shop.orders.OrderService.place_order, sql:cte:revenue, sql:col:raw.orders.amount_cents.",
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "$ref": "#/$defs/NodeKind"
+        },
+        "label": {
+          "type": "string"
+        },
+        "parent": {
+          "description": "Id of the containing node (the class of a method, the CTE of a column, ...).",
+          "type": "string",
+          "minLength": 1
+        },
+        "range": {
+          "$ref": "#/$defs/Range"
+        },
+        "props": {
+          "$ref": "#/$defs/Props"
+        },
+        "change": {
+          "$ref": "#/$defs/ChangeStatus"
+        },
+        "attribution": {
+          "$ref": "#/$defs/Attribution"
+        },
+        "reason": {
+          "description": "Why the target could not be resolved. Required for kind 'unresolved'.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "unresolved"
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["reason"],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "Edge": {
+      "title": "Edge",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "source", "target", "confidence"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "$ref": "#/$defs/EdgeKind"
+        },
+        "source": {
+          "description": "Node id.",
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "description": "Node id.",
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "evidence": {
+          "description": "Where in the code the edge comes from (e.g. every call site).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Range"
+          }
+        },
+        "props": {
+          "$ref": "#/$defs/Props"
+        },
+        "change": {
+          "$ref": "#/$defs/ChangeStatus"
+        }
+      }
+    },
+    "Diagnostic": {
+      "title": "Diagnostic",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "code", "message"],
+      "properties": {
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "code": {
+          "description": "Stable machine-readable code, e.g. syntax-error, newer-syntax, unknown-macro. The UI localizes by code and args.",
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "description": "English fallback text.",
+          "type": "string"
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": {
+            "type": ["string", "number", "boolean"]
+          }
+        },
+        "range": {
+          "$ref": "#/$defs/Range"
+        },
+        "nodeId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Meta": {
+      "title": "Meta",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engineVersion", "durationMs"],
+      "properties": {
+        "engineVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "durationMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "baseRevision": {
+          "description": "Git revision of the diff base.",
+          "type": "string"
+        },
+        "dialect": {
+          "description": "SQL dialect used for parsing.",
+          "type": "string"
+        },
+        "truncated": {
+          "description": "True when the graph was cut at readback.graph.maxNodes.",
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

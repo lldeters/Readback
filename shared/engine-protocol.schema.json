@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lldeters/Readback/blob/main/shared/engine-protocol.schema.json",
+  "title": "EngineProtocol",
+  "description": "Payloads of the JSON-RPC 2.0 protocol between the extension host and the analysis engine over stdio (Content-Length framing, UTF-8). Methods (protocol version 1): request engine/initialize (InitializeParams -> InitializeResult, must come first), request engine/ping (no params -> PingResult), request engine/shutdown (no params -> null), notification engine/exit (process exits), notification engine/setLogLevel (SetLogLevelParams), notification $/cancelRequest ({id}). See docs/architecture.md for error codes.",
+  "type": "object",
+  "$defs": {
+    "LogLevel": {
+      "title": "LogLevel",
+      "type": "string",
+      "enum": ["trace", "debug", "info", "warning", "error", "off"]
+    },
+    "ClientInfo": {
+      "title": "ClientInfo",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "InitializeParams": {
+      "title": "InitializeParams",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "client", "logLevel", "workspaceTrusted"],
+      "properties": {
+        "protocolVersion": { "type": "integer", "minimum": 1 },
+        "client": { "$ref": "#/$defs/ClientInfo" },
+        "logLevel": { "$ref": "#/$defs/LogLevel" },
+        "workspaceTrusted": { "type": "boolean" },
+        "locale": { "type": "string" }
+      }
+    },
+    "VersionInfo": {
+      "title": "VersionInfo",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["major", "minor", "micro", "releaseLevel", "serial"],
+      "properties": {
+        "major": { "type": "integer", "minimum": 0 },
+        "minor": { "type": "integer", "minimum": 0 },
+        "micro": { "type": "integer", "minimum": 0 },
+        "releaseLevel": { "type": "string", "enum": ["alpha", "beta", "candidate", "final"] },
+        "serial": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "PythonInfo": {
+      "title": "PythonInfo",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "versionInfo", "implementation", "executable", "platform"],
+      "properties": {
+        "version": { "description": "e.g. 3.12.3", "type": "string", "minLength": 1 },
+        "versionInfo": { "$ref": "#/$defs/VersionInfo" },
+        "implementation": {
+          "description": "sys.implementation.name, e.g. cpython",
+          "type": "string"
+        },
+        "executable": { "description": "sys.executable", "type": "string" },
+        "platform": { "description": "sys.platform", "type": "string" }
+      }
+    },
+    "VendoredPackage": {
+      "title": "VendoredPackage",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "Capabilities": {
+      "title": "Capabilities",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["methods"],
+      "properties": {
+        "methods": {
+          "description": "Request and notification names the engine handles.",
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "InitializeResult": {
+      "title": "InitializeResult",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engineVersion",
+        "protocolVersion",
+        "schemaVersion",
+        "python",
+        "vendored",
+        "capabilities",
+        "pid",
+        "sandboxed"
+      ],
+      "properties": {
+        "engineVersion": { "type": "string", "minLength": 1 },
+        "protocolVersion": { "type": "integer", "minimum": 1 },
+        "schemaVersion": { "description": "GraphDocument schemaVersion.", "type": "integer" },
+        "python": { "$ref": "#/$defs/PythonInfo" },
+        "vendored": { "type": "array", "items": { "$ref": "#/$defs/VendoredPackage" } },
+        "capabilities": { "$ref": "#/$defs/Capabilities" },
+        "pid": { "type": "integer" },
+        "sandboxed": {
+          "description": "True when the audit-hook sandbox (no processes, no sockets) is active.",
+          "type": "boolean"
+        }
+      }
+    },
+    "PingResult": {
+      "title": "PingResult",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pong"],
+      "properties": {
+        "pong": { "const": true }
+      }
+    },
+    "SetLogLevelParams": {
+      "title": "SetLogLevelParams",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level"],
+      "properties": {
+        "level": { "$ref": "#/$defs/LogLevel" }
+      }
+    },
+    "EngineErrorData": {
+      "title": "EngineErrorData",
+      "description": "The data member of JSON-RPC error responses sent by the engine.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "description": "Machine-readable error kind, e.g. not-initialized, shutting-down, invalid-params, internal.",
+          "type": "string",
+          "minLength": 1
+        },
+        "detail": { "type": "string" }
+      }
+    },
+    "FatalStartupError": {
+      "title": "FatalStartupError",
+      "description": "Written by engine/run_engine.py as one stderr line 'READBACK_ENGINE_FATAL <json>' before exiting with code 3 (python-too-old) or 4 (bootstrap-failed).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code"],
+      "properties": {
+        "code": { "type": "string", "enum": ["python-too-old", "bootstrap-failed"] },
+        "version": { "description": "Running Python version, e.g. 3.9.6", "type": "string" },
+        "required": { "description": "Minimum Python version, e.g. 3.10", "type": "string" },
+        "detail": { "type": "string" }
+      }
+    }
+  }
+}

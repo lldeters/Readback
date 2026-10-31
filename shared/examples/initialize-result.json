@@ -1,0 +1,28 @@
+{
+  "engineVersion": "0.0.1",
+  "protocolVersion": 1,
+  "schemaVersion": 1,
+  "python": {
+    "version": "3.12.3",
+    "versionInfo": { "major": 3, "minor": 12, "micro": 3, "releaseLevel": "final", "serial": 0 },
+    "implementation": "cpython",
+    "executable": "/usr/bin/python3.12",
+    "platform": "linux"
+  },
+  "vendored": [
+    { "name": "jedi", "version": "0.20.1" },
+    { "name": "parso", "version": "0.8.7" },
+    { "name": "sqlglot", "version": "30.27.0" }
+  ],
+  "capabilities": {
+    "methods": [
+      "engine/initialize",
+      "engine/ping",
+      "engine/shutdown",
+      "engine/exit",
+      "engine/setLogLevel"
+    ]
+  },
+  "pid": 4242,
+  "sandboxed": true
+}
