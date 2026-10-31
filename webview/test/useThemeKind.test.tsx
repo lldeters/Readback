@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   colorModeOf,
   readThemeKind,
@@ -27,6 +27,7 @@ async function switchTheme(classes: string, kind?: string): Promise<void> {
 
 afterEach(() => {
   setBody('');
+  vi.restoreAllMocks();
 });
 
 describe('readThemeKind', () => {
@@ -81,19 +82,39 @@ describe('useThemeKind', () => {
     expect(result.current.kind).toBe('high-contrast');
   });
 
-  it('keeps the same object while the theme stays the same', async () => {
+  it('keeps the same object across re-renders while the theme stays the same', () => {
     setBody('vscode-dark');
-    const { result } = renderHook(() => useThemeKind());
+    const { result, rerender } = renderHook(() => useThemeKind());
     const first = result.current;
-    await switchTheme('vscode-dark vscode-reduce-motion');
+    // useSyncExternalStore skips the render while the kind is unchanged, so only a re-render for
+    // another reason (here the caller's) shows whether the theme object is memoized.
+    rerender();
     expect(result.current).toBe(first);
   });
 
-  it('stops observing after unmount', async () => {
+  it('does not re-render for body changes that keep the theme', async () => {
     setBody('vscode-dark');
-    const { result, unmount } = renderHook(() => useThemeKind());
+    let renders = 0;
+    const { result } = renderHook(() => {
+      renders += 1;
+      return useThemeKind();
+    });
+    const first = result.current;
+    await switchTheme('vscode-dark vscode-reduce-motion');
+    expect(renders).toBe(1);
+    expect(result.current).toBe(first);
+  });
+
+  it('disconnects its observer on unmount', () => {
+    // React never re-renders an unmounted hook, so only the observer itself shows a leak.
+    const observe = vi.spyOn(MutationObserver.prototype, 'observe');
+    const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect');
+    const { unmount } = renderHook(() => useThemeKind());
+    expect(observe).toHaveBeenCalledOnce();
+    const [observer] = observe.mock.contexts;
+    expect(disconnect).not.toHaveBeenCalled();
     unmount();
-    await switchTheme('vscode-light');
-    expect(result.current.kind).toBe('dark');
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(disconnect.mock.contexts[0]).toBe(observer);
   });
 });

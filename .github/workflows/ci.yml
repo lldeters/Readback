@@ -260,6 +260,52 @@ jobs:
             echo "::error::The VSIX contains $count files; at most 2000 are allowed."
             exit 1
           fi
+      # vscode:prepublish only checks the working tree, and the step above only rejects what must
+      # not ship. vsce still packages when a .vscodeignore pattern is too narrow and drops files, so
+      # the next steps check and run the unpacked VSIX itself.
+      - name: Unpack the VSIX
+        run: unzip -q readback-code.vsix -d vsix
+      - name: Check that the VSIX is complete
+        # The expected files come from the tree, not from a hand-kept list: every engine and
+        # vendored file and every bundle, plus the manifest and its translations, the runtime l10n
+        # bundles, the license files, readme and changelog. vsce stores LICENSE as LICENSE.txt and
+        # the readme and changelog under lowercase names.
+        run: |
+          {
+            find engine/run_engine.py engine/readback_engine engine/vendor -type f \
+              ! -path '*/__pycache__/*' ! -name '*.py[co]'
+            find dist -type f ! -name '*.map'
+            printf '%s\n' package.json package.nls*.json l10n/bundle.l10n.*.json \
+              THIRD_PARTY_NOTICES.md LICENSE.txt readme.md changelog.md
+          } | sort > vsix-expected.txt
+          while IFS= read -r file; do
+            [ -f "vsix/extension/$file" ] || echo "$file"
+          done < vsix-expected.txt > vsix-missing.txt
+          expected=$(wc -l < vsix-expected.txt)
+          missing=$(wc -l < vsix-missing.txt)
+          if [ "$missing" -gt 0 ]; then
+            cat vsix-missing.txt
+            echo "::error::$missing of $expected expected files are missing from the VSIX (listed above); check .vscodeignore."
+            exit 1
+          fi
+          echo "All $expected expected files are in the VSIX."
+      - name: Check the vendored dependencies in the VSIX
+        # VENDOR.json must match the lock, and every license file it lists must have been packaged.
+        run: python scripts/vendor_engine.py --check --vendor-dir vsix/extension/engine/vendor
+      - name: Run the engine from the VSIX
+        # The end-to-end test starts the packaged engine with the extension's own discovery and
+        # connection code and expects jedi, parso and sqlglot in the handshake. It skips itself
+        # when it finds no Python 3.10 or newer, so the JSON report has to show that every test ran.
+        env:
+          READBACK_ENGINE_DIR: ${{ github.workspace }}/vsix/extension/engine
+          READBACK_EXPECT_VENDORED: '1'
+        run: |
+          npx vitest run src/engine/realEngine.test.ts --reporter=default \
+            --reporter=github-actions --reporter=json --outputFile.json=engine-tests.json
+          if ! jq -e '.numTotalTests > 0 and .numPassedTests == .numTotalTests' engine-tests.json > /dev/null; then
+            echo "::error::Not every engine test ran; they skip themselves when they find no Python 3.10 or newer."
+            exit 1
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: readback-code-vsix
