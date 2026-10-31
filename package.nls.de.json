@@ -6,8 +6,8 @@
   "command.restartEngine.title": "Engine neu starten",
   "command.showLog.title": "Protokoll anzeigen",
   "command.openGraphView.title": "Graphansicht öffnen",
-  "capabilities.untrustedWorkspaces.description": "Im eingeschränkten Modus ignoriert Readback readback.engine.pythonPath aus den Workspace-Einstellungen und startet nie einen Python-Interpreter, der im Workspace liegt. Die statische Analyse funktioniert weiter.",
+  "capabilities.untrustedWorkspaces.description": "Im eingeschränkten Modus ignoriert Readback readback.engine.pythonPath aus den Arbeitsbereichseinstellungen und startet nie einen Python-Interpreter, der im Arbeitsbereich liegt. Die statische Analyse funktioniert weiter.",
   "capabilities.virtualWorkspaces.description": "Readback benötigt Dateien auf dem Datenträger und einen lokalen Python-Interpreter.",
-  "config.engine.pythonPath.markdownDescription": "Python-Interpreter (3.10 oder neuer) für die Analyse-Engine von Readback. Leer lassen, um die aktive Umgebung der Python-Extension und danach `python3` (unter Windows `py -3`) aus dem `PATH` zu verwenden. Wird in den Workspace-Einstellungen nicht vertrauenswürdiger Workspaces ignoriert; ein Pfad aus Workspace-Einstellungen muss einmalig bestätigt werden.",
+  "config.engine.pythonPath.markdownDescription": "Python-Interpreter (3.10 oder neuer) für die Analyse-Engine von Readback. Leer lassen, um die aktive Umgebung der Python-Extension und danach `python3` (unter Windows `py -3`) aus dem `PATH` zu verwenden. Wird in den Arbeitsbereichseinstellungen nicht vertrauenswürdiger Arbeitsbereiche ignoriert; ein Pfad aus Arbeitsbereichseinstellungen muss einmalig bestätigt werden.",
   "config.engine.timeoutMs.markdownDescription": "Zeitlimit in Millisekunden für eine einzelne Anfrage an die Analyse-Engine."
 }
