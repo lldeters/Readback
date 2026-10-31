@@ -16,13 +16,19 @@ const tests = args.has('--tests');
 const NODE_TARGET = 'node22';
 const WEBVIEW_TARGET = 'chrome138';
 
-/** Prints the lines the "esbuild-watch" problem matcher in .vscode/tasks.json expects. */
+/**
+ * Prints the lines the problem matcher in .vscode/tasks.json waits for. All bundles share one
+ * counter, so "finished" only appears once every bundle is done and F5 never launches early.
+ */
+let activeBuilds = 0;
 /** @type {import('esbuild').Plugin} */
 const problemMatcher = {
   name: 'problem-matcher',
   setup(build) {
     build.onStart(() => {
-      console.log('[watch] build started');
+      if (activeBuilds++ === 0) {
+        console.log('[watch] build started');
+      }
     });
     build.onEnd((result) => {
       for (const { text, location } of result.errors) {
@@ -31,7 +37,9 @@ const problemMatcher = {
           console.error(`    ${location.file}:${location.line}:${location.column}:`);
         }
       }
-      console.log('[watch] build finished');
+      if (--activeBuilds === 0) {
+        console.log('[watch] build finished');
+      }
     });
   },
 };
