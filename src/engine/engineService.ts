@@ -1,6 +1,8 @@
 // Owns the engine for this window: lazy start on first use, automatic restart with backoff after
 // crashes, restart on interpreter changes, and the status snapshot for "Show Engine Status".
-import { stat, realpath } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
+import { access, mkdir, readdir, realpath, rm, stat } from 'node:fs/promises';
+import path from 'node:path';
 import os from 'node:os';
 import * as vscode from 'vscode';
 import type { InitializeResult, LogLevel } from '../shared/generated/engineProtocol';
@@ -325,9 +327,11 @@ export class EngineService implements vscode.Disposable {
       throw new EngineUnavailableError(this.failure);
     }
     const started = performance.now();
+    const pycachePrefix = await this.pycachePrefix();
     let connection: EngineConnection;
     try {
       connection = await EngineConnection.start({
+        ...(pycachePrefix === undefined ? {} : { pycachePrefix }),
         executable: interpreter.probe.executable,
         engineDirectory: this.engineDirectory,
         env: sanitizedEnv(process.env),
@@ -378,7 +382,9 @@ export class EngineService implements vscode.Disposable {
       return;
     }
     this.log.error(
-      `Engine exited unexpectedly (code ${String(exit.code)}, signal ${String(exit.signal)}).`,
+      exit.hung
+        ? 'The engine stopped responding and was killed.'
+        : `Engine exited unexpectedly (code ${String(exit.code)}, signal ${String(exit.signal)}).`,
     );
     const delay = this.restartPolicy.recordCrash();
     if (delay === undefined) {
@@ -460,6 +466,33 @@ export class EngineService implements vscode.Disposable {
       this.probeCache.set(key, outcome);
     }
     return outcome;
+  }
+
+  /**
+   * CPython writes bytecode next to the engine sources. If the extension folder is read-only
+   * (system-wide or container installs), use a versioned folder in global storage instead, so
+   * the engine does not recompile on every start; folders of other versions are removed.
+   */
+  private async pycachePrefix(): Promise<string | undefined> {
+    try {
+      await access(this.engineDirectory, fsConstants.W_OK);
+      return undefined;
+    } catch {
+      const root = path.join(this.context.globalStorageUri.fsPath, 'pycache');
+      const version = String((this.context.extension.packageJSON as { version: unknown }).version);
+      try {
+        await mkdir(path.join(root, version), { recursive: true });
+        for (const entry of await readdir(root)) {
+          if (entry !== version) {
+            await rm(path.join(root, entry), { recursive: true, force: true });
+          }
+        }
+        return path.join(root, version);
+      } catch (error) {
+        this.log.debug(`No bytecode cache folder: ${errorMessage(error)}`);
+        return undefined;
+      }
+    }
   }
 
   private async developerDirectory(): Promise<string | undefined> {

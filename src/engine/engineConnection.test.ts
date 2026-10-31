@@ -75,6 +75,18 @@ describe('engineArguments', () => {
       path.join('/ext/engine', 'run_engine.py'),
     ]);
   });
+
+  it('can move the bytecode cache out of a read-only extension folder', () => {
+    expect(engineArguments('/ext/engine', '/storage/pycache')).toEqual([
+      '-I',
+      '-S',
+      '-X',
+      'utf8',
+      '-X',
+      'pycache_prefix=/storage/pycache',
+      path.join('/ext/engine', 'run_engine.py'),
+    ]);
+  });
 });
 
 describe('EngineConnection', () => {
@@ -96,7 +108,7 @@ describe('EngineConnection', () => {
     const connection = await started;
     await connection.stop();
     const exit = await connection.exited;
-    expect(exit).toMatchObject({ code: 0, expected: true });
+    expect(exit).toMatchObject({ code: 0, expected: true, hung: false });
     await expect(connection.request(PingRequest, { timeoutMs: 1_000 })).rejects.toMatchObject({
       kind: 'unavailable',
     });
@@ -159,7 +171,8 @@ describe('EngineConnection', () => {
       .catch((error: unknown) => error);
     expect(failure).toMatchObject({ kind: 'unavailable' });
     const exit = await connection.exited;
-    expect(exit.expected).toBe(true);
+    // A hung engine counts as a crash so the service restarts it with backoff.
+    expect(exit).toMatchObject({ expected: false, hung: true });
   }, 10_000);
 
   it('maps engine errors with their data', async () => {

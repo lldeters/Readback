@@ -84,6 +84,8 @@ interface ProcessExit {
 export interface EngineExit extends ProcessExit {
   /** True when the exit was requested (stop/kill), false for crashes. */
   readonly expected: boolean;
+  /** True when we killed the engine because it ignored a cancelled request. */
+  readonly hung: boolean;
 }
 
 type EngineProcess = ChildProcessByStdio<Writable, Readable, Readable>;
@@ -102,6 +104,8 @@ export interface EngineLaunchOptions {
   readonly logger: Logger;
   /** For tests: replaces child_process.spawn. */
   readonly spawnProcess?: typeof spawn;
+  /** Bytecode cache outside the extension folder, for read-only installations. */
+  readonly pycachePrefix?: string;
 }
 
 export interface RequestOptions {
@@ -115,8 +119,9 @@ const SHUTDOWN_TIMEOUT_MS = 1_000;
 const EXIT_GRACE_MS = 2_000;
 
 /** Interpreter arguments: isolated mode, no site.py/.pth, UTF-8 regardless of locale. */
-export function engineArguments(engineDirectory: string): string[] {
-  return ['-I', '-S', '-X', 'utf8', path.join(engineDirectory, 'run_engine.py')];
+export function engineArguments(engineDirectory: string, pycachePrefix?: string): string[] {
+  const cache = pycachePrefix === undefined ? [] : ['-X', `pycache_prefix=${pycachePrefix}`];
+  return ['-I', '-S', '-X', 'utf8', ...cache, path.join(engineDirectory, 'run_engine.py')];
 }
 
 function logRecord(logger: Logger, record: StderrRecord): void {
@@ -153,6 +158,7 @@ export class EngineConnection {
   private stopping = false;
   /** Set before we stop or kill the process, so its exit is not mistaken for a crash. */
   private exitRequested = false;
+  private killedAfterHang = false;
   private readonly exitListeners = new Set<(exit: EngineExit) => void>();
   readonly exited: Promise<EngineExit>;
 
@@ -164,7 +170,11 @@ export class EngineConnection {
     processExit: Promise<ProcessExit>,
   ) {
     this.exited = processExit.then((raw) => {
-      const exit: EngineExit = { ...raw, expected: this.exitRequested };
+      const exit: EngineExit = {
+        ...raw,
+        expected: this.exitRequested,
+        hung: this.killedAfterHang,
+      };
       this.exitInfo = exit;
       this.connection.dispose();
       for (const listener of this.exitListeners) {
@@ -178,7 +188,7 @@ export class EngineConnection {
   static async start(options: EngineLaunchOptions): Promise<EngineConnection> {
     const { logger } = options;
     const spawnProcess = options.spawnProcess ?? spawn;
-    const args = engineArguments(options.engineDirectory);
+    const args = engineArguments(options.engineDirectory, options.pycachePrefix);
     logger.info(`Starting engine: ${options.executable} ${args.join(' ')}`);
 
     let child: EngineProcess;
@@ -375,7 +385,7 @@ export class EngineConnection {
       // Cancellation is cooperative; a request stuck in one long call never answers.
       killTimer = setTimeout(() => {
         this.logger.error(`Engine did not answer ${type.method} after cancellation; killing it.`);
-        this.kill();
+        this.kill('hung');
       }, CANCEL_GRACE_MS);
     }, options.timeoutMs);
     try {
@@ -456,9 +466,16 @@ export class EngineConnection {
     clearTimeout(killTimer);
   }
 
-  /** Terminates the engine immediately; pending requests fail with 'unavailable'. */
-  kill(): void {
-    this.exitRequested = true;
+  /**
+   * Terminates the engine immediately; pending requests fail with 'unavailable'. A hung engine
+   * counts as a crash (EngineExit.expected false), so the service restarts it with backoff.
+   */
+  kill(reason: 'requested' | 'hung' = 'requested'): void {
+    if (reason === 'hung') {
+      this.killedAfterHang = true;
+    } else {
+      this.exitRequested = true;
+    }
     this.connection.dispose();
     this.child.kill('SIGKILL');
   }

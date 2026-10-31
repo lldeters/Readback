@@ -40,8 +40,8 @@ smoke test with vscode-jsonrpc and a 47-line Python server, and later a 174-line
   `PROTOCOL_VERSION` (1) also lives in `engine/readback_engine/__init__.py`, and a repository test
   keeps both equal.
 - **Timeouts:** the client enforces `readback.engine.timeoutMs` per request. At the deadline it
-  cancels; if the engine has still not answered two seconds later, the client kills it. Crashed
-  engines restart with exponential backoff.
+  cancels; if the engine has still not answered two seconds later, the client kills it. Crashed or
+  hung engines restart with exponential backoff.
 - **stderr:** one log record per line, `[<level>] <message>`, continuation lines indented by four
   spaces. A failed start writes one `READBACK_ENGINE_FATAL <json>` line and exits with code 3
   (Python too old) or 4 (bootstrap failed).
