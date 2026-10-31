@@ -11,3 +11,4 @@ package-lock.json
 l10n/bundle.l10n.json
 THIRD_PARTY_NOTICES.md
 *.vsix
+.claude/worktrees/

@@ -18,6 +18,8 @@ export default defineConfig(
     '.cache/',
     'engine/',
     'node_modules/',
+    // Temporary git worktrees of AI coding agents.
+    '.claude/worktrees/',
   ]),
   js.configs.recommended,
   {
