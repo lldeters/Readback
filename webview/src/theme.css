@@ -1,0 +1,309 @@
+/*
+ * Readback webview theme: maps VS Code's theme variables (--vscode-*) onto the page and onto React
+ * Flow's variables (--xy-*). VS Code defines a --vscode-* variable only when the active theme has a
+ * value for that color (contrastBorder, for example, exists only in high contrast themes), so every
+ * var() has a fallback. VS Code updates the variables and the body classes in place when the theme
+ * changes, so nothing here needs a reload. Loaded as a file; nothing requires inline styles.
+ */
+
+:root {
+  /* Read by diagnostics.ts to detect a stylesheet that was blocked or failed to load. */
+  --readback-stylesheet: loaded;
+
+  --readback-focus-color: var(--vscode-focusBorder, #0090f1);
+  --readback-code-font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+  --readback-code-font-size: var(--vscode-editor-font-size, 13px);
+
+  /*
+   * Change status (spec 5.5). Reserved for the Phase 1 overlays, which always combine the color
+   * with a symbol and a line style, so the status never depends on color alone.
+   */
+  --readback-change-added-color: var(
+    --vscode-gitDecoration-addedResourceForeground,
+    var(--vscode-editorGutter-addedBackground, #587c0c)
+  );
+  --readback-change-modified-color: var(
+    --vscode-gitDecoration-modifiedResourceForeground,
+    var(--vscode-editorGutter-modifiedBackground, #895503)
+  );
+  --readback-change-deleted-color: var(
+    --vscode-gitDecoration-deletedResourceForeground,
+    var(--vscode-editorGutter-deletedBackground, #ad0707)
+  );
+  --readback-change-added-symbol: '+';
+  --readback-change-modified-symbol: '~';
+  --readback-change-deleted-symbol: '\2212';
+  --readback-change-added-border-style: solid;
+  --readback-change-modified-border-style: dashed;
+  --readback-change-deleted-border-style: dotted;
+
+  /* Edge confidence (spec 2.2): certain edges are solid, inferred dashed, unresolved dotted. */
+  --readback-edge-dasharray-certain: none;
+  --readback-edge-dasharray-inferred: 6 4;
+  --readback-edge-dasharray-unresolved: 2 4;
+}
+
+/* VS Code's default webview stylesheet pads the body; the canvas fills the whole panel. */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  background-color: var(--vscode-editor-background, Canvas);
+  color: var(--vscode-editor-foreground, CanvasText);
+  font-family: var(--vscode-font-family, system-ui, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, normal);
+  line-height: 1.4;
+}
+
+#root {
+  height: 100%;
+}
+
+:focus-visible {
+  outline: 1px solid var(--readback-focus-color);
+  outline-offset: -1px;
+}
+
+/* Layout */
+
+.graph-view {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px;
+  text-align: center;
+  /* Informational only: panning and zooming keep working through it. */
+  pointer-events: none;
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+.empty-state__title {
+  font-size: 1.15em;
+  font-weight: 600;
+}
+
+.empty-state__detail {
+  color: var(--vscode-descriptionForeground, inherit);
+}
+
+.view-error {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 16px;
+  text-align: center;
+  color: var(--vscode-errorForeground, #f48771);
+}
+
+/*
+ * React Flow. The --xy-*-default variables are React Flow's own light and dark defaults (chosen by
+ * colorMode); they only apply if a VS Code variable is missing.
+ */
+
+.react-flow {
+  --xy-background-color: var(--vscode-editor-background, var(--xy-background-color-default));
+  --xy-background-pattern-color: var(
+    --vscode-editorIndentGuide-background1,
+    var(--xy-background-pattern-dots-color-default)
+  );
+
+  --xy-node-color: var(
+    --vscode-editorWidget-foreground,
+    var(--vscode-foreground, var(--xy-node-color-default))
+  );
+  --xy-node-background-color: var(
+    --vscode-editorWidget-background,
+    var(--xy-node-background-color-default)
+  );
+  --xy-node-border: 1px solid
+    var(--vscode-editorWidget-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35)));
+  --xy-node-border-radius: 4px;
+  --xy-node-boxshadow-hover: 0 1px 4px 1px var(--vscode-widget-shadow, transparent);
+  --xy-node-boxshadow-selected: 0 0 0 1px var(--readback-focus-color);
+  --xy-node-group-background-color: color-mix(
+    in srgb,
+    var(--vscode-editorWidget-background, rgba(128, 128, 128, 0.25)) 40%,
+    transparent
+  );
+
+  --xy-handle-background-color: var(
+    --vscode-descriptionForeground,
+    var(--xy-handle-background-color-default)
+  );
+  --xy-handle-border-color: var(
+    --vscode-editorWidget-background,
+    var(--xy-handle-border-color-default)
+  );
+
+  --xy-edge-stroke: var(--vscode-descriptionForeground, var(--xy-edge-stroke-default));
+  --xy-edge-stroke-selected: var(--readback-focus-color);
+  --xy-edge-stroke-width: 1;
+  --xy-edge-label-color: var(--vscode-descriptionForeground, var(--xy-edge-label-color-default));
+  --xy-edge-label-background-color: var(
+    --vscode-editor-background,
+    var(--xy-edge-label-background-color-default)
+  );
+  --xy-connectionline-stroke: var(--readback-focus-color);
+
+  --xy-selection-background-color: color-mix(in srgb, var(--readback-focus-color) 12%, transparent);
+  --xy-selection-border: 1px dotted var(--readback-focus-color);
+
+  --xy-controls-button-background-color: var(
+    --vscode-editorWidget-background,
+    var(--xy-controls-button-background-color-default)
+  );
+  --xy-controls-button-background-color-hover: var(
+    --vscode-toolbar-hoverBackground,
+    var(--vscode-list-hoverBackground, var(--xy-controls-button-background-color-hover-default))
+  );
+  --xy-controls-button-color: var(
+    --vscode-icon-foreground,
+    var(--vscode-foreground, var(--xy-controls-button-color-default))
+  );
+  --xy-controls-button-color-hover: var(
+    --vscode-icon-foreground,
+    var(--vscode-foreground, var(--xy-controls-button-color-hover-default))
+  );
+  --xy-controls-button-border-color: var(
+    --vscode-editorWidget-border,
+    var(--vscode-widget-border, transparent)
+  );
+  --xy-controls-box-shadow: 0 0 8px 2px var(--vscode-widget-shadow, transparent);
+
+  --xy-minimap-background-color: var(
+    --vscode-editorWidget-background,
+    var(--xy-minimap-background-color-default)
+  );
+  --xy-minimap-mask-background-color: var(
+    --vscode-minimapSlider-background,
+    var(--xy-minimap-mask-background-color-default)
+  );
+  --xy-minimap-mask-stroke-color: var(--vscode-contrastBorder, transparent);
+  --xy-minimap-node-background-color: var(
+    --vscode-descriptionForeground,
+    var(--xy-minimap-node-background-color-default)
+  );
+  --xy-minimap-node-stroke-color: transparent;
+
+  --xy-attribution-background-color: color-mix(
+    in srgb,
+    var(--vscode-editor-background, Canvas) 70%,
+    transparent
+  );
+}
+
+.react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, transparent));
+  border-radius: 4px;
+}
+
+.react-flow__controls-button:focus-visible {
+  outline: 1px solid var(--readback-focus-color);
+  outline-offset: -1px;
+}
+
+.react-flow__attribution a {
+  color: var(--vscode-descriptionForeground, #999);
+}
+
+/* React Flow removes the focus outline of nodes and edges; keyboard users need to see it. */
+.react-flow__node.selectable:focus-visible {
+  outline: 1px solid var(--readback-focus-color);
+  outline-offset: 2px;
+}
+
+.react-flow__edge.selectable:focus-visible .react-flow__edge-path {
+  stroke: var(--readback-focus-color);
+  stroke-width: 2;
+}
+
+/*
+ * High contrast (dark and light): thicker strokes and visible borders instead of shadows.
+ * VS Code also adds vscode-high-contrast to high contrast light themes; both are listed for forks
+ * that do not.
+ */
+
+body.vscode-high-contrast .react-flow,
+body.vscode-high-contrast-light .react-flow {
+  --xy-node-border: 2px solid var(--vscode-contrastBorder, CanvasText);
+  --xy-node-boxshadow-hover: none;
+  --xy-node-boxshadow-selected: 0 0 0 2px
+    var(--vscode-contrastActiveBorder, var(--vscode-focusBorder, Highlight));
+  --xy-handle-border-color: var(--vscode-contrastBorder, CanvasText);
+  --xy-edge-stroke: var(--vscode-contrastBorder, CanvasText);
+  --xy-edge-stroke-width: 2;
+  --xy-edge-stroke-selected: var(
+    --vscode-contrastActiveBorder,
+    var(--vscode-focusBorder, Highlight)
+  );
+  --xy-connectionline-stroke-width: 2;
+  --xy-selection-border: 1px dashed
+    var(--vscode-contrastActiveBorder, var(--vscode-focusBorder, Highlight));
+  --xy-controls-button-border-color: var(--vscode-contrastBorder, CanvasText);
+  --xy-controls-box-shadow: none;
+  --xy-minimap-mask-stroke-color: var(--vscode-contrastBorder, CanvasText);
+  --xy-minimap-mask-stroke-width: 2;
+  --xy-minimap-node-stroke-color: var(--vscode-contrastBorder, CanvasText);
+}
+
+body.vscode-high-contrast .react-flow__controls,
+body.vscode-high-contrast-light .react-flow__controls {
+  border-color: var(--vscode-contrastBorder, CanvasText);
+}
+
+body.vscode-high-contrast .react-flow__controls-button:hover,
+body.vscode-high-contrast-light .react-flow__controls-button:hover {
+  outline: 1px dashed var(--vscode-contrastActiveBorder, var(--vscode-focusBorder, Highlight));
+  outline-offset: -1px;
+}
+
+body.vscode-high-contrast :focus-visible,
+body.vscode-high-contrast-light :focus-visible,
+body.vscode-high-contrast .react-flow__controls-button:focus-visible,
+body.vscode-high-contrast-light .react-flow__controls-button:focus-visible {
+  outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-focusBorder, Highlight));
+  outline-offset: -2px;
+}
+
+body.vscode-high-contrast .react-flow__node.selectable:focus-visible,
+body.vscode-high-contrast-light .react-flow__node.selectable:focus-visible {
+  outline-offset: 2px;
+}
+
+body.vscode-high-contrast .react-flow__edge.selectable:focus-visible .react-flow__edge-path,
+body.vscode-high-contrast-light .react-flow__edge.selectable:focus-visible .react-flow__edge-path {
+  stroke: var(--vscode-contrastActiveBorder, var(--vscode-focusBorder, Highlight));
+  stroke-width: 3;
+}
+
+/* VS Code's "reduce motion" setting (workbench.reduceMotion, which follows the OS by default). */
+body.vscode-reduce-motion *,
+body.vscode-reduce-motion *::before,
+body.vscode-reduce-motion *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
