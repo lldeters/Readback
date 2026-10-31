@@ -1,0 +1,268 @@
+# Lint, unit, engine, integration, Restricted Mode and packaging checks for every push and pull
+# request (docs/architecture.md, section "Testing"). Actions are pinned to full commit SHAs; the
+# comment names the release the SHA belongs to.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# A newer push to the same branch or pull request cancels the run it supersedes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+jobs:
+  lint:
+    name: Lint, types, schemas, l10n
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run schema:check
+      - name: Check that l10n/bundle.l10n.json matches the source strings
+        run: |
+          npm run l10n:export
+          git diff --exit-code l10n/bundle.l10n.json
+
+  unit:
+    name: Unit tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Unit tests
+        if: runner.os != 'Linux'
+        run: npm run test:unit
+      - name: Unit tests with coverage
+        if: runner.os == 'Linux'
+        run: npm run test:coverage
+      - name: Upload the coverage report
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: error
+          retention-days: 7
+
+  engine:
+    name: Engine (${{ matrix.os }}, Python ${{ matrix.python }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        # The oldest and the newest supported Python (spec section 9).
+        python: ['3.10', '3.15']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: engine/requirements-dev.txt
+      - run: python -m pip install -r engine/requirements-dev.txt
+      - name: Cache the vendored wheels
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/vendor-wheels
+          key: vendor-wheels-${{ runner.os }}-${{ hashFiles('engine/requirements-vendor.txt') }}
+      - name: Vendor the engine dependencies
+        run: python scripts/vendor_engine.py
+      - name: Check the vendored dependencies
+        run: python scripts/vendor_engine.py --check
+      - name: Ruff
+        working-directory: engine
+        run: ruff check --output-format=github .
+      - name: Ruff format
+        working-directory: engine
+        run: ruff format --check .
+      - name: mypy
+        working-directory: engine
+        run: mypy
+      - name: pytest
+        working-directory: engine
+        run: python -m pytest --cov --cov-report=term-missing
+
+  integration:
+    name: Integration (${{ matrix.os }}, VS Code ${{ matrix.vscode }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        # The engines.vscode minimum and the current release.
+        vscode: ['1.105.1', stable]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      VSCODE_TEST_VERSION: ${{ matrix.vscode }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # The tests run without the Python extension, so the engine finds this Python on PATH.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - name: Cache the vendored wheels
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/vendor-wheels
+          key: vendor-wheels-${{ runner.os }}-${{ hashFiles('engine/requirements-vendor.txt') }}
+      - name: Vendor the engine dependencies
+        run: python scripts/vendor_engine.py
+      - run: npm run build
+      - name: Compute the VS Code cache key
+        id: vscode-cache
+        # A pinned version never changes; "stable" does, so its cache starts over every week.
+        run: |
+          if [ "$VSCODE_TEST_VERSION" = stable ]; then
+            echo "suffix=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+          else
+            echo "suffix=pinned" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Cache the VS Code download
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          # Only the downloaded builds: user-data/ and extensions/ hold test state and must
+          # start empty in every run.
+          path: .vscode-test/vscode-*
+          key: vscode-test-${{ runner.os }}-${{ matrix.vscode }}-${{ steps.vscode-cache.outputs.suffix }}
+      - name: Integration tests
+        if: runner.os != 'Linux'
+        run: npm run test:integration
+      - name: Integration tests (virtual display)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:integration
+
+  untrusted:
+    name: Restricted Mode (ubuntu-latest, VS Code stable)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VSCODE_TEST_VERSION: stable
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - name: Cache the vendored wheels
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/vendor-wheels
+          key: vendor-wheels-${{ runner.os }}-${{ hashFiles('engine/requirements-vendor.txt') }}
+      - name: Vendor the engine dependencies
+        run: python scripts/vendor_engine.py
+      - run: npm run build
+      - name: Compute the VS Code cache key
+        id: vscode-cache
+        run: echo "suffix=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+      - name: Cache the VS Code download
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .vscode-test/vscode-*
+          key: vscode-test-${{ runner.os }}-stable-${{ steps.vscode-cache.outputs.suffix }}
+      # @vscode/test-electron always disables Workspace Trust, so this launcher starts VS Code
+      # itself with an untrusted workspace.
+      - name: Restricted Mode tests (virtual display)
+        run: xvfb-run -a npm run test:untrusted
+
+  package:
+    name: Package the VSIX
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - name: Cache the vendored wheels
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/vendor-wheels
+          key: vendor-wheels-${{ runner.os }}-${{ hashFiles('engine/requirements-vendor.txt') }}
+      - name: Vendor the engine dependencies
+        run: python scripts/vendor_engine.py
+      # vsce runs vscode:prepublish first: vendor:check, build:prod and notices:check (license gate).
+      - name: Package
+        run: npx vsce package --pre-release --no-dependencies -o readback-code.vsix
+      - name: List the VSIX contents
+        run: npx vsce ls --tree --no-dependencies
+      - name: Check the VSIX contents
+        # Spec section 12: no tests, fixtures or source maps, and no Python bytecode (vsce lets the
+        # "!" patterns in .vscodeignore win over later exclusions); the file limit keeps installs
+        # fast.
+        run: |
+          unzip -Z1 readback-code.vsix > vsix-files.txt
+          count=$(wc -l < vsix-files.txt)
+          echo "The VSIX contains $count files."
+          if grep -E '\.map$|(^|/)(tests?|__tests__|fixtures?|__pycache__)/|\.(test|spec)\.[cm]?[jt]sx?$|\.py[co]$' vsix-files.txt; then
+            echo "::error::The VSIX contains tests, fixtures, source maps or bytecode (listed above)."
+            exit 1
+          fi
+          if [ "$count" -gt 2000 ]; then
+            echo "::error::The VSIX contains $count files; at most 2000 are allowed."
+            exit 1
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: readback-code-vsix
+          path: readback-code.vsix
+          if-no-files-found: error
+          retention-days: 14
