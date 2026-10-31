@@ -9,6 +9,7 @@ import {
   EngineStartFailure,
   PingRequest,
   engineArguments,
+  timerSafeTimeout,
   type EngineLaunchOptions,
 } from './engineConnection';
 
@@ -89,6 +90,17 @@ describe('engineArguments', () => {
   });
 });
 
+describe('timerSafeTimeout', () => {
+  it('keeps timeouts within what setTimeout can represent', () => {
+    expect(timerSafeTimeout(30_000)).toBe(30_000);
+    // Larger values would make setTimeout fire after 1 ms and cancel every request.
+    expect(timerSafeTimeout(3_000_000_000)).toBe(2_147_483_647);
+    expect(timerSafeTimeout(Number.POSITIVE_INFINITY)).toBe(2_147_483_647);
+    expect(timerSafeTimeout(Number.NaN)).toBe(2_147_483_647);
+    expect(timerSafeTimeout(-5)).toBe(0);
+  });
+});
+
 describe('EngineConnection', () => {
   it('completes the handshake and forwards engine logs', async () => {
     const { started, logger } = launch('normal');
@@ -112,6 +124,20 @@ describe('EngineConnection', () => {
     await expect(connection.request(PingRequest, { timeoutMs: 1_000 })).rejects.toMatchObject({
       kind: 'unavailable',
     });
+  });
+
+  it('finishes stopping even when the log channel is already closed', async () => {
+    let closed = false;
+    const write = (): void => {
+      if (closed) {
+        throw new Error('Channel has been closed');
+      }
+    };
+    const logger: Logger = { trace: write, debug: write, info: write, warn: write, error: write };
+    const connection = await launch('normal', { logger }).started;
+    closed = true;
+    await connection.stop();
+    await expect(connection.exited).resolves.toMatchObject({ code: 0, expected: true });
   });
 
   it('reports a too old Python from the fatal stderr line', async () => {

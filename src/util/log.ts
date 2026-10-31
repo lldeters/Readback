@@ -19,6 +19,39 @@ export const nullLogger: Logger = {
   error: () => undefined,
 };
 
+/**
+ * A logger that never throws. VS Code closes the output channel while asynchronous clean-up (the
+ * engine shutdown) may still be logging; a throwing logger must not break that clean-up.
+ */
+export function safeLogger(logger: Logger): Logger {
+  const guard =
+    (write: (message: string) => void) =>
+    (message: string): void => {
+      try {
+        write(message);
+      } catch {
+        // The channel is closed; nothing useful is left to do with the message.
+      }
+    };
+  return {
+    trace: guard((message) => {
+      logger.trace(message);
+    }),
+    debug: guard((message) => {
+      logger.debug(message);
+    }),
+    info: guard((message) => {
+      logger.info(message);
+    }),
+    warn: guard((message) => {
+      logger.warn(message);
+    }),
+    error: guard((message) => {
+      logger.error(message);
+    }),
+  };
+}
+
 /** Error message of an unknown thrown value, for log lines and status details. */
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

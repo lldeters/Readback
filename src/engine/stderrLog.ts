@@ -42,21 +42,25 @@ export class StderrParser {
     this.buffer += chunk;
     let newline = this.buffer.indexOf('\n');
     while (newline >= 0) {
-      this.emit(this.buffer.slice(0, newline));
+      // Consume the line before emitting it, so a throwing listener cannot replay it later.
+      const line = this.buffer.slice(0, newline);
       this.buffer = this.buffer.slice(newline + 1);
+      this.emit(line);
       newline = this.buffer.indexOf('\n');
     }
     if (this.buffer.length > MAX_LINE) {
-      this.emit(this.buffer);
+      const line = this.buffer;
       this.buffer = '';
+      this.emit(line);
     }
   }
 
   /** Emits a trailing line without newline, e.g. when the process has exited. */
   flush(): void {
     if (this.buffer.length > 0) {
-      this.emit(this.buffer);
+      const line = this.buffer;
       this.buffer = '';
+      this.emit(line);
     }
   }
 

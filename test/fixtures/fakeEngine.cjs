@@ -81,9 +81,12 @@ if (scenario === 'silent') {
 
   connection.onRequest('engine/shutdown', () => {
     shutdown = true;
+    // Like the real engine: logs while the extension host may already be closing its channel.
+    process.stderr.write('[info] Shutdown requested.\n');
     return null;
   });
   connection.onNotification('engine/exit', () => {
+    process.stderr.write('[info] Engine stopped: exit.');
     process.exit(shutdown ? 0 : 1);
   });
   connection.onNotification('engine/setLogLevel', (params) => {

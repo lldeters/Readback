@@ -25,7 +25,7 @@ import type {
   PingResult,
   SetLogLevelParams,
 } from '../shared/generated/engineProtocol';
-import { errorMessage, type Logger } from '../util/log';
+import { errorMessage, safeLogger, type Logger } from '../util/log';
 import { EngineExitCodes, ErrorCodes, Methods, PROTOCOL_VERSION } from './protocol';
 import { StderrParser, type StderrRecord } from './stderrLog';
 
@@ -48,13 +48,18 @@ export type EngineStartFailureKind =
   | 'protocolMismatch'
   | 'initializeFailed';
 
-/** The engine process could not be brought up. */
+/**
+ * The engine process could not be brought up. The message is English, for the log; the UI
+ * localizes by kind (src/engine/messages.ts).
+ */
 export class EngineStartFailure extends Error {
   constructor(
     readonly kind: EngineStartFailureKind,
     message: string,
     readonly detail?: string,
     readonly fatal?: FatalStartupError,
+    /** How the process ended, for 'exitedDuringStartup'. */
+    readonly exit?: { readonly code: number | null; readonly signal: NodeJS.Signals | null },
   ) {
     super(message);
     this.name = 'EngineStartFailure';
@@ -111,6 +116,14 @@ export interface EngineLaunchOptions {
 export interface RequestOptions {
   readonly token?: CancellationToken;
   readonly timeoutMs: number;
+}
+
+/** setTimeout fires after 1 ms for anything above this (signed 32-bit milliseconds). */
+const MAX_TIMER_MS = 2_147_483_647;
+
+/** Request timeouts are user settings; keep them in the range the timers can represent. */
+export function timerSafeTimeout(timeoutMs: number): number {
+  return Number.isFinite(timeoutMs) ? Math.min(Math.max(timeoutMs, 0), MAX_TIMER_MS) : MAX_TIMER_MS;
 }
 
 /** How long a hung engine gets to answer a cancelled request before it is killed. */
@@ -186,7 +199,7 @@ export class EngineConnection {
 
   /** Spawns the engine and completes the initialize handshake. */
   static async start(options: EngineLaunchOptions): Promise<EngineConnection> {
-    const { logger } = options;
+    const logger = safeLogger(options.logger);
     const spawnProcess = options.spawnProcess ?? spawn;
     const args = engineArguments(options.engineDirectory, options.pycachePrefix);
     logger.info(`Starting engine: ${options.executable} ${args.join(' ')}`);
@@ -235,8 +248,12 @@ export class EngineConnection {
     });
     const exited = new Promise<ProcessExit>((resolve) => {
       child.on('close', (code, signal) => {
-        parser.flush();
-        resolve({ code, signal });
+        // Exit tracking must survive anything the log output does.
+        try {
+          parser.flush();
+        } finally {
+          resolve({ code, signal });
+        }
       });
     });
 
@@ -306,6 +323,7 @@ export class EngineConnection {
           `The engine exited during startup (code ${String(outcome.exit.code)}, signal ${String(outcome.exit.signal)}).`,
           detail,
           fatal,
+          outcome.exit,
         );
       }
       const result = outcome.result;
@@ -387,7 +405,7 @@ export class EngineConnection {
         this.logger.error(`Engine did not answer ${type.method} after cancellation; killing it.`);
         this.kill('hung');
       }, CANCEL_GRACE_MS);
-    }, options.timeoutMs);
+    }, timerSafeTimeout(options.timeoutMs));
     try {
       // The typed overloads above keep call sites type-safe; the method-name form avoids
       // vscode-jsonrpc's conditional parameter types, which do not accept a generic P.
