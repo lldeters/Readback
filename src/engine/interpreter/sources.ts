@@ -10,6 +10,8 @@ import type { SettingScope } from './types';
 export const PYTHON_EXTENSION_ID = 'ms-python.python';
 
 const APPROVALS_KEY = 'readback.approvedWorkspaceInterpreters';
+/** Workspace values the user chose to ignore, e.g. by picking another interpreter. */
+const IGNORED_KEY = 'readback.ignoredWorkspaceInterpreters';
 const MAX_APPROVALS = 200;
 /** The Python extension can take seconds to activate (discovery, experiments). */
 const API_TIMEOUT_MS = 10_000;
@@ -67,19 +69,43 @@ export class InterpreterSetting {
     ]);
   }
 
+  /** The value from workspace or folder settings that would override the user setting, if any. */
+  workspaceValue(): { readonly value: string; readonly scope: SettingScope } | undefined {
+    const inspected = vscode.workspace
+      .getConfiguration(SETTING_SECTION, configurationResource())
+      .inspect<string>(PYTHON_PATH_KEY);
+    const folderValue = nonEmpty(inspected?.workspaceFolderValue);
+    const workspaceValue = nonEmpty(inspected?.workspaceValue);
+    return folderValue !== undefined
+      ? { value: folderValue, scope: 'workspaceFolder' }
+      : workspaceValue !== undefined
+        ? { value: workspaceValue, scope: 'workspace' }
+        : undefined;
+  }
+
+  /**
+   * Stops using a workspace value in this workspace (persisted), so the user setting applies. Used
+   * when the user explicitly picks another interpreter.
+   */
+  async ignoreWorkspaceValue(value: string): Promise<void> {
+    const key = this.key(value);
+    const approved = this.globalState.get<string[]>(APPROVALS_KEY, []);
+    await this.globalState.update(
+      APPROVALS_KEY,
+      approved.filter((entry) => entry !== key),
+    );
+    const ignored = this.globalState.get<string[]>(IGNORED_KEY, []);
+    if (!ignored.includes(key)) {
+      await this.globalState.update(IGNORED_KEY, [...ignored, key].slice(-MAX_APPROVALS));
+    }
+  }
+
   async read(options: ReadOptions): Promise<SettingLookup> {
     const inspected = vscode.workspace
       .getConfiguration(SETTING_SECTION, configurationResource())
       .inspect<string>(PYTHON_PATH_KEY);
     const userValue = nonEmpty(inspected?.globalValue);
-    const folderValue = nonEmpty(inspected?.workspaceFolderValue);
-    const workspaceValue = nonEmpty(inspected?.workspaceValue);
-    const scoped: { value: string; scope: SettingScope } | undefined =
-      folderValue !== undefined
-        ? { value: folderValue, scope: 'workspaceFolder' }
-        : workspaceValue !== undefined
-          ? { value: workspaceValue, scope: 'workspace' }
-          : undefined;
+    const scoped = this.workspaceValue();
     if (scoped && (await this.approve(scoped.value, options))) {
       return scoped;
     }
@@ -90,8 +116,15 @@ export class InterpreterSetting {
     };
   }
 
+  private key(value: string): string {
+    return `${workspaceIdentity()}\n${value}`;
+  }
+
   private async approve(value: string, options: ReadOptions): Promise<boolean> {
-    const key = `${workspaceIdentity()}\n${value}`;
+    const key = this.key(value);
+    if (this.globalState.get<string[]>(IGNORED_KEY, []).includes(key)) {
+      return false;
+    }
     const approved = this.globalState.get<string[]>(APPROVALS_KEY, []);
     if (approved.includes(key)) {
       return true;
@@ -142,8 +175,16 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | type
 }
 
 /** Gives access to the Python extension's API once it has been acquired successfully. */
-export class PythonExtensionSource {
+export class PythonExtensionSource implements vscode.Disposable {
   private api: PythonExtension | undefined;
+  private listener: vscode.Disposable | undefined;
+
+  /**
+   * @param onDidChangeActiveEnvironment called when the Python extension reports a new active
+   *   environment. Only subscribed once the API has been acquired: listening alone must never
+   *   activate the Python extension.
+   */
+  constructor(private readonly onDidChangeActiveEnvironment: () => void = () => undefined) {}
 
   /** The environments API, or undefined if the extension is missing, disabled or slow. */
   async environments(): Promise<PythonExtension['environments'] | undefined> {
@@ -157,15 +198,8 @@ export class PythonExtensionSource {
     if (api === TIMEOUT) {
       return undefined;
     }
-    this.api = api;
+    this.acquired(api);
     return api.environments;
-  }
-
-  /** Only listens if the API was already acquired: listening must never activate the extension. */
-  onDidChangeActiveEnvironment(listener: () => void): vscode.Disposable | undefined {
-    return this.api?.environments.onDidChangeActiveEnvironmentPath(() => {
-      listener();
-    });
   }
 
   async activeInterpreter(resource: vscode.Uri | undefined): Promise<PythonExtensionLookup> {
@@ -177,7 +211,7 @@ export class PythonExtensionSource {
       if (api === TIMEOUT) {
         return { kind: 'timeout' };
       }
-      this.api = api;
+      this.acquired(api);
       const active = api.environments.getActiveEnvironmentPath(resource);
       const resolved = await withTimeout(
         api.environments.resolveEnvironment(active),
@@ -191,5 +225,20 @@ export class PythonExtensionSource {
     } catch (error) {
       return { kind: 'error', detail: errorMessage(error) };
     }
+  }
+
+  dispose(): void {
+    this.listener?.dispose();
+    this.listener = undefined;
+  }
+
+  private acquired(api: PythonExtension): void {
+    if (this.api) {
+      return;
+    }
+    this.api = api;
+    this.listener = api.environments.onDidChangeActiveEnvironmentPath(() => {
+      this.onDidChangeActiveEnvironment();
+    });
   }
 }

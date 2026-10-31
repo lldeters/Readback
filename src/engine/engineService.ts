@@ -1,7 +1,6 @@
 // Owns the engine for this window: lazy start on first use, automatic restart with backoff after
 // crashes, restart on interpreter changes, and the status snapshot for "Show Engine Status".
-import { constants as fsConstants } from 'node:fs';
-import { access, mkdir, readdir, realpath, rm, stat } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import * as vscode from 'vscode';
@@ -9,9 +8,11 @@ import type { InitializeResult, LogLevel } from '../shared/generated/engineProto
 import { errorMessage } from '../util/log';
 import {
   EngineConnection,
+  EngineRequestFailure,
   EngineStartFailure,
   PingRequest,
   type EngineExit,
+  type EngineLaunchOptions,
 } from './engineConnection';
 import { findOnPath, nodeFs, searchPath, type PathSearchOptions } from './interpreter/pathSearch';
 import { sanitizedEnv } from './interpreter/policy';
@@ -30,6 +31,7 @@ import type {
   InterpreterCandidate,
   InterpreterSource,
   ResolutionResult,
+  SettingScope,
 } from './interpreter/types';
 import { RestartPolicy } from './restartPolicy';
 import { PYTHON_PATH_SETTING, SETTING_SECTION, TIMEOUT_KEY } from './settings';
@@ -77,6 +79,19 @@ const MAX_DETECTED = 25;
 const PROBE_TIMEOUT_MS = { setting: 15_000, pythonExtension: 15_000, path: 5_000 } as const;
 const INTERPRETER_CHANGE_DEBOUNCE_MS = 1_000;
 const DEFAULT_TIMEOUT_MS = 30_000;
+/** How long ping() waits for a killed engine's exit event before giving up. */
+const EXIT_SETTLE_MS = 500;
+/** Same bounds as readback.engine.timeoutMs in package.json. */
+const MIN_TIMEOUT_MS = 1_000;
+const MAX_TIMEOUT_MS = 600_000;
+
+/** Seams for unit tests; production code passes nothing. */
+export interface EngineServiceOptions {
+  readonly resolveInterpreter?: (options: ReadOptions) => Promise<ResolutionResult>;
+  readonly startConnection?: (options: EngineLaunchOptions) => Promise<EngineConnection>;
+  readonly restartPolicy?: RestartPolicy;
+  readonly interpreterChangeDebounceMs?: number;
+}
 
 export function toEngineLogLevel(level: vscode.LogLevel): LogLevel {
   switch (level) {
@@ -107,10 +122,13 @@ export class EngineService implements vscode.Disposable {
   private changeTimer: NodeJS.Timeout | undefined;
   /** Interpreter inputs the running engine was started with; see interpreterInputsChanged. */
   private startedWith: string | undefined;
-  private readonly restartPolicy = new RestartPolicy();
+  /** Counts active-environment changes reported by the Python extension. */
+  private environmentGeneration = 0;
+  /** Whether CPython may write __pycache__ next to the engine; probed once per session. */
+  private engineDirectoryWritable: Promise<boolean> | undefined;
+  private readonly restartPolicy: RestartPolicy;
   private readonly setting: InterpreterSetting;
-  private readonly pythonExtension = new PythonExtensionSource();
-  private pythonExtensionListener: vscode.Disposable | undefined;
+  private readonly pythonExtension: PythonExtensionSource;
   private readonly probeCache = new Map<string, AttemptOutcome>();
   private pythonExtensionInstalled =
     vscode.extensions.getExtension(PYTHON_EXTENSION_ID) !== undefined;
@@ -121,10 +139,18 @@ export class EngineService implements vscode.Disposable {
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly log: vscode.LogOutputChannel,
+    private readonly options: EngineServiceOptions = {},
   ) {
+    this.restartPolicy = options.restartPolicy ?? new RestartPolicy();
     this.setting = new InterpreterSetting(context.globalState);
+    // Listens as soon as the Python extension's API is acquired, also during a start.
+    this.pythonExtension = new PythonExtensionSource(() => {
+      this.environmentGeneration += 1;
+      this.interpreterInputsChanged('Python extension environment changed');
+    });
     this.disposables.push(
       this.stateEmitter,
+      this.pythonExtension,
       vscode.workspace.onDidChangeConfiguration((event) => {
         if (event.affectsConfiguration(PYTHON_PATH_SETTING)) {
           this.interpreterInputsChanged('setting changed');
@@ -205,6 +231,9 @@ export class EngineService implements vscode.Disposable {
 
   /** Runs the interpreter resolution without starting anything. */
   async resolve(options: ReadOptions): Promise<ResolutionResult> {
+    if (this.options.resolveInterpreter) {
+      return this.options.resolveInterpreter(options);
+    }
     const platform = process.platform;
     const trusted = vscode.workspace.isTrusted;
     const workspaceFolders = workspaceFolderPaths();
@@ -269,8 +298,31 @@ export class EngineService implements vscode.Disposable {
   async ping(options: ReadOptions): Promise<number> {
     const connection = await this.ensureStarted(options);
     const started = performance.now();
-    await connection.request(PingRequest, { timeoutMs: this.timeoutMs() });
+    try {
+      await connection.request(PingRequest, { timeoutMs: this.timeoutMs() });
+    } catch (error) {
+      // A killed engine reports its exit a moment after the request fails; let the state catch
+      // up, so a status read right after this does not still say "running".
+      if (error instanceof EngineRequestFailure && error.kind === 'unavailable') {
+        await Promise.race([
+          connection.exited,
+          new Promise((resolve) => setTimeout(resolve, EXIT_SETTLE_MS)),
+        ]);
+      }
+      throw error;
+    }
     return performance.now() - started;
+  }
+
+  /** A pythonPath from workspace or folder settings, which takes precedence over the user value. */
+  workspaceInterpreterSetting():
+    { readonly value: string; readonly scope: SettingScope } | undefined {
+    return this.setting.workspaceValue();
+  }
+
+  /** Ignores that workspace value in this workspace from now on (see InterpreterSetting). */
+  async ignoreWorkspaceInterpreterSetting(value: string): Promise<void> {
+    await this.setting.ignoreWorkspaceValue(value);
   }
 
   status(): EngineStatus {
@@ -286,11 +338,14 @@ export class EngineService implements vscode.Disposable {
     };
   }
 
+  /** readback.engine.timeoutMs, clamped to the manifest's range (VS Code does not enforce it). */
   timeoutMs(): number {
     const value = vscode.workspace
       .getConfiguration(SETTING_SECTION)
-      .get<number>(TIMEOUT_KEY, DEFAULT_TIMEOUT_MS);
-    return Number.isFinite(value) && value >= 1_000 ? value : DEFAULT_TIMEOUT_MS;
+      .get<unknown>(TIMEOUT_KEY, DEFAULT_TIMEOUT_MS);
+    return typeof value === 'number' && Number.isFinite(value)
+      ? Math.min(Math.max(value, MIN_TIMEOUT_MS), MAX_TIMEOUT_MS)
+      : DEFAULT_TIMEOUT_MS;
   }
 
   /** Stops the engine and waits for it (deactivate). */
@@ -303,7 +358,6 @@ export class EngineService implements vscode.Disposable {
     clearTimeout(this.changeTimer);
     await this.starting?.catch(() => undefined);
     await this.stopEngine();
-    this.pythonExtensionListener?.dispose();
     for (const disposable of this.disposables) {
       disposable.dispose();
     }
@@ -313,9 +367,18 @@ export class EngineService implements vscode.Disposable {
     void this.shutdown();
   }
 
+  /** Everything the interpreter choice depends on; see interpreterInputsChanged. */
+  private inputsFingerprint(): string {
+    return JSON.stringify([
+      this.setting.fingerprint(),
+      this.pythonExtensionInstalled,
+      this.environmentGeneration,
+    ]);
+  }
+
   private async start(options: ReadOptions): Promise<EngineConnection> {
     clearTimeout(this.restartTimer);
-    const fingerprint = this.setting.fingerprint();
+    const fingerprint = this.inputsFingerprint();
     const resolution = await this.resolve(options);
     this.resolution = resolution;
     this.logResolution(resolution);
@@ -328,9 +391,13 @@ export class EngineService implements vscode.Disposable {
     }
     const started = performance.now();
     const pycachePrefix = await this.pycachePrefix();
+    const logLevel = toEngineLogLevel(this.log.logLevel);
+    const startConnection =
+      this.options.startConnection ??
+      ((launch: EngineLaunchOptions) => EngineConnection.start(launch));
     let connection: EngineConnection;
     try {
-      connection = await EngineConnection.start({
+      connection = await startConnection({
         ...(pycachePrefix === undefined ? {} : { pycachePrefix }),
         executable: interpreter.probe.executable,
         engineDirectory: this.engineDirectory,
@@ -339,7 +406,7 @@ export class EngineService implements vscode.Disposable {
           name: this.context.extension.id,
           version: String((this.context.extension.packageJSON as { version: unknown }).version),
         },
-        logLevel: toEngineLogLevel(this.log.logLevel),
+        logLevel,
         workspaceTrusted: vscode.workspace.isTrusted,
         locale: vscode.env.language,
         startupTimeoutMs: STARTUP_TIMEOUT_MS,
@@ -365,10 +432,11 @@ export class EngineService implements vscode.Disposable {
     connection.onExit((exit) => {
       this.handleExit(connection, exit);
     });
-    this.pythonExtensionListener?.dispose();
-    this.pythonExtensionListener = this.pythonExtension.onDidChangeActiveEnvironment(() => {
-      this.interpreterInputsChanged('Python extension environment changed');
-    });
+    // The level may have changed during the handshake; onDidChangeLogLevel had no engine yet.
+    const currentLevel = toEngineLogLevel(this.log.logLevel);
+    if (currentLevel !== logLevel) {
+      connection.setLogLevel(currentLevel);
+    }
     return connection;
   }
 
@@ -406,32 +474,33 @@ export class EngineService implements vscode.Disposable {
   }
 
   /**
-   * The interpreter may have changed (setting, trust, Python extension). Stop the engine; the next
-   * use starts it again with a fresh resolution. Ignore events that did not change our inputs.
+   * The interpreter may have changed (setting, trust, Python extension). Stop the engine if its
+   * inputs differ from the ones it was started with; the next use starts it with a fresh
+   * resolution. A change that arrives during a start is checked again once that start settles.
    */
   private interpreterInputsChanged(reason: string): void {
     clearTimeout(this.changeTimer);
     this.changeTimer = setTimeout(() => {
+      const pending = this.starting;
+      if (pending) {
+        const again = (): void => {
+          this.interpreterInputsChanged(reason);
+        };
+        void pending.then(again, again);
+        return;
+      }
       this.probeCache.clear();
       if (this.failure?.kind !== 'crashLoop') {
         this.failure = undefined;
       }
-      const running = this.connection?.isRunning ?? false;
-      if (
-        running &&
-        reason === 'setting changed' &&
-        this.setting.fingerprint() === this.startedWith
-      ) {
-        return;
-      }
-      if (running) {
+      if (this.connection?.isRunning && this.inputsFingerprint() !== this.startedWith) {
         this.log.info(
           `Interpreter inputs changed (${reason}); stopping the engine until next use.`,
         );
         void this.stopEngine();
       }
       this.fireState();
-    }, INTERPRETER_CHANGE_DEBOUNCE_MS);
+    }, this.options.interpreterChangeDebounceMs ?? INTERPRETER_CHANGE_DEBOUNCE_MS);
   }
 
   private async stopEngine(): Promise<void> {
@@ -474,24 +543,24 @@ export class EngineService implements vscode.Disposable {
    * the engine does not recompile on every start; folders of other versions are removed.
    */
   private async pycachePrefix(): Promise<string | undefined> {
-    try {
-      await access(this.engineDirectory, fsConstants.W_OK);
+    this.engineDirectoryWritable ??= canWriteInto(this.engineDirectory);
+    if (await this.engineDirectoryWritable) {
       return undefined;
-    } catch {
-      const root = path.join(this.context.globalStorageUri.fsPath, 'pycache');
-      const version = String((this.context.extension.packageJSON as { version: unknown }).version);
-      try {
-        await mkdir(path.join(root, version), { recursive: true });
-        for (const entry of await readdir(root)) {
-          if (entry !== version) {
-            await rm(path.join(root, entry), { recursive: true, force: true });
-          }
+    }
+    const root = path.join(this.context.globalStorageUri.fsPath, 'pycache');
+    const version = String((this.context.extension.packageJSON as { version: unknown }).version);
+    try {
+      await mkdir(path.join(root, version), { recursive: true });
+      for (const entry of await readdir(root)) {
+        if (entry !== version) {
+          await rm(path.join(root, entry), { recursive: true, force: true });
         }
-        return path.join(root, version);
-      } catch (error) {
-        this.log.debug(`No bytecode cache folder: ${errorMessage(error)}`);
-        return undefined;
       }
+      this.log.info(`The engine folder is read-only; bytecode goes to ${root}.`);
+      return path.join(root, version);
+    } catch (error) {
+      this.log.debug(`No bytecode cache folder: ${errorMessage(error)}`);
+      return undefined;
     }
   }
 
@@ -518,5 +587,24 @@ export class EngineService implements vscode.Disposable {
 
   private fireState(): void {
     this.stateEmitter.fire(this.state);
+  }
+}
+
+/**
+ * Whether files can be created in a folder, decided by doing it: on Windows, fs.access() reports
+ * every directory as writable regardless of its ACL.
+ */
+async function canWriteInto(directory: string): Promise<boolean> {
+  try {
+    const probe = await mkdtemp(path.join(directory, '.readback-write-test-'));
+    try {
+      await writeFile(path.join(probe, 'probe'), '');
+    } finally {
+      // A failed clean-up (e.g. an antivirus handle) does not change the answer.
+      await rm(probe, { recursive: true, force: true }).catch(() => undefined);
+    }
+    return true;
+  } catch {
+    return false;
   }
 }

@@ -147,6 +147,31 @@ describe('InterpreterSetting', () => {
     });
   });
 
+  it('ignores a workspace value for good once the user picked another interpreter', async () => {
+    state.inspected = { globalValue: '/opt/python', workspaceValue: '/repo/.venv/bin/python' };
+    state.answer = 'Allow';
+    const globalState = memento();
+    const setting = new InterpreterSetting(globalState as never);
+    await expect(setting.read({ interactive: true })).resolves.toMatchObject({
+      scope: 'workspace',
+    });
+    expect(setting.workspaceValue()).toEqual({
+      value: '/repo/.venv/bin/python',
+      scope: 'workspace',
+    });
+    await setting.ignoreWorkspaceValue('/repo/.venv/bin/python');
+    // Also in a later session, and without asking again.
+    state.prompts = [];
+    await expect(
+      new InterpreterSetting(globalState as never).read({ interactive: true }),
+    ).resolves.toEqual({
+      value: '/opt/python',
+      scope: 'user',
+      declinedWorkspaceValue: '/repo/.venv/bin/python',
+    });
+    expect(state.prompts).toEqual([]);
+  });
+
   it('changes its fingerprint when a scope value changes', () => {
     const setting = new InterpreterSetting(memento() as never);
     state.inspected = { globalValue: '/a' };
@@ -165,25 +190,43 @@ describe('PythonExtensionSource', () => {
 
   it('resolves the active environment to its executable', async () => {
     state.pythonExtensionInstalled = true;
+    const listeners: (() => void)[] = [];
     state.api = {
       environments: {
         getActiveEnvironmentPath: () => ({ id: 'venv', path: '/work/.venv' }),
         resolveEnvironment: () =>
           Promise.resolve({ executable: { uri: { fsPath: '/work/.venv/bin/python' } } }),
+        onDidChangeActiveEnvironmentPath: (listener: () => void) => {
+          listeners.push(listener);
+          return { dispose: () => listeners.splice(listeners.indexOf(listener), 1) };
+        },
       },
     };
-    await expect(new PythonExtensionSource().activeInterpreter(undefined)).resolves.toEqual({
+    let changes = 0;
+    const source = new PythonExtensionSource(() => {
+      changes += 1;
+    });
+    await expect(source.activeInterpreter(undefined)).resolves.toEqual({
       kind: 'found',
       executable: '/work/.venv/bin/python',
     });
+    // Subscribed as soon as the API was acquired, exactly once.
+    await source.activeInterpreter(undefined);
+    expect(listeners).toHaveLength(1);
+    listeners[0]?.();
+    expect(changes).toBe(1);
+    source.dispose();
+    expect(listeners).toHaveLength(0);
   });
 
   it('handles environments without executable and API errors', async () => {
     state.pythonExtensionInstalled = true;
+    const noListener = () => ({ dispose: () => undefined });
     state.api = {
       environments: {
         getActiveEnvironmentPath: () => ({ id: 'x', path: '/x' }),
         resolveEnvironment: () => Promise.resolve(undefined),
+        onDidChangeActiveEnvironmentPath: noListener,
       },
     };
     await expect(new PythonExtensionSource().activeInterpreter(undefined)).resolves.toEqual({
@@ -194,6 +237,7 @@ describe('PythonExtensionSource', () => {
         getActiveEnvironmentPath: () => {
           throw new Error('not ready');
         },
+        onDidChangeActiveEnvironmentPath: noListener,
       },
     };
     await expect(new PythonExtensionSource().activeInterpreter(undefined)).resolves.toEqual({

@@ -2,52 +2,39 @@
 // activation, no unprompted popups). Hidden readback._test.* commands serve the integration tests.
 import * as vscode from 'vscode';
 import { errorMessage } from '../util/log';
-import { EngineUnavailableError, type EngineFailure, type EngineService } from './engineService';
+import { EngineRequestFailure } from './engineConnection';
+import { EngineUnavailableError, type EngineService } from './engineService';
+import { MANAGE_TRUST_COMMAND, showEngineFailure } from './failureUi';
 import { describeFailure, formatStatus } from './messages';
 import { selectInterpreter } from './selectInterpreter';
 
-const MANAGE_TRUST_COMMAND = 'workbench.trust.manage';
-
-/** Error notification with the actions that can fix the problem. */
-export async function showEngineFailure(
-  failure: EngineFailure,
-  log: vscode.LogOutputChannel,
-): Promise<void> {
-  const select = vscode.l10n.t('Select Interpreter…');
-  const showLog = vscode.l10n.t('Show Log');
-  const manageTrust = vscode.l10n.t('Manage Workspace Trust');
-  const actions = vscode.workspace.isTrusted ? [select, showLog] : [select, manageTrust, showLog];
-  const choice = await vscode.window.showErrorMessage(describeFailure(failure), ...actions);
-  if (choice === select) {
-    await vscode.commands.executeCommand('readback.selectInterpreter');
-  } else if (choice === manageTrust) {
-    await vscode.commands.executeCommand(MANAGE_TRUST_COMMAND);
-  } else if (choice === showLog) {
-    log.show();
-  }
-}
-
 async function showStatus(service: EngineService, log: vscode.LogOutputChannel): Promise<void> {
   let pingMs: number | undefined;
+  let pingError: EngineRequestFailure | undefined;
   try {
     pingMs = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Window,
-        title: vscode.l10n.t('Starting Readback engine…'),
+        title: vscode.l10n.t('Checking Readback engine…'),
       },
       () => service.ping({ interactive: true }),
     );
   } catch (error) {
-    if (!(error instanceof EngineUnavailableError)) {
+    if (error instanceof EngineRequestFailure) {
+      // The engine started but did not answer: report it, never a healthy-looking status.
+      pingError = error;
+      log.warn(`Engine status: ping failed (${error.kind}): ${error.message}`);
+    } else if (!(error instanceof EngineUnavailableError)) {
       log.error(`Engine status: ${errorMessage(error)}`);
     }
   }
   const status = service.status();
-  const report = formatStatus(status, pingMs);
+  const report = formatStatus(status, pingMs, pingError);
   const copy = vscode.l10n.t('Copy Details');
   const showLog = vscode.l10n.t('Show Log');
   const select = vscode.l10n.t('Select Interpreter…');
   const manageTrust = vscode.l10n.t('Manage Workspace Trust');
+  const restart = vscode.l10n.t('Restart Engine');
   let choice: string | undefined;
   if (status.failure) {
     log.warn(`Engine status:\n${report}`);
@@ -56,6 +43,15 @@ async function showStatus(service: EngineService, log: vscode.LogOutputChannel):
       describeFailure(status.failure),
       { modal: true, detail: report },
       ...actions,
+    );
+  } else if (pingError) {
+    log.warn(`Engine status:\n${report}`);
+    choice = await vscode.window.showErrorMessage(
+      vscode.l10n.t('The Readback engine does not respond.'),
+      { modal: true, detail: report },
+      restart,
+      copy,
+      showLog,
     );
   } else {
     choice = await vscode.window.showInformationMessage(
@@ -73,6 +69,8 @@ async function showStatus(service: EngineService, log: vscode.LogOutputChannel):
     await vscode.commands.executeCommand('readback.selectInterpreter');
   } else if (choice === manageTrust) {
     await vscode.commands.executeCommand(MANAGE_TRUST_COMMAND);
+  } else if (choice === restart) {
+    await vscode.commands.executeCommand('readback.restartEngine');
   }
 }
 
