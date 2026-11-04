@@ -17,10 +17,11 @@ import {
 import { findOnPath, nodeFs, searchPath, type PathSearchOptions } from './interpreter/pathSearch';
 import { sanitizedEnv } from './interpreter/policy';
 import { probeCandidate, runProcess } from './interpreter/probe';
-import { resolveInterpreter } from './interpreter/resolve';
+import { checkWorkspaceInterpreter, resolveInterpreter } from './interpreter/resolve';
 import {
   InterpreterSetting,
   PYTHON_EXTENSION_ID,
+  PythonExtensionApprovals,
   PythonExtensionSource,
   configurationResource,
   workspaceFolderPaths,
@@ -70,6 +71,10 @@ export interface EngineStatus {
 export interface DetectedInterpreter {
   readonly source: InterpreterSource;
   readonly command: string;
+  /**
+   * The probe result. A Python extension interpreter inside the workspace without the user's
+   * confirmation is not probed: skipped with reason notConfirmed or declinedInSession.
+   */
   readonly outcome: AttemptOutcome;
 }
 
@@ -129,6 +134,7 @@ export class EngineService implements vscode.Disposable {
   private readonly restartPolicy: RestartPolicy;
   private readonly setting: InterpreterSetting;
   private readonly pythonExtension: PythonExtensionSource;
+  private readonly pythonExtensionApprovals: PythonExtensionApprovals;
   private readonly probeCache = new Map<string, AttemptOutcome>();
   private pythonExtensionInstalled =
     vscode.extensions.getExtension(PYTHON_EXTENSION_ID) !== undefined;
@@ -143,6 +149,7 @@ export class EngineService implements vscode.Disposable {
   ) {
     this.restartPolicy = options.restartPolicy ?? new RestartPolicy();
     this.setting = new InterpreterSetting(context.globalState);
+    this.pythonExtensionApprovals = new PythonExtensionApprovals(context.globalState);
     // Listens as soon as the Python extension's API is acquired, also during a start.
     this.pythonExtension = new PythonExtensionSource(() => {
       this.environmentGeneration += 1;
@@ -245,6 +252,7 @@ export class EngineService implements vscode.Disposable {
       homeDirectory: os.homedir(),
       readSetting: () => this.setting.read(options),
       pythonExtension: () => this.pythonExtension.activeInterpreter(configurationResource()),
+      confirmWorkspaceInterpreter: (path) => this.pythonExtensionApprovals.confirm(path, options),
       searchPath: () => searchPath(pathOptions),
       findOnPath: (name) => findOnPath(name, pathOptions),
       probe: (candidate) => this.probe(candidate),
@@ -254,11 +262,19 @@ export class EngineService implements vscode.Disposable {
 
   /**
    * Every interpreter the user could pick (Python extension environments, all PATH matches), each
-   * probed. Unlike resolve() this does not stop at the first usable one.
+   * probed. Unlike resolve() this does not stop at the first usable one, and it never asks: a
+   * Python extension interpreter inside the workspace is only probed once the user confirmed it.
    */
   async detectInterpreters(): Promise<DetectedInterpreter[]> {
     const trusted = vscode.workspace.isTrusted;
     const workspaceFolders = workspaceFolderPaths();
+    const workspaceCheck = {
+      platform: process.platform,
+      workspaceFolders,
+      realpath: (file: string) => realpath(file),
+      confirmWorkspaceInterpreter: (file: string) =>
+        this.pythonExtensionApprovals.confirm(file, { interactive: false }),
+    };
     const found: { source: InterpreterSource; command: string; prefixArgs: string[] }[] = [];
     if (trusted) {
       const active = await this.pythonExtension.activeInterpreter(configurationResource());
@@ -284,7 +300,14 @@ export class EngineService implements vscode.Disposable {
     const seen = new Set<string>();
     const detected: DetectedInterpreter[] = [];
     for (const candidate of found.slice(0, MAX_DETECTED)) {
-      const outcome = await this.probe(candidate);
+      const confirmation =
+        candidate.source === 'pythonExtension'
+          ? await checkWorkspaceInterpreter(candidate.command, workspaceCheck)
+          : 'outside';
+      const outcome: AttemptOutcome =
+        confirmation === 'outside' || confirmation === 'approved'
+          ? await this.probe(candidate)
+          : { kind: 'skipped', reason: confirmation };
       const key = outcome.kind === 'ok' ? outcome.probe.executable : candidate.command;
       if (!seen.has(key)) {
         seen.add(key);

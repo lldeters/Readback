@@ -1,6 +1,6 @@
 # ADR 004: Interpreter discovery and Restricted Mode
 
-- Status: Accepted
+- Status: Accepted, amended by [ADR 011](011-workspace-interpreter-confirmation.md)
 - Date: 2026-10-31
 
 ## Context
@@ -69,12 +69,16 @@ missing, and the Windows Python install manager can download a runtime when aske
   cloned repository cannot make it run a program from the repository at all, and a
   `hearback.engine.pythonPath` in workspace settings never runs without the user's consent, in
   trusted workspaces and in editors without Workspace Trust too.
-- **Known limit:** in a trusted workspace (and therefore always in editors that ship with Workspace
-  Trust disabled, such as Cursor), Hearback uses the Python extension's active environment as that
-  extension chose it, without a prompt. A repository can steer that choice, for example with a
-  committed `.venv` or `python.defaultInterpreterPath`, and the Python extension itself runs that
-  interpreter too. Extending the confirmation to such interpreters inside the workspace would need
-  the owner's decision.
+- **Known limit, resolved by [ADR 011](011-workspace-interpreter-confirmation.md):** in a trusted
+  workspace (and therefore always in editors that ship with Workspace Trust disabled, such as
+  Cursor), Hearback uses the Python extension's active environment as that extension chose it,
+  without a prompt. A repository can steer that choice, for example with a committed `.venv` or
+  `python.defaultInterpreterPath`, and the Python extension itself runs that interpreter too.
+  Extending the confirmation to such interpreters inside the workspace would need the owner's
+  decision. The owner decided on 2026-11-04: an interpreter that the Python extension selected
+  inside the workspace (by its path or real path) now runs only after a one-time confirmation per
+  (workspace, path), asked before anything runs and only in interactive starts; without it, the
+  resolution continues with PATH.
 - Hearback: Show Engine Status can explain exactly which source was used and why the other
   candidates were rejected.
 - Per-project interpreters cost one extra confirmation; after declining, the user-level value

@@ -8,7 +8,9 @@ import type {
   PathProblem,
   ResolutionAttempt,
   ResolutionResult,
+  ResolvedInterpreter,
   SettingScope,
+  SkipReason,
 } from './types';
 
 export interface SettingLookup {
@@ -26,6 +28,12 @@ export type PythonExtensionLookup =
   | { readonly kind: 'timeout' }
   | { readonly kind: 'found'; readonly executable: string };
 
+/**
+ * The user's answer for an interpreter inside the workspace: approved (now or earlier), not
+ * confirmed (no approval, and no prompt was allowed) or declined earlier in this session.
+ */
+export type Confirmation = 'approved' | Extract<SkipReason, 'notConfirmed' | 'declinedInSession'>;
+
 export interface ResolveContext {
   readonly platform: NodeJS.Platform;
   readonly trusted: boolean;
@@ -33,6 +41,11 @@ export interface ResolveContext {
   readonly homeDirectory: string;
   readSetting(): Promise<SettingLookup>;
   pythonExtension(): Promise<PythonExtensionLookup>;
+  /**
+   * Asks whether an interpreter that the Python extension selected inside the workspace may run:
+   * a stored approval, or a one-time prompt in interactive starts. Runs nothing itself.
+   */
+  confirmWorkspaceInterpreter(path: string): Promise<Confirmation>;
   searchPath(): Promise<PathSearchResult>;
   /** Looks up a bare command name from the setting (e.g. "python3.12") on PATH. */
   findOnPath(name: string): Promise<PathLookup>;
@@ -78,15 +91,37 @@ export function expandSettingPath(
   return { kind: 'invalid', problem: 'relativeUntrusted' };
 }
 
-async function insideWorkspace(path: string, context: ResolveContext): Promise<boolean> {
-  if (context.trusted) {
-    return false;
-  }
-  if (isInsideAny(path, context.workspaceFolders, context.platform)) {
-    return true;
-  }
-  const real = await context.realpath(path).catch(() => path);
-  return isInsideAny(real, context.workspaceFolders, context.platform);
+type WorkspaceContext = Pick<ResolveContext, 'platform' | 'workspaceFolders' | 'realpath'>;
+
+/**
+ * Whether the path or its real path lies inside a workspace folder, compared with the folders as
+ * opened and with their real paths: a venv's python links to a base interpreter outside the
+ * workspace, so only its own path shows where it lives, also when the folder was opened through a
+ * symlink. Nothing is run.
+ */
+async function liesInsideWorkspace(path: string, context: WorkspaceContext): Promise<boolean> {
+  const real = (file: string): Promise<string> => context.realpath(file).catch(() => file);
+  const folders = [
+    ...context.workspaceFolders,
+    ...(await Promise.all(context.workspaceFolders.map(real))),
+  ];
+  return [path, await real(path)].some((candidate) =>
+    isInsideAny(candidate, folders, context.platform),
+  );
+}
+
+/**
+ * An interpreter from the Python extension may run when it lies outside the workspace folders.
+ * Inside, a repository can have chosen it (a committed .venv, python.defaultInterpreterPath), and
+ * even probing it runs workspace code, so it needs the user's confirmation first.
+ */
+export async function checkWorkspaceInterpreter(
+  path: string,
+  context: WorkspaceContext & Pick<ResolveContext, 'confirmWorkspaceInterpreter'>,
+): Promise<'outside' | Confirmation> {
+  return (await liesInsideWorkspace(path, context))
+    ? context.confirmWorkspaceInterpreter(path)
+    : 'outside';
 }
 
 export async function resolveInterpreter(context: ResolveContext): Promise<ResolutionResult> {
@@ -138,7 +173,8 @@ export async function resolveInterpreter(context: ResolveContext): Promise<Resol
     } else {
       candidate = { source: 'setting', command: expansion.path, prefixArgs: [] };
     }
-    if (await insideWorkspace(candidate.command, context)) {
+    // Restricted Mode: nothing inside the workspace runs, not even through the user's setting.
+    if (!context.trusted && (await liesInsideWorkspace(candidate.command, context))) {
       return blocked(candidate.command, { kind: 'failed', reason: 'insideWorkspace' });
     }
     const outcome = await context.probe(candidate);
@@ -158,15 +194,9 @@ export async function resolveInterpreter(context: ResolveContext): Promise<Resol
   } else {
     const lookup = await context.pythonExtension();
     if (lookup.kind === 'found') {
-      const candidate: InterpreterCandidate = {
-        source: 'pythonExtension',
-        command: lookup.executable,
-        prefixArgs: [],
-      };
-      const outcome = await context.probe(candidate);
-      attempts.push({ source: 'pythonExtension', command: lookup.executable, outcome });
-      if (outcome.kind === 'ok') {
-        return done({ interpreter: { candidate, probe: outcome.probe }, blockedBySetting: false });
+      const interpreter = await usePythonExtension(lookup.executable, context, attempts);
+      if (interpreter) {
+        return done({ interpreter, blockedBySetting: false });
       }
     } else {
       attempts.push({ source: 'pythonExtension', outcome: pythonExtensionOutcome(lookup) });
@@ -194,6 +224,42 @@ export async function resolveInterpreter(context: ResolveContext): Promise<Resol
     }
   }
   return done({ interpreter: undefined, blockedBySetting: false });
+}
+
+/**
+ * Probes the Python extension's interpreter unless it lies inside the workspace without the user's
+ * confirmation (then the resolution continues with PATH). The engine runs the probed
+ * sys.executable, so a different executable that leads into the workspace is checked as well.
+ */
+async function usePythonExtension(
+  command: string,
+  context: ResolveContext,
+  attempts: ResolutionAttempt[],
+): Promise<ResolvedInterpreter | undefined> {
+  const skip = (path: string, reason: Exclude<Confirmation, 'approved'>): void => {
+    attempts.push({
+      source: 'pythonExtension',
+      command: path,
+      outcome: { kind: 'skipped', reason },
+    });
+  };
+  const reported = await checkWorkspaceInterpreter(command, context);
+  if (reported !== 'outside' && reported !== 'approved') {
+    skip(command, reported);
+    return undefined;
+  }
+  const candidate: InterpreterCandidate = { source: 'pythonExtension', command, prefixArgs: [] };
+  const outcome = await context.probe(candidate);
+  // An approval of the reported path covers what it runs; it already ran during the probe.
+  if (outcome.kind === 'ok' && reported === 'outside' && outcome.probe.executable !== command) {
+    const executable = await checkWorkspaceInterpreter(outcome.probe.executable, context);
+    if (executable !== 'outside' && executable !== 'approved') {
+      skip(outcome.probe.executable, executable);
+      return undefined;
+    }
+  }
+  attempts.push({ source: 'pythonExtension', command, outcome });
+  return outcome.kind === 'ok' ? { candidate, probe: outcome.probe } : undefined;
 }
 
 function pythonExtensionOutcome(

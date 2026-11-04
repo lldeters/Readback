@@ -13,12 +13,22 @@ interface MockState {
   inspected: Record<string, unknown>;
   timeout: unknown;
   configurationListeners: ((event: unknown) => void)[];
+  /** Paths of the open workspace folders (none by default). */
+  folders: string[] | undefined;
+  /** The Python extension's API; undefined: not installed. */
+  pythonApi: unknown;
+  answer: string | undefined;
+  prompts: string[];
 }
 
 const mock = vi.hoisted((): MockState => ({
   inspected: {},
   timeout: 30_000,
   configurationListeners: [],
+  folders: undefined,
+  pythonApi: undefined,
+  answer: undefined,
+  prompts: [],
 }));
 
 vi.mock('vscode', async () => {
@@ -28,7 +38,9 @@ vi.mock('vscode', async () => {
     workspace: {
       ...stub.workspace,
       isTrusted: true,
-      workspaceFolders: undefined,
+      get workspaceFolders() {
+        return mock.folders?.map((folder) => ({ uri: stub.Uri.file(folder) }));
+      },
       getConfiguration: () => ({
         get: (key: string, fallback: unknown) =>
           key === 'engine.timeoutMs' ? mock.timeout : fallback,
@@ -39,11 +51,27 @@ vi.mock('vscode', async () => {
         return new stub.Disposable(() => undefined);
       },
     },
+    window: {
+      ...stub.window,
+      showWarningMessage: (message: string) => {
+        mock.prompts.push(message);
+        return Promise.resolve(mock.answer);
+      },
+    },
+    extensions: {
+      ...stub.extensions,
+      getExtension: () => (mock.pythonApi === undefined ? undefined : {}),
+    },
   };
 });
 
 vi.mock('@vscode/python-extension', () => ({
-  PythonExtension: { api: () => Promise.reject(new Error('not installed')) },
+  PythonExtension: {
+    api: () =>
+      mock.pythonApi === undefined
+        ? Promise.reject(new Error('not installed'))
+        : Promise.resolve(mock.pythonApi),
+  },
 }));
 
 const { EngineService } = await import('./engineService');
@@ -87,14 +115,23 @@ beforeEach(async () => {
   mock.inspected = {};
   mock.timeout = 30_000;
   mock.configurationListeners = [];
+  mock.folders = undefined;
+  mock.pythonApi = undefined;
+  mock.answer = undefined;
+  mock.prompts = [];
 });
 
 afterEach(async () => {
   await Promise.all(harnesses.splice(0).map((harness) => harness.service.shutdown()));
   await rm(workspace, { recursive: true, force: true });
+  vi.unstubAllEnvs();
 });
 
-function harness(restartPolicy?: RestartPolicy): Harness {
+/**
+ * @param realResolution resolve interpreters for real (with the mocked editor) instead of
+ *   returning a fixed resolution.
+ */
+function harness(restartPolicy?: RestartPolicy, realResolution = false): Harness {
   const lines: string[] = [];
   const levels = new vscode.EventEmitter<vscode.LogLevel>();
   const write =
@@ -137,7 +174,7 @@ function harness(restartPolicy?: RestartPolicy): Harness {
     service: undefined as unknown as InstanceType<typeof EngineService>,
   };
   const service = new EngineService(context as never, log as never, {
-    resolveInterpreter: () => Promise.resolve(resolution),
+    ...(realResolution ? {} : { resolveInterpreter: () => Promise.resolve(resolution) }),
     startConnection: async (options: EngineLaunchOptions) => {
       const scenario = created.scenario;
       await new Promise((resolve) => setTimeout(resolve, created.startDelayMs));
@@ -278,5 +315,88 @@ describe('EngineService', () => {
     await test.service.ensureStarted({ interactive: false });
     test.setLogLevel(vscode.LogLevel.Debug);
     await expect.poll(() => test.lines, { timeout: 5_000 }).toContain('info: engine: level debug');
+  });
+});
+
+/** A Python extension whose active environment and known environments are these executables. */
+function fakePythonExtension(active: string, known: readonly string[] = []) {
+  return {
+    environments: {
+      getActiveEnvironmentPath: () => ({ id: active, path: active }),
+      resolveEnvironment: () => Promise.resolve({ executable: { uri: vscode.Uri.file(active) } }),
+      known: known.map((executable) => ({ executable: { uri: vscode.Uri.file(executable) } })),
+      onDidChangeActiveEnvironmentPath: () => new vscode.Disposable(() => undefined),
+    },
+  };
+}
+
+describe('EngineService with a Python extension interpreter inside the workspace', () => {
+  let venvPython: string;
+
+  beforeEach(() => {
+    const repo = path.join(workspace, 'repo');
+    venvPython = path.join(repo, '.venv', 'bin', 'python');
+    mock.folders = [repo];
+    // Nothing on PATH, so every probe below comes from the Python extension.
+    vi.stubEnv('PATH', '');
+  });
+
+  it('asks only in interactive starts and before the interpreter runs', async () => {
+    mock.pythonApi = fakePythonExtension(venvPython);
+    mock.answer = 'Allow';
+    const { service } = harness(undefined, true);
+    const automatic = await service.resolve({ interactive: false });
+    expect(mock.prompts).toEqual([]);
+    expect(automatic.attempts).toContainEqual({
+      source: 'pythonExtension',
+      command: venvPython,
+      outcome: { kind: 'skipped', reason: 'notConfirmed' },
+    });
+
+    const interactive = await service.resolve({ interactive: true });
+    expect(mock.prompts).toEqual([
+      `The Python extension selected "${venvPython}", which lies inside this workspace.`,
+    ]);
+    // Allowed, so now it is probed (and does not exist).
+    const probed = {
+      source: 'pythonExtension',
+      command: venvPython,
+      outcome: { kind: 'failed', reason: 'notFound' },
+    };
+    expect(interactive.attempts).toContainEqual(probed);
+    // Remembered, also for automatic restarts.
+    await expect(service.resolve({ interactive: false })).resolves.toMatchObject({
+      attempts: expect.arrayContaining([probed]) as unknown,
+    });
+    expect(mock.prompts).toHaveLength(1);
+  });
+
+  it('lists it for the picker without running it or asking', async () => {
+    const outside = path.join(workspace, 'elsewhere', 'python');
+    mock.pythonApi = fakePythonExtension(venvPython, [venvPython, outside]);
+    mock.answer = 'Allow';
+    const { service } = harness(undefined, true);
+    await expect(service.detectInterpreters()).resolves.toEqual([
+      {
+        source: 'pythonExtension',
+        command: venvPython,
+        outcome: { kind: 'skipped', reason: 'notConfirmed' },
+      },
+      {
+        source: 'pythonExtension',
+        command: outside,
+        outcome: { kind: 'failed', reason: 'notFound' },
+      },
+    ]);
+    expect(mock.prompts).toEqual([]);
+
+    // Once allowed, the picker probes it like any other interpreter.
+    await service.resolve({ interactive: true });
+    await expect(service.detectInterpreters()).resolves.toContainEqual({
+      source: 'pythonExtension',
+      command: venvPython,
+      outcome: { kind: 'failed', reason: 'notFound' },
+    });
+    expect(mock.prompts).toHaveLength(1);
   });
 });

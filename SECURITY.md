@@ -31,11 +31,14 @@ and the fix and its disclosure will be coordinated with you.
   `ctypes` inside the engine. The hook is defense in depth, not a security boundary.
 - **Interpreter selection.** Hearback runs only the interpreter it found through
   `hearback.engine.pythonPath`, the Python extension or `PATH`, after checking it with a minimal
-  probe. A `hearback.engine.pythonPath` from workspace settings is used only after a one-time
-  confirmation, also in trusted workspaces, because some editors ship with Workspace Trust
-  disabled. In a trusted workspace, the Python extension's active environment is used without a
-  prompt, as the Python extension itself does; a repository can influence that choice (for example
-  with a committed `.venv`), so open untrusted code in Restricted Mode.
+  probe. Because some editors ship with Workspace Trust disabled, two kinds of interpreter need a
+  one-time confirmation per workspace and path, also in trusted workspaces, before Hearback runs
+  them at all: a `hearback.engine.pythonPath` from workspace settings, and an interpreter that the
+  Python extension selected inside the workspace (a repository can steer that choice, for example
+  with a committed `.venv`). Without the confirmation Hearback skips that interpreter and moves on
+  to the next source; automatic restarts never ask. Interpreters outside the workspace and your own
+  user setting run without a prompt. The Python extension itself may still run the interpreters it
+  finds, so open untrusted code in Restricted Mode.
 - **Restricted Mode.** In an untrusted workspace, Hearback ignores `hearback.engine.pythonPath` from
   workspace settings, does not consult the Python extension and never starts an interpreter that
   lies inside the workspace; static analysis keeps working.

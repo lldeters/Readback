@@ -24,8 +24,12 @@ Phase 0 (foundation). Nothing has been released yet.
   candidate is checked for CPython 3.10 or newer, and problems come with the actions Select
   Interpreter…, Manage Workspace Trust and Show Log.
 - Restricted Mode: the interpreter setting from workspace settings is ignored, and interpreters
-  inside the workspace are never started. An interpreter path from workspace settings needs a
-  one-time confirmation in every workspace.
+  inside the workspace are never started.
+- One-time confirmations per workspace and path, also in trusted workspaces and in editors without
+  Workspace Trust: for an interpreter path from workspace settings, and for an interpreter that the
+  Python extension selected inside the workspace, such as a committed `.venv`. Hearback asks before
+  anything runs and only when you started the engine through a command. Without a confirmation it
+  moves on to the next source, and Show Engine Status says why.
 - Commands Hearback: Show Engine Status, Select Python Interpreter, Restart Engine, Show Log and
   Open Graph View. Show Engine Status reports the interpreter and where it came from, the versions,
   the sandbox and trust state and every rejected candidate with the reason, and says so when the
@@ -43,12 +47,15 @@ Phase 0 (foundation). Nothing has been released yet.
 - Continuous integration on Linux, Windows and macOS: lint, unit tests, engine tests on Python
   3.10 and 3.15, integration tests on VS Code 1.105.1 and stable, Restricted Mode tests, and
   packaging with a completeness check of the VSIX and a run of the packaged engine.
-- Documentation: README, architecture overview, architecture decision records 001 to 010,
+- Documentation: README, architecture overview, architecture decision records 001 to 011,
   security policy and agent guidelines (`CLAUDE.md`).
 
 ### Changed
 
 - The working title Readback was replaced by Hearback because that name is already taken in the
   Visual Studio Marketplace ([ADR 010](docs/adr/010-product-name.md)).
+- An interpreter that the Python extension selects inside the workspace no longer runs without a
+  prompt in trusted workspaces; it needs the one-time confirmation described above
+  ([ADR 011](docs/adr/011-workspace-interpreter-confirmation.md)).
 
 [Unreleased]: https://github.com/lldeters/Readback/commits/main

@@ -7,6 +7,7 @@ import { errorMessage } from '../util/log';
 import { EngineUnavailableError, type EngineService } from './engineService';
 import { showEngineFailure } from './failureUi';
 import { formatVersion } from './interpreter/probe';
+import type { AttemptOutcome } from './interpreter/types';
 import { describeOutcome, scopeLabel, sourceLabel } from './messages';
 import { PYTHON_PATH_KEY, PYTHON_PATH_SETTING, SETTING_SECTION } from './settings';
 
@@ -16,6 +17,14 @@ type InterpreterItem = vscode.QuickPickItem &
     | { readonly action: 'rejected'; readonly reason: string }
     | { readonly action: 'enter' | 'browse' | 'automatic' | 'none' }
   );
+
+/** A Python extension interpreter inside the workspace, not probed because nobody confirmed it. */
+function awaitsConfirmation(outcome: AttemptOutcome): boolean {
+  return (
+    outcome.kind === 'skipped' &&
+    (outcome.reason === 'notConfirmed' || outcome.reason === 'declinedInSession')
+  );
+}
 
 async function detectedItems(service: EngineService): Promise<InterpreterItem[]> {
   const detected = await service.detectInterpreters();
@@ -30,6 +39,18 @@ async function detectedItems(service: EngineService): Promise<InterpreterItem[]>
         label: vscode.l10n.t('Python {0}', formatVersion(probe)),
         description: probe.executable,
         detail: sourceLabel(entry.source),
+      });
+    } else if (awaitsConfirmation(entry.outcome)) {
+      // Picking it is the explicit choice: it goes into the user settings like any other pick.
+      usable.push({
+        action: 'use',
+        path: entry.command,
+        label: vscode.l10n.t('Python (inside the workspace)'),
+        description: entry.command,
+        detail: vscode.l10n.t(
+          '{0} · not checked yet: Hearback only runs it if you select it',
+          sourceLabel(entry.source),
+        ),
       });
     } else {
       const reason = describeOutcome(entry.outcome);

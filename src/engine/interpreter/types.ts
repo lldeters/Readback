@@ -31,6 +31,10 @@ export type SkipReason =
   | 'untrustedWorkspace'
   | 'declined'
   | 'insideWorkspace'
+  /** A Python extension interpreter inside the workspace without the user's confirmation. */
+  | 'notConfirmed'
+  /** A Python extension interpreter inside the workspace that the user declined this session. */
+  | 'declinedInSession'
   | 'storeAlias'
   | 'xcodeShim'
   | 'notFound';

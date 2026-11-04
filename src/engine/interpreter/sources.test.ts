@@ -6,10 +6,19 @@ interface Inspected {
   workspaceFolderValue?: string;
 }
 
+interface Dialog {
+  message: string;
+  options: unknown;
+  items: string[];
+}
+
 interface MockState {
   inspected: Inspected;
   answer: string | undefined;
   prompts: string[];
+  dialogs: Dialog[];
+  /** Paths of the open workspace folders. */
+  folders: string[];
   pythonExtensionInstalled: boolean;
   api: unknown;
 }
@@ -18,6 +27,8 @@ const state = vi.hoisted((): MockState => ({
   inspected: {},
   answer: undefined,
   prompts: [],
+  dialogs: [],
+  folders: ['/work'],
   pythonExtensionInstalled: false,
   api: undefined,
 }));
@@ -32,14 +43,17 @@ vi.mock('vscode', () => ({
       return true;
     },
     workspaceFile: undefined,
-    workspaceFolders: [
-      { uri: { scheme: 'file', fsPath: '/work', toString: () => 'file:///work' } },
-    ],
+    get workspaceFolders() {
+      return state.folders.map((fsPath) => ({
+        uri: { scheme: 'file', fsPath, toString: () => `file://${fsPath}` },
+      }));
+    },
     getConfiguration: () => ({ inspect: () => state.inspected }),
   },
   window: {
-    showWarningMessage: (message: string) => {
+    showWarningMessage: (message: string, options: unknown, ...items: string[]) => {
       state.prompts.push(message);
+      state.dialogs.push({ message, options, items });
       return Promise.resolve(state.answer);
     },
   },
@@ -52,7 +66,8 @@ vi.mock('@vscode/python-extension', () => ({
   PythonExtension: { api: () => Promise.resolve(state.api) },
 }));
 
-const { InterpreterSetting, PythonExtensionSource } = await import('./sources');
+const { InterpreterSetting, PythonExtensionApprovals, PythonExtensionSource } =
+  await import('./sources');
 
 function memento() {
   const values = new Map<string, unknown>();
@@ -71,6 +86,8 @@ beforeEach(() => {
   state.inspected = {};
   state.answer = undefined;
   state.prompts = [];
+  state.dialogs = [];
+  state.folders = ['/work'];
   state.pythonExtensionInstalled = false;
   state.api = undefined;
 });
@@ -178,6 +195,115 @@ describe('InterpreterSetting', () => {
     const before = setting.fingerprint();
     state.inspected = { globalValue: '/a', workspaceValue: '/b' };
     expect(setting.fingerprint()).not.toBe(before);
+  });
+});
+
+describe('PythonExtensionApprovals', () => {
+  const venv = '/work/.venv/bin/python';
+  const interactive = { interactive: true };
+
+  it('asks once in an interactive start and remembers the approval', async () => {
+    state.answer = 'Allow';
+    const globalState = memento();
+    const approvals = new PythonExtensionApprovals(globalState as never);
+    await expect(approvals.confirm(venv, interactive)).resolves.toBe('approved');
+    expect(state.dialogs).toEqual([
+      {
+        message: `The Python extension selected "${venv}", which lies inside this workspace.`,
+        options: {
+          modal: true,
+          detail:
+            'Hearback will run this program to analyze your code. Only allow it if you trust the files in this workspace.',
+        },
+        items: ['Allow', "Don't Allow"],
+      },
+    ]);
+    await expect(approvals.confirm(venv, interactive)).resolves.toBe('approved');
+    // A later session (new instance, same global state), also without user interaction.
+    const later = new PythonExtensionApprovals(globalState as never);
+    await expect(later.confirm(venv, { interactive: false })).resolves.toBe('approved');
+    expect(state.prompts).toHaveLength(1);
+  });
+
+  it('remembers a decline for the session and asks again in the next one', async () => {
+    state.answer = "Don't Allow";
+    const globalState = memento();
+    const approvals = new PythonExtensionApprovals(globalState as never);
+    await expect(approvals.confirm(venv, interactive)).resolves.toBe('declinedInSession');
+    await expect(approvals.confirm(venv, interactive)).resolves.toBe('declinedInSession');
+    await expect(approvals.confirm(venv, { interactive: false })).resolves.toBe(
+      'declinedInSession',
+    );
+    expect(state.prompts).toHaveLength(1);
+    expect(globalState.keys()).toEqual([]);
+
+    state.answer = 'Allow';
+    const next = new PythonExtensionApprovals(globalState as never);
+    await expect(next.confirm(venv, interactive)).resolves.toBe('approved');
+    expect(state.prompts).toHaveLength(2);
+  });
+
+  it('treats a dismissed dialog as a decline', async () => {
+    const approvals = new PythonExtensionApprovals(memento() as never);
+    await expect(approvals.confirm(venv, interactive)).resolves.toBe('declinedInSession');
+    await approvals.confirm(venv, interactive);
+    expect(state.prompts).toHaveLength(1);
+  });
+
+  it('never asks without user interaction', async () => {
+    state.answer = 'Allow';
+    const globalState = memento();
+    const approvals = new PythonExtensionApprovals(globalState as never);
+    await expect(approvals.confirm(venv, { interactive: false })).resolves.toBe('notConfirmed');
+    expect(state.prompts).toEqual([]);
+    expect(globalState.keys()).toEqual([]);
+    // Not counted as a decline: the next interactive start asks.
+    await expect(approvals.confirm(venv, interactive)).resolves.toBe('approved');
+    expect(state.prompts).toHaveLength(1);
+  });
+
+  it('keeps its approvals apart from the pythonPath approvals', async () => {
+    state.answer = 'Allow';
+    state.inspected = { workspaceValue: venv };
+    // Allowing the workspace pythonPath does not allow the same path from the Python extension.
+    const settingFirst = memento();
+    await new InterpreterSetting(settingFirst as never).read(interactive);
+    const approvals = new PythonExtensionApprovals(settingFirst as never);
+    await expect(approvals.confirm(venv, { interactive: false })).resolves.toBe('notConfirmed');
+    await expect(approvals.confirm(venv, interactive)).resolves.toBe('approved');
+    expect(settingFirst.values.get('hearback.approvedWorkspaceInterpreters')).toEqual([
+      `file:///work\n${venv}`,
+    ]);
+    expect(settingFirst.values.get('hearback.approvedPythonExtensionInterpreters')).toEqual([
+      `file:///work\n${venv}`,
+    ]);
+    // Nor the other way round.
+    const extensionFirst = memento();
+    await new PythonExtensionApprovals(extensionFirst as never).confirm(venv, interactive);
+    await expect(
+      new InterpreterSetting(extensionFirst as never).read({ interactive: false }),
+    ).resolves.toMatchObject({ declinedWorkspaceValue: venv });
+  });
+
+  it('asks again for the same path in another workspace', async () => {
+    state.answer = 'Allow';
+    const approvals = new PythonExtensionApprovals(memento() as never);
+    await approvals.confirm(venv, interactive);
+    state.folders = ['/other'];
+    await expect(approvals.confirm(venv, { interactive: false })).resolves.toBe('notConfirmed');
+    await expect(approvals.confirm(venv, interactive)).resolves.toBe('approved');
+    expect(state.prompts).toHaveLength(2);
+  });
+
+  it('keeps the list of approvals bounded', async () => {
+    state.answer = 'Allow';
+    const globalState = memento();
+    const old = Array.from({ length: 200 }, (_, index) => `file:///old\n/old/${String(index)}`);
+    await globalState.update('hearback.approvedPythonExtensionInterpreters', old);
+    await new PythonExtensionApprovals(globalState as never).confirm(venv, interactive);
+    const stored = globalState.values.get('hearback.approvedPythonExtensionInterpreters');
+    expect(stored).toHaveLength(200);
+    expect(stored).toEqual([...old.slice(1), `file:///work\n${venv}`]);
   });
 });
 

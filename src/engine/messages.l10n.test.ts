@@ -34,6 +34,8 @@ const SKIP_REASONS = [
   'untrustedWorkspace',
   'declined',
   'insideWorkspace',
+  'notConfirmed',
+  'declinedInSession',
   'storeAlias',
   'xcodeShim',
   'notFound',
@@ -100,6 +102,21 @@ describe('localization coverage', () => {
 
   it('localizes the other failures and request failures', () => {
     expectLocalized(describeFailure({ kind: 'noInterpreter', resolution: emptyResolution }));
+    expectLocalized(
+      describeFailure({
+        kind: 'noInterpreter',
+        resolution: {
+          ...emptyResolution,
+          attempts: [
+            {
+              source: 'pythonExtension',
+              command: '/work/.venv/bin/python',
+              outcome: { kind: 'skipped', reason: 'notConfirmed' },
+            },
+          ],
+        },
+      }),
+    );
     expectLocalized(describeFailure({ kind: 'settingUnusable', resolution: emptyResolution }));
     expectLocalized(
       describeFailure({

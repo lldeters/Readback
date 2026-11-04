@@ -99,7 +99,8 @@ The resolution order follows spec section 5.2 ([ADR 004](adr/004-interpreter-dis
 2. **The Python extension's active environment** (`ms-python.python`, read through
    `@vscode/python-extension`). Used only if the extension is installed, with a 10-second timeout
    for its API and 5 seconds for resolving the environment. There are no `extensionDependencies`,
-   so Hearback works without the Python extension.
+   so Hearback works without the Python extension. An environment inside the workspace needs a
+   one-time confirmation (see below); without it, resolution continues with PATH.
 3. **PATH.** Windows: `py -3`, `python`, `python3`; elsewhere: `python3`, `python`. Hearback
    searches PATH itself (absolute directories only) instead of letting `spawn()` do it, because
    on Windows a bare command name is first looked up in the current directory. It skips the
@@ -128,11 +129,25 @@ file version (modification time and size).
 workspace or folder settings is only used after a one-time confirmation per (workspace, path), even
 in trusted workspaces. The answer is stored in `globalState`. A declined value is ignored for the
 rest of the session (the user-level value applies) and asked about again in a later session.
-Automatic restarts never show the prompt. The confirmation covers this setting only: in trusted
-workspaces (always, in editors without Workspace Trust) the Python extension's active environment
-is used as that extension chose it, which a repository can influence with a committed `.venv` or
-`python.defaultInterpreterPath` ([ADR 004](adr/004-interpreter-discovery.md), known limit). The
-reasons for the confirmation:
+Automatic restarts never show the prompt.
+
+**Python extension interpreters inside the workspace**
+([ADR 011](adr/011-workspace-interpreter-confirmation.md)): a repository can steer the Python
+extension's choice, for example with a committed `.venv` or `python.defaultInterpreterPath`. An
+interpreter it reports inside the workspace therefore runs only after a one-time confirmation per
+(workspace, path), even in trusted workspaces and before the probe. Inside means that the reported
+path or its real path lies in a workspace folder, compared with the folders as opened and with
+their real paths, under the same platform rules as in Restricted Mode. The engine runs the probed
+`sys.executable`; if that differs from a reported path outside the workspace, it is checked the
+same way before the engine starts. The modal warning offers Allow and Don't Allow. Approvals go to
+`globalState` in a list of their own (`hearback.approvedPythonExtensionInterpreters`, at most 200
+entries), apart from the setting's approvals. Only interactive starts ask: automatic restarts treat
+an interpreter without approval as not confirmed, and a decline (or a dismissed dialog) holds for
+the session. Either way the resolution continues with PATH, and Hearback: Show Engine Status names
+the reason. Interpreters outside the workspace and the user's own setting run without a prompt;
+Restricted Mode does not consult the Python extension at all.
+
+The reasons for both confirmations:
 
 - Cursor ships with Workspace Trust disabled, so every folder counts as trusted and
   `restrictedConfigurations` never removes a malicious repository's setting there.
@@ -143,10 +158,13 @@ reasons for the confirmation:
 
 Hearback: Select Python Interpreter lists the usable interpreters it found with their versions,
 shows rejected ones with the reason under "Not usable" (they cannot be picked), and offers "Enter
-interpreter path…", "Browse…" and "Use automatic detection". It writes the choice to the user
-settings, never to the workspace. Because workspace and folder values take precedence, it first
-asks whether to ignore such a value in this workspace (remembered in `globalState`) or to open the
-workspace settings. Failure messages name the settings scope a bad value came from.
+interpreter path…", "Browse…" and "Use automatic detection". Its detection never shows the
+confirmation prompt: a Python extension interpreter inside the workspace that is not confirmed yet
+is not probed and is listed without a version as "Python (inside the workspace)". The picker writes
+the choice to the user settings, never to the workspace; picking an interpreter is an explicit
+choice that needs no further confirmation. Because workspace and folder values take precedence, it
+first asks whether to ignore such a value in this workspace (remembered in `globalState`) or to
+open the workspace settings. Failure messages name the settings scope a bad value came from.
 
 ## Engine protocol
 

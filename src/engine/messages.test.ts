@@ -138,6 +138,35 @@ describe('describeFailure', () => {
     );
   });
 
+  it('says when the interpreter inside the workspace was not allowed', () => {
+    const declined: ResolutionResult = {
+      ...resolution,
+      interpreter: undefined,
+      attempts: [
+        { source: 'setting', outcome: { kind: 'skipped', reason: 'notConfigured' } },
+        {
+          source: 'pythonExtension',
+          command: '/work/.venv/bin/python',
+          outcome: { kind: 'skipped', reason: 'declinedInSession' },
+        },
+        { source: 'path', outcome: { kind: 'skipped', reason: 'notFound' } },
+      ],
+    };
+    expect(describeFailure({ kind: 'noInterpreter', resolution: declined })).toBe(
+      'Hearback needs Python 3.10 or newer. The interpreter that the Python extension selected inside this workspace was not allowed, and no other suitable interpreter was found.',
+    );
+    expect(formatStatus({ ...running, resolution: declined })).toContain(
+      '  · Python extension: /work/.venv/bin/python – inside the workspace, declined in this session',
+    );
+    expect(
+      describeAttempt({
+        source: 'pythonExtension',
+        command: '/work/.venv/bin/python',
+        outcome: { kind: 'skipped', reason: 'notConfirmed' },
+      }),
+    ).toBe('· Python extension: /work/.venv/bin/python – inside the workspace, not confirmed');
+  });
+
   it('reports a too old Python with its version', () => {
     expect(
       describeFailure({

@@ -42,7 +42,8 @@ changes since a Git base) follow in Phase 1 as the pre-release 0.1.0.
 - CPython 3.10 or newer, found on `PATH` (`python3` or `python`; `py -3` on Windows), selected as
   the active environment in the Python extension, or set in `hearback.engine.pythonPath`. The Python
   extension is optional. Hearback runs the interpreter in isolated mode with its own bundled
-  packages, so nothing needs to be installed into it.
+  packages, so nothing needs to be installed into it. Before it runs an environment that the Python
+  extension selected inside the workspace, such as a project's `.venv`, Hearback asks once.
 
 ## Commands
 
@@ -56,10 +57,10 @@ changes since a Git base) follow in Phase 1 as the pre-release 0.1.0.
 
 ## Settings
 
-| Setting                      | Default | Description                                                                                                                                                                                                  |
-| ---------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `hearback.engine.pythonPath` | empty   | Python interpreter (3.10 or newer) for the analysis engine. When empty, Hearback uses the Python extension's active environment, then `PATH`. A value from workspace settings needs a one-time confirmation. |
-| `hearback.engine.timeoutMs`  | `30000` | Timeout in milliseconds for a single engine request (1,000 to 600,000).                                                                                                                                      |
+| Setting                      | Default | Description                                                                                                                                                                                                                                                                              |
+| ---------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hearback.engine.pythonPath` | empty   | Python interpreter (3.10 or newer) for the analysis engine. When empty, Hearback uses the Python extension's active environment, then `PATH`. A value from workspace settings, and an environment that the Python extension selected inside the workspace, need a one-time confirmation. |
+| `hearback.engine.timeoutMs`  | `30000` | Timeout in milliseconds for a single engine request (1,000 to 600,000).                                                                                                                                                                                                                  |
 
 In an untrusted workspace (Restricted Mode), Hearback keeps working but ignores
 `hearback.engine.pythonPath` from workspace settings, does not consult the Python extension and

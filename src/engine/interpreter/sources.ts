@@ -1,17 +1,21 @@
 // Editor-facing interpreter sources: the hearback.engine.pythonPath setting (with the approved
-// one-time confirmation for workspace values) and the Python extension's active environment.
+// one-time confirmation for workspace values), the Python extension's active environment and the
+// one-time confirmation for interpreters it selected inside the workspace.
 import { PythonExtension } from '@vscode/python-extension';
 import * as vscode from 'vscode';
 import { errorMessage } from '../../util/log';
 import { PYTHON_PATH_KEY, PYTHON_PATH_SETTING, SETTING_SECTION } from '../settings';
-import type { PythonExtensionLookup, SettingLookup } from './resolve';
+import type { Confirmation, PythonExtensionLookup, SettingLookup } from './resolve';
 import type { SettingScope } from './types';
 
 export const PYTHON_EXTENSION_ID = 'ms-python.python';
 
+/** Workspace values of hearback.engine.pythonPath the user allowed. */
 const APPROVALS_KEY = 'hearback.approvedWorkspaceInterpreters';
 /** Workspace values the user chose to ignore, e.g. by picking another interpreter. */
 const IGNORED_KEY = 'hearback.ignoredWorkspaceInterpreters';
+/** Python extension interpreters inside the workspace the user allowed; a list of its own. */
+const EXTENSION_APPROVALS_KEY = 'hearback.approvedPythonExtensionInterpreters';
 const MAX_APPROVALS = 200;
 /** The Python extension can take seconds to activate (discovery, experiments). */
 const API_TIMEOUT_MS = 10_000;
@@ -39,6 +43,11 @@ function workspaceIdentity(): string {
     vscode.workspace.workspaceFile?.toString() ??
     (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.toString()).join('|')
   );
+}
+
+/** Approvals are stored per (workspace, path). */
+function approvalKey(value: string): string {
+  return `${workspaceIdentity()}\n${value}`;
 }
 
 export interface ReadOptions {
@@ -88,7 +97,7 @@ export class InterpreterSetting {
    * when the user explicitly picks another interpreter.
    */
   async ignoreWorkspaceValue(value: string): Promise<void> {
-    const key = this.key(value);
+    const key = approvalKey(value);
     const approved = this.globalState.get<string[]>(APPROVALS_KEY, []);
     await this.globalState.update(
       APPROVALS_KEY,
@@ -116,12 +125,8 @@ export class InterpreterSetting {
     };
   }
 
-  private key(value: string): string {
-    return `${workspaceIdentity()}\n${value}`;
-  }
-
   private async approve(value: string, options: ReadOptions): Promise<boolean> {
-    const key = this.key(value);
+    const key = approvalKey(value);
     if (this.globalState.get<string[]>(IGNORED_KEY, []).includes(key)) {
       return false;
     }
@@ -153,6 +158,56 @@ export class InterpreterSetting {
     }
     await this.globalState.update(APPROVALS_KEY, [...approved, key].slice(-MAX_APPROVALS));
     return true;
+  }
+}
+
+/**
+ * Interpreters that the Python extension selected inside the workspace. A repository can steer that
+ * choice (a committed .venv, python.defaultInterpreterPath), and editors without Workspace Trust
+ * count every folder as trusted, so such an interpreter runs only after a one-time confirmation per
+ * (workspace, path), like a workspace value of hearback.engine.pythonPath.
+ */
+export class PythonExtensionApprovals {
+  private readonly declined = new Set<string>();
+
+  constructor(private readonly globalState: vscode.Memento) {}
+
+  /** A stored approval, a decline from this session, or (interactive only) the user's answer. */
+  async confirm(path: string, options: ReadOptions): Promise<Confirmation> {
+    const key = approvalKey(path);
+    if (this.globalState.get<string[]>(EXTENSION_APPROVALS_KEY, []).includes(key)) {
+      return 'approved';
+    }
+    if (this.declined.has(key)) {
+      return 'declinedInSession';
+    }
+    if (!options.interactive) {
+      return 'notConfirmed';
+    }
+    const allow = vscode.l10n.t('Allow');
+    const decline = vscode.l10n.t("Don't Allow");
+    const choice = await vscode.window.showWarningMessage(
+      vscode.l10n.t('The Python extension selected "{0}", which lies inside this workspace.', path),
+      {
+        modal: true,
+        detail: vscode.l10n.t(
+          'Hearback will run this program to analyze your code. Only allow it if you trust the files in this workspace.',
+        ),
+      },
+      allow,
+      decline,
+    );
+    if (choice !== allow) {
+      // Ask again in a later session; until then the resolution continues with PATH.
+      this.declined.add(key);
+      return 'declinedInSession';
+    }
+    const approved = this.globalState.get<string[]>(EXTENSION_APPROVALS_KEY, []);
+    await this.globalState.update(
+      EXTENSION_APPROVALS_KEY,
+      [...approved.filter((entry) => entry !== key), key].slice(-MAX_APPROVALS),
+    );
+    return 'approved';
   }
 }
 

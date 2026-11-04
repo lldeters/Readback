@@ -80,6 +80,10 @@ export function describeOutcome(outcome: AttemptOutcome): string {
       return vscode.l10n.t('workspace setting not allowed');
     case 'insideWorkspace':
       return vscode.l10n.t('rejected: lies inside the untrusted workspace');
+    case 'notConfirmed':
+      return vscode.l10n.t('inside the workspace, not confirmed');
+    case 'declinedInSession':
+      return vscode.l10n.t('inside the workspace, declined in this session');
     case 'storeAlias':
       return vscode.l10n.t('skipped: Microsoft Store alias');
     case 'xcodeShim':
@@ -165,14 +169,28 @@ function lastProblem(resolution: ResolutionResult): ResolutionAttempt | undefine
   return [...resolution.attempts].reverse().find((attempt) => attempt.outcome.kind === 'failed');
 }
 
+/** Whether the Python extension's interpreter was skipped for lack of the user's confirmation. */
+function unconfirmedWorkspaceInterpreter(resolution: ResolutionResult): boolean {
+  return resolution.attempts.some(
+    ({ outcome }) =>
+      outcome.kind === 'skipped' &&
+      (outcome.reason === 'notConfirmed' || outcome.reason === 'declinedInSession'),
+  );
+}
+
 /** Headline for an error notification. */
 export function describeFailure(failure: EngineFailure): string {
   switch (failure.kind) {
     case 'noInterpreter':
-      return vscode.l10n.t(
-        'Hearback needs Python {0} or newer, but no suitable interpreter was found.',
-        REQUIRED,
-      );
+      return unconfirmedWorkspaceInterpreter(failure.resolution)
+        ? vscode.l10n.t(
+            'Hearback needs Python {0} or newer. The interpreter that the Python extension selected inside this workspace was not allowed, and no other suitable interpreter was found.',
+            REQUIRED,
+          )
+        : vscode.l10n.t(
+            'Hearback needs Python {0} or newer, but no suitable interpreter was found.',
+            REQUIRED,
+          );
     case 'settingUnusable': {
       const attempt = lastProblem(failure.resolution);
       return vscode.l10n.t(

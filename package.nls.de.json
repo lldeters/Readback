@@ -8,6 +8,6 @@
   "command.openGraphView.title": "Graphansicht öffnen",
   "capabilities.untrustedWorkspaces.description": "Im eingeschränkten Modus ignoriert Hearback hearback.engine.pythonPath aus den Arbeitsbereichseinstellungen und startet nie einen Python-Interpreter, der im Arbeitsbereich liegt. Die statische Analyse funktioniert weiter.",
   "capabilities.virtualWorkspaces.description": "Hearback benötigt Dateien auf dem Datenträger und einen lokalen Python-Interpreter.",
-  "config.engine.pythonPath.markdownDescription": "Python-Interpreter (3.10 oder neuer) für die Analyse-Engine von Hearback. Leer lassen, um die aktive Umgebung der Python-Extension und danach `python3` (unter Windows `py -3`) aus dem `PATH` zu verwenden. Wird in den Arbeitsbereichseinstellungen nicht vertrauenswürdiger Arbeitsbereiche ignoriert; ein Pfad aus Arbeitsbereichseinstellungen muss einmalig bestätigt werden.",
+  "config.engine.pythonPath.markdownDescription": "Python-Interpreter (3.10 oder neuer) für die Analyse-Engine von Hearback. Leer lassen, um die aktive Umgebung der Python-Extension und danach `python3` (unter Windows `py -3`) aus dem `PATH` zu verwenden. Wird in den Arbeitsbereichseinstellungen nicht vertrauenswürdiger Arbeitsbereiche ignoriert. Ein Pfad aus Arbeitsbereichseinstellungen und eine Umgebung im Arbeitsbereich, die die Python-Extension ausgewählt hat, müssen einmalig bestätigt werden.",
   "config.engine.timeoutMs.markdownDescription": "Zeitlimit in Millisekunden für eine einzelne Anfrage an die Analyse-Engine."
 }

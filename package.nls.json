@@ -8,6 +8,6 @@
   "command.openGraphView.title": "Open Graph View",
   "capabilities.untrustedWorkspaces.description": "In Restricted Mode, Hearback ignores hearback.engine.pythonPath from workspace settings and never runs a Python interpreter located inside the workspace. Static analysis keeps working.",
   "capabilities.virtualWorkspaces.description": "Hearback needs files on disk and a local Python interpreter.",
-  "config.engine.pythonPath.markdownDescription": "Python interpreter (3.10 or newer) for the Hearback analysis engine. Leave empty to use the active environment of the Python extension, then `python3` (`py -3` on Windows) from `PATH`. Ignored in the workspace settings of untrusted workspaces; a path from workspace settings needs a one-time confirmation.",
+  "config.engine.pythonPath.markdownDescription": "Python interpreter (3.10 or newer) for the Hearback analysis engine. Leave empty to use the active environment of the Python extension, then `python3` (`py -3` on Windows) from `PATH`. Ignored in the workspace settings of untrusted workspaces. A path from workspace settings, and an environment that the Python extension selected inside the workspace, need a one-time confirmation.",
   "config.engine.timeoutMs.markdownDescription": "Timeout in milliseconds for a single analysis engine request."
 }
