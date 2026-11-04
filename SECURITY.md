@@ -36,9 +36,11 @@ and the fix and its disclosure will be coordinated with you.
   them at all: a `hearback.engine.pythonPath` from workspace settings, and an interpreter that the
   Python extension selected inside the workspace (a repository can steer that choice, for example
   with a committed `.venv`). Without the confirmation Hearback skips that interpreter and moves on
-  to the next source; automatic restarts never ask. Interpreters outside the workspace and your own
-  user setting run without a prompt. The Python extension itself may still run the interpreters it
-  finds, so open untrusted code in Restricted Mode.
+  to the next source; automatic restarts never ask. Interpreters outside the workspace, your own
+  user setting and interpreters on your `PATH` run without a prompt: `PATH` is your environment,
+  not the repository's, so in a trusted workspace this includes a project `.venv` that was active
+  in the shell that started the editor. The Python extension itself may still run the interpreters
+  it finds, so open untrusted code in Restricted Mode.
 - **Restricted Mode.** In an untrusted workspace, Hearback ignores `hearback.engine.pythonPath` from
   workspace settings, does not consult the Python extension and never starts an interpreter that
   lies inside the workspace; static analysis keeps working.

@@ -41,6 +41,11 @@ owner decided to require a confirmation for such interpreters too.
 - **Unchanged:** interpreters outside the workspace folders (a system Python, pyenv or conda in the
   home folder) and the user's own `hearback.engine.pythonPath` run without a prompt, and Restricted
   Mode does not consult the Python extension at all.
+- **Not covered: PATH.** PATH belongs to the user's environment, not to the repository, and
+  Hearback uses only its absolute entries ([ADR 004](004-interpreter-discovery.md)). In a trusted
+  workspace an interpreter found on PATH therefore runs without a prompt even when it lies inside
+  the workspace, for example a project `.venv` that was active in the shell that started the
+  editor. Only Restricted Mode skips PATH entries inside the workspace.
 - **Hearback: Select Python Interpreter** does not probe an unconfirmed interpreter inside the
   workspace either. It lists it without a version as "Python (inside the workspace)"; picking it is
   the user's explicit choice, which goes to the user settings like any pick and needs no further

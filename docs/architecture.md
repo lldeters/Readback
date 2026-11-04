@@ -145,7 +145,10 @@ entries), apart from the setting's approvals. Only interactive starts ask: autom
 an interpreter without approval as not confirmed, and a decline (or a dismissed dialog) holds for
 the session. Either way the resolution continues with PATH, and Hearback: Show Engine Status names
 the reason. Interpreters outside the workspace and the user's own setting run without a prompt;
-Restricted Mode does not consult the Python extension at all.
+Restricted Mode does not consult the Python extension at all. PATH is not covered: it is the user's
+environment, not the repository's, so in a trusted workspace a PATH entry inside the workspace (a
+project `.venv` that was active in the shell that started the editor) is used without a prompt, and
+only Restricted Mode skips it.
 
 The reasons for both confirmations:
 
