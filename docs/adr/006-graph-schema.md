@@ -22,7 +22,7 @@ json-schema-to-typescript 16 handles draft 2020-12 but does not support `prefixI
   2020-12 with `additionalProperties: false`, enums for kinds, confidence, change status and
   attribution, and `$defs` for shared shapes.
 - `GraphDocument.schemaVersion` is a constant (1) and is bumped on every incompatible change, in
-  step with `SCHEMA_VERSION` in `engine/readback_engine/__init__.py`.
+  step with `SCHEMA_VERSION` in `engine/hearback_engine/__init__.py`.
 - **Positions are zero-based lines and UTF-16 code units (LSP semantics).** `Range.file` is the
   absolute path that the extension passed to the engine. The engine converts from `ast` and sqlglot
   offsets.

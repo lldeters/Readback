@@ -53,7 +53,7 @@ Section 8 adds that the extension host passes the webview's strings through. The
 - No CSP relaxation is needed, and violations are visible to the tests.
 - The worker must stay a single self-contained file, and libraries that load code or data inside a
   worker cannot be used as they are.
-- Icons and controls are Readback's own, since the codicons font is not permissively licensed and
+- Icons and controls are Hearback's own, since the codicons font is not permissively licensed and
   the toolkit is deprecated.
 - Hidden panels are rebuilt when shown again, so view state has to be restored from the host or
   from the webview's saved state.

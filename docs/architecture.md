@@ -1,10 +1,10 @@
-# Readback architecture
+# Hearback architecture
 
-This document describes how Readback is built at the end of Phase 0 ("foundation"). The product
+This document describes how Hearback is built at the end of Phase 0 ("foundation"). The product
 specification defines scope and phases; the decisions behind this design, with the alternatives
 that were considered, are recorded in [`docs/adr/`](adr/README.md).
 
-Readback is a VS Code extension with three parts: the extension host (TypeScript), a long-lived
+Hearback is a VS Code extension with three parts: the extension host (TypeScript), a long-lived
 Python analysis engine that only parses code, and a React webview that draws graphs. They talk
 through two contracts that live in `shared/`: the graph schema and the engine protocol schema.
 
@@ -20,13 +20,13 @@ VS Code, Cursor, Windsurf, Kiro, VSCodium (engines.vscode ^1.105.0)
 │   ├── Interpreter resolution and Restricted Mode policy                 src/engine/interpreter/
 │   ├── EngineConnection ⇄ JSON-RPC 2.0 over stdio ⇄ analysis engine      src/engine/engineConnection.ts
 │   ├── Graph panel: HTML, Content Security Policy, messages              src/views/
-│   ├── Output channel "Readback" (log levels)
+│   ├── Output channel "Hearback" (log levels)
 │   └── Later: ChangeTracker (Phase 1), ledger and strictness (Phase 3),
 │       Git and agent hooks (Phase 4), LLM providers (Phase 5)
 │
 ├── Analysis engine: CPython ≥ 3.10, one process per window               engine/
 │   ├── run_engine.py: version check, sys.path, sandbox, then the server
-│   ├── readback_engine/: JSON-RPC server and handshake; from Phase 1
+│   ├── hearback_engine/: JSON-RPC server and handshake; from Phase 1
 │   │   python_analysis/ (ast, symtable, optional Jedi) and
 │   │   sql_analysis/ (sqlglot, dbt adapter)
 │   └── vendor/: sqlglot, jedi, parso (generated, not committed)
@@ -44,7 +44,7 @@ VS Code, Cursor, Windsurf, Kiro, VSCodium (engines.vscode ^1.105.0)
 
 | Component                 | Location                                                          | Responsibility                                                                                                                                          |
 | ------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Entry point               | `src/extension.ts`                                                | Creates the "Readback" log output channel and registers the commands. Starts nothing else; `deactivate()` stops the engine.                             |
+| Entry point               | `src/extension.ts`                                                | Creates the "Hearback" log output channel and registers the commands. Starts nothing else; `deactivate()` stops the engine.                             |
 | Engine commands           | `src/engine/commands.ts`, `selectInterpreter.ts`, `messages.ts`   | Status report, interpreter picker, restart, log; error notifications with the actions that fix them.                                                    |
 | EngineService             | `src/engine/engineService.ts`, `restartPolicy.ts`                 | Owns the window's engine: lazy start, automatic restart with backoff, crash-loop stop, restart on interpreter changes, status snapshot.                 |
 | EngineConnection          | `src/engine/engineConnection.ts`, `stderrLog.ts`                  | One engine process: spawn, JSON-RPC connection, handshake, requests with timeouts, stderr parsing, orderly shutdown.                                    |
@@ -53,7 +53,7 @@ VS Code, Cursor, Windsurf, Kiro, VSCodium (engines.vscode ^1.105.0)
 | Webview app               | `webview/src/`                                                    | React app with an empty React Flow canvas, theme mapping, CSP and error reporting, layout worker check.                                                 |
 | Layout worker             | `webview/worker/layout.worker.ts`                                 | Phase 0 answers a ping; from Phase 1 it runs the graph layout off the UI thread.                                                                        |
 | Engine bootstrap          | `engine/run_engine.py`                                            | Stays parseable by old Pythons, checks the version, sets `sys.path`, installs the sandbox, then imports and starts the server.                          |
-| Engine package            | `engine/readback_engine/`                                         | JSON-RPC server (`engine/*` methods); the Python and SQL analyses from Phase 1. Version constants in `__init__.py`.                                     |
+| Engine package            | `engine/hearback_engine/`                                         | JSON-RPC server (`engine/*` methods); the Python and SQL analyses from Phase 1. Version constants in `__init__.py`.                                     |
 | Contracts                 | `shared/`, `src/engine/protocol.ts`, `src/shared/`                | JSON Schemas (source of truth), generated TypeScript types, protocol constants, the webview message contract.                                           |
 | Build and release scripts | `esbuild.mjs`, `scripts/`                                         | Bundling, schema type generation, vendoring, license gate and notices, the Restricted Mode test launcher.                                               |
 
@@ -65,18 +65,18 @@ VS Code, Cursor, Windsurf, Kiro, VSCodium (engines.vscode ^1.105.0)
   (spec sections 2.6 and 8).
 - **One engine per window.** The extension owns one `EngineService`. Settings are read for the
   first workspace folder; in a multi-root workspace one engine serves all folders.
-- **Lazy start.** The first request that needs the engine (in Phase 0: Readback: Show Engine
+- **Lazy start.** The first request that needs the engine (in Phase 0: Hearback: Show Engine
   Status, which pings it) resolves the interpreter and starts the process. Concurrent callers share
   that start. The `engine/initialize` handshake must finish within 20 seconds.
-- **Request timeouts.** Each request has a deadline of `readback.engine.timeoutMs` (default
+- **Request timeouts.** Each request has a deadline of `hearback.engine.timeoutMs` (default
   30,000 ms). At the deadline the client sends `$/cancelRequest`. If the engine has still not
   answered two seconds later, the client kills it. A hung engine counts as a crash (see below), so
   it restarts with backoff. Cancellation inside the engine is cooperative, so the kill is the
   backstop for a single long call.
 - **Crashes.** An unexpected exit (or a kill after a hang) restarts the engine after 1 s, doubling
   with every further crash up to 30 s. More than five crashes within three minutes count as a crash loop: automatic restarts
-  stop until the user runs Readback: Restart Engine.
-- **Interpreter changes.** Changes to `readback.engine.pythonPath`, granting Workspace Trust,
+  stop until the user runs Hearback: Restart Engine.
+- **Interpreter changes.** Changes to `hearback.engine.pythonPath`, granting Workspace Trust,
   installing or removing the Python extension and a new active environment in the Python extension
   are debounced for one second. A running engine then stops, and the next use starts it with a new
   resolution.
@@ -84,7 +84,7 @@ VS Code, Cursor, Windsurf, Kiro, VSCodium (engines.vscode ^1.105.0)
   waits up to one second for the answer), `engine/exit` notification, end of stdin; the process is
   killed if it is still alive two seconds later. The engine also exits on its own at end of stdin,
   so it cannot outlive a crashed extension host.
-- **Logging.** The output channel "Readback" is a log channel. Its level (Developer: Set Log
+- **Logging.** The output channel "Hearback" is a log channel. Its level (Developer: Set Log
   Level…) is sent to the engine in `engine/initialize` and on every change via
   `engine/setLogLevel`.
 
@@ -92,15 +92,15 @@ VS Code, Cursor, Windsurf, Kiro, VSCodium (engines.vscode ^1.105.0)
 
 The resolution order follows spec section 5.2 ([ADR 004](adr/004-interpreter-discovery.md)):
 
-1. **`readback.engine.pythonPath`.** `~` and `${userHome}` are expanded. `${workspaceFolder}` and
+1. **`hearback.engine.pythonPath`.** `~` and `${userHome}` are expanded. `${workspaceFolder}` and
    relative paths are only accepted in trusted workspaces; a bare name such as `python3.12` is
    looked up on PATH. If the setting is set but unusable, resolution stops with an error instead of
    silently falling back to another interpreter.
 2. **The Python extension's active environment** (`ms-python.python`, read through
    `@vscode/python-extension`). Used only if the extension is installed, with a 10-second timeout
    for its API and 5 seconds for resolving the environment. There are no `extensionDependencies`,
-   so Readback works without the Python extension.
-3. **PATH.** Windows: `py -3`, `python`, `python3`; elsewhere: `python3`, `python`. Readback
+   so Hearback works without the Python extension.
+3. **PATH.** Windows: `py -3`, `python`, `python3`; elsewhere: `python3`, `python`. Hearback
    searches PATH itself (absolute directories only) instead of letting `spawn()` do it, because
    on Windows a bare command name is first looked up in the current directory. It skips the
    Microsoft Store redirector and the macOS `/usr/bin/python3` stub when no developer tools are
@@ -114,7 +114,7 @@ file version (modification time and size).
 
 **Restricted Mode** (an untrusted workspace):
 
-- `readback.engine.pythonPath` from workspace and folder settings is ignored. The manifest lists the
+- `hearback.engine.pythonPath` from workspace and folder settings is ignored. The manifest lists the
   setting in `capabilities.untrustedWorkspaces.restrictedConfigurations`, so VS Code drops workspace
   values and `inspect()` does not report them.
 - The Python extension is not consulted (it is disabled in Restricted Mode anyway).
@@ -124,7 +124,7 @@ file version (modification time and size).
 - The engine still runs with an interpreter from outside the workspace: parsing is safe.
 - Granting trust triggers a new resolution.
 
-**Workspace setting confirmation** (approved addition): a `readback.engine.pythonPath` value from
+**Workspace setting confirmation** (approved addition): a `hearback.engine.pythonPath` value from
 workspace or folder settings is only used after a one-time confirmation per (workspace, path), even
 in trusted workspaces. The answer is stored in `globalState`. A declined value is ignored for the
 rest of the session (the user-level value applies) and asked about again in a later session.
@@ -141,7 +141,7 @@ reasons for the confirmation:
   startup even under `-I -S`. That is why paths are checked before any spawn, including the probe.
 - On Windows, `spawn()` with a bare name searches the current directory before PATH.
 
-Readback: Select Python Interpreter lists the usable interpreters it found with their versions,
+Hearback: Select Python Interpreter lists the usable interpreters it found with their versions,
 shows rejected ones with the reason under "Not usable" (they cannot be picked), and offers "Enter
 interpreter path…", "Browse…" and "Use automatic detection". It writes the choice to the user
 settings, never to the workspace. Because workspace and folder values take precedence, it first
@@ -195,7 +195,7 @@ to the record above them. The extension shows other lines (for example interpret
 logging is set up) as raw output and cuts lines longer than 16 KiB.
 
 **Fatal startup errors.** If the engine cannot start, `run_engine.py` writes one machine-readable
-line `READBACK_ENGINE_FATAL <json>` to stderr, where the JSON is a `FatalStartupError`
+line `HEARBACK_ENGINE_FATAL <json>` to stderr, where the JSON is a `FatalStartupError`
 (`code`: `python-too-old` or `bootstrap-failed`, plus `version`, `required` and `detail`), and exits
 with code 3 (`python-too-old`) or 4 (`bootstrap-failed`). Exit code 0 is a normal exit. The
 extension turns these into an error message with the action Select Interpreter….
@@ -282,7 +282,7 @@ schema. The examples in `shared/examples/` are validated by both test suites.
 
 ## Webview
 
-The graph view is one webview panel per window (`readback.graph`, command Readback: Open Graph
+The graph view is one webview panel per window (`hearback.graph`, command Hearback: Open Graph
 View), opened beside the active editor ([ADR 008](adr/008-webview.md)).
 
 - **Options:** scripts enabled; forms and command URIs disabled; `retainContextWhenHidden` off (the
@@ -290,7 +290,7 @@ View), opened beside the active editor ([ADR 008](adr/008-webview.md)).
   `localResourceRoots` is `dist/webview` only, never the workspace.
 - **HTML** (`src/views/webviewHtml.ts`): no inline script or style. The page has the CSP `<meta>`,
   a stylesheet link to `main.css`, the boot data as HTML-escaped JSON in the `data-boot` attribute
-  of `<meta id="readback-boot">` (view, locale, l10n bundle, worker URI), the root element and one
+  of `<meta id="hearback-boot">` (view, locale, l10n bundle, worker URI), the root element and one
   script tag carrying the nonce.
 - **Content Security Policy**, exactly:
   `default-src 'none'; script-src 'nonce-<NONCE>'; style-src <cspSource>; connect-src <cspSource>; worker-src blob:; base-uri 'none'; form-action 'none';`
@@ -360,7 +360,7 @@ English is the base language and German is complete (spec sections 0 and 8).
   contain all JavaScript, so `node_modules` is not shipped. vsce first runs `vscode:prepublish`:
   `scripts/clean.mjs pycache`, `vendor:check`, `build:prod` (which deletes `dist/` first),
   `notices:check`. `.vscodeignore` is an allowlist (the manifest and its translations, the German
-  runtime bundle, the bundles, `engine/run_engine.py`, the `.py` files of `engine/readback_engine/`,
+  runtime bundle, the bundles, `engine/run_engine.py`, the `.py` files of `engine/hearback_engine/`,
   `engine/vendor/`, README, CHANGELOG, LICENSE and the notices). vsce includes a file as soon as any
   `!` pattern matches, so exclusions after an allow pattern have no effect; the clean steps make sure
   no source maps or Python bytecode exist when packaging, and CI rejects a VSIX that contains them.
@@ -388,12 +388,12 @@ English is the base language and German is complete (spec sections 0 and 8).
   (`test/fixtures/fakeEngine.cjs`).
 - **Integration tests** run inside a downloaded VS Code with `--disable-extensions`. The Python
   extension is therefore absent and the PATH fallback is exercised, as the Phase 0 acceptance
-  criteria require. Hidden `readback._test.*` commands expose engine and panel state to the tests.
+  criteria require. Hidden `hearback._test.*` commands expose engine and panel state to the tests.
   The graph view test waits for `ready`, `workerReady` and zero CSP violations.
 - **Restricted Mode launcher:** `@vscode/test-electron` always passes `--disable-workspace-trust`,
   so every workspace it opens is trusted. `scripts/test-untrusted.mjs` downloads VS Code through
   test-electron but starts it itself with Workspace Trust enabled and a fresh profile. It opens a
-  temporary workspace whose settings point `readback.engine.pythonPath` at a fake
+  temporary workspace whose settings point `hearback.engine.pythonPath` at a fake
   `.venv/bin/python` that leaves a marker file when executed. The tests check that the setting is
   ignored, that the Python extension is skipped, that the engine runs sandboxed with an outside
   interpreter, and that the marker never appears. It runs on Linux and macOS only.

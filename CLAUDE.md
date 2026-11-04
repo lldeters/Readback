@@ -5,13 +5,14 @@ conventions or phases change.
 
 ## Project
 
-Readback is a VS Code and Open VSX extension (Cursor, Windsurf, Kiro, VSCodium) that helps
+Hearback is a VS Code and Open VSX extension (Cursor, Windsurf, Kiro, VSCodium) that helps
 developers understand AI-written Python and SQL through deterministic static-analysis
 visualizations; an optional comprehension mode follows in later phases.
 
-- Extension ID `lldeters.readback-code` (package name `readback-code`, publisher `lldeters`),
-  display name "Readback – Understand AI-Written Code", command category `Readback`, settings
-  prefix `readback.`, per-repository work folder `.readback/`.
+- Extension ID `lldeters.hearback` (package name `hearback`, publisher `lldeters`), display name
+  "Hearback – Understand AI-Written Code", command category `Hearback`, settings prefix
+  `hearback.`, environment variables `HEARBACK_*`, per-repository work folder `.hearback/`
+  ([ADR 010](docs/adr/010-product-name.md) records the name).
 - Three parts: the extension host (TypeScript, `src/`), a sandboxed Python analysis engine
   (`engine/`, CPython 3.10 or newer, JSON-RPC 2.0 over stdio) and a React webview (`webview/`).
   The contracts are the JSON Schemas in `shared/`.
@@ -61,7 +62,7 @@ without approval.
 | `npm run test:coverage`    | Unit tests with V8 coverage in `coverage/`.                                                                                                      |
 | `npm run test:integration` | Bundles the tests into `out/test` and runs them in VS Code (`VSCODE_TEST_VERSION`, default `stable`; CI uses `1.105.1` too).                     |
 | `npm run test:untrusted`   | Restricted Mode tests through `scripts/test-untrusted.mjs` (Linux and macOS; `xvfb-run -a` on headless Linux).                                   |
-| `npm run test:engine`      | `pytest` for the engine through `scripts/python.mjs` (`READBACK_PYTHON` selects the interpreter).                                                |
+| `npm run test:engine`      | `pytest` for the engine through `scripts/python.mjs` (`HEARBACK_PYTHON` selects the interpreter).                                                |
 | `npm run vendor`           | Downloads and unpacks the pinned engine dependencies into `engine/vendor/`.                                                                      |
 | `npm run vendor:check`     | Verifies `engine/vendor/` against the pins.                                                                                                      |
 | `npm run schema:generate`  | Regenerates `src/shared/generated/*.ts` from `shared/*.json`.                                                                                    |
@@ -81,16 +82,21 @@ mypy
 python -m pytest --cov --cov-report=term-missing
 ```
 
+`src/engine/realEngine.test.ts` (part of `npm run test:unit`) starts the real engine without
+VS Code and skips itself without a Python 3.10 or newer: `HEARBACK_TEST_PYTHON` selects the
+interpreter, `HEARBACK_ENGINE_DIR` another engine folder (CI's package job uses the unpacked VSIX)
+and `HEARBACK_EXPECT_VENDORED=1` requires jedi, parso and sqlglot in the handshake.
+
 Debugging:
 
 - F5 **Run Extension** starts an Extension Development Host with the watch build; **Run Extension
   (other extensions disabled)** runs without the Python extension, which exercises the PATH
   fallback.
-- Readback: Show Log opens the log. Change its level with Developer: Set Log Level… → Readback, or
-  start with `code --log lldeters.readback-code:trace`. The engine receives the level too.
-- Readback: Show Engine Status shows the interpreter, its source, the versions, the sandbox state
+- Hearback: Show Log opens the log. Change its level with Developer: Set Log Level… → Hearback, or
+  start with `code --log lldeters.hearback:trace`. The engine receives the level too.
+- Hearback: Show Engine Status shows the interpreter, its source, the versions, the sandbox state
   and every candidate that was rejected, with the reason.
-- Hidden `readback._test.*` commands return engine and panel state; the integration tests use them.
+- Hidden `hearback._test.*` commands return engine and panel state; the integration tests use them.
 
 ## Conventions
 
@@ -111,7 +117,7 @@ Debugging:
   run `npm run schema:generate`, then update the engine's `TypedDict`s, the conformance tests and
   `shared/examples/`. Incompatible changes bump `schemaVersion` or `PROTOCOL_VERSION` on both sides
   (`test/repo/versions.test.ts` checks them).
-- **Versions:** `package.json`, `ENGINE_VERSION` in `engine/readback_engine/__init__.py` and
+- **Versions:** `package.json`, `ENGINE_VERSION` in `engine/hearback_engine/__init__.py` and
   `engine/pyproject.toml` carry the same version.
 - **Vendoring updates:** change the pin and its SHA-256 in `engine/requirements-vendor.txt` (pure
   wheels only), run `npm run vendor`, rerun the engine's fixture snapshot tests, regenerate the
@@ -148,7 +154,7 @@ Debugging:
 - **Audit hooks cannot be removed.** Never call `sandbox.install()` in the pytest process: it would
   refuse every later subprocess. Tests install it in a subprocess, and the bootstrap tests pass
   stand-in modules to `run_engine.start()`.
-- **Hidden commands do not activate the extension.** `readback._test.*` commands are not contributed,
+- **Hidden commands do not activate the extension.** `hearback._test.*` commands are not contributed,
   so tests must activate the extension first (the root-level hook in
   `test/integration/activation.test.ts` does it for the integration suites).
 - **Mocha loads the integration test files in no fixed order.** Never rely on one suite running
@@ -158,3 +164,6 @@ Debugging:
   packaging, and CI rejects a VSIX that contains them.
 - **Integration tests do not run in the cloud sandbox:** the VS Code download host
   (`vscode.download.prss.microsoft.com`) is blocked there. Rely on CI for them.
+- **The GitHub repository keeps the working title.** Its URL `https://github.com/lldeters/Readback`
+  stays until the owner renames the repository, and so do the slogan "Readback correct." and the
+  aviation term readback; everything else says Hearback ([ADR 010](docs/adr/010-product-name.md)).

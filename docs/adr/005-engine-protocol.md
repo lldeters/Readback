@@ -27,7 +27,7 @@ smoke test with vscode-jsonrpc and a 47-line Python server, and later a 174-line
 - **Client:** vscode-jsonrpc 10.0.0 imported from `vscode-jsonrpc/node`, with
   `StreamMessageReader` and `StreamMessageWriter` on the child's pipes, bundled into
   `dist/extension.js`.
-- **Server:** a small standard-library implementation in `engine/readback_engine/`.
+- **Server:** a small standard-library implementation in `engine/hearback_engine/`.
 - **Semantics:** requests are processed serially. `$/cancelRequest` sets the cancel flag of the
   request, which long analyses check. Every request gets exactly one response; a cancelled request
   answers with -32800 (LSP `RequestCancelled`). The standard codes -32700, -32600, -32601, -32602
@@ -37,13 +37,13 @@ smoke test with vscode-jsonrpc and a 47-line Python server, and later a 174-line
   vendored versions, the method list, the process id and the sandbox state), `engine/ping`,
   `engine/shutdown`, `engine/exit` and `engine/setLogLevel`. Payloads are defined in
   `shared/engine-protocol.schema.json`; names, codes and exit codes in `src/engine/protocol.ts`.
-  `PROTOCOL_VERSION` (1) also lives in `engine/readback_engine/__init__.py`, and a repository test
+  `PROTOCOL_VERSION` (1) also lives in `engine/hearback_engine/__init__.py`, and a repository test
   keeps both equal.
-- **Timeouts:** the client enforces `readback.engine.timeoutMs` per request. At the deadline it
+- **Timeouts:** the client enforces `hearback.engine.timeoutMs` per request. At the deadline it
   cancels; if the engine has still not answered two seconds later, the client kills it. Crashed or
   hung engines restart with exponential backoff.
 - **stderr:** one log record per line, `[<level>] <message>`, continuation lines indented by four
-  spaces. A failed start writes one `READBACK_ENGINE_FATAL <json>` line and exits with code 3
+  spaces. A failed start writes one `HEARBACK_ENGINE_FATAL <json>` line and exits with code 3
   (Python too old) or 4 (bootstrap failed).
 - **Shutdown:** `engine/shutdown` request, `engine/exit` notification, end of stdin, kill after two
   seconds. The engine also exits at end of stdin.

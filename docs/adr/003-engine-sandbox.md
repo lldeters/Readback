@@ -5,7 +5,7 @@
 
 ## Context
 
-The engine runs a Python interpreter that Readback found on the user's machine, next to code that
+The engine runs a Python interpreter that Hearback found on the user's machine, next to code that
 may come from an untrusted repository. The spec requires that the engine only parses, imports no
 network modules and never runs user code (sections 4, 5.2 and 8), and that nothing is installed
 with pip at runtime. Experiments on Python 3.10 to 3.15 found:
@@ -35,7 +35,7 @@ with pip at runtime. Experiments on Python 3.10 to 3.15 found:
   environment without `PYTHON*`, `VIRTUAL_ENV`, `CONDA_PREFIX` (and the other conda activation
   variables) and `__PYVENV_LAUNCHER__`.
 - `run_engine.py` stays parseable by old Python versions so it can report a version that is too
-  old. It checks the version (exit code 3 with a `READBACK_ENGINE_FATAL` line on stderr), puts
+  old. It checks the version (exit code 3 with a `HEARBACK_ENGINE_FATAL` line on stderr), puts
   `engine/` and `engine/vendor/` on `sys.path`, installs the audit hook and only then imports and
   starts the server, so the module-level code of the server and of everything it imports already
   runs under the hook. Any other startup failure, an error while installing the hook included,

@@ -2,8 +2,9 @@
 
 Each record states one decision: its context, the decision itself, the consequences and the
 alternatives that were considered. A record is not edited once it is accepted; a later record
-supersedes it instead and both are marked accordingly. [`docs/architecture.md`](../architecture.md)
-describes the resulting design.
+supersedes it instead and both are marked accordingly. Editorial updates that leave the decision
+unchanged, such as the new names after the rename in [ADR 010](010-product-name.md), are the only
+exception. [`docs/architecture.md`](../architecture.md) describes the resulting design.
 
 | ADR                                 | Decision                                                  | Status   |
 | ----------------------------------- | --------------------------------------------------------- | -------- |
@@ -16,6 +17,7 @@ describes the resulting design.
 | [007](007-vendoring.md)             | Vendoring the engine's Python dependencies                | Accepted |
 | [008](008-webview.md)               | Webview: CSP, workers, theme and localization             | Accepted |
 | [009](009-license-policy.md)        | License policy and the license gate                       | Accepted |
+| [010](010-product-name.md)          | Product name Hearback                                     | Accepted |
 
 New records use the next number and this outline:
 

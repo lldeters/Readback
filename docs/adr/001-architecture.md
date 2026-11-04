@@ -5,7 +5,7 @@
 
 ## Context
 
-Readback helps developers understand AI-written Python and SQL through deterministic
+Hearback helps developers understand AI-written Python and SQL through deterministic
 visualizations (spec sections 1 and 2). It must run in VS Code and in the editors that use Open VSX
 (Cursor, Windsurf, Kiro, VSCodium) without a hard dependency on Pylance, Copilot or a particular
 agent. The analysis must work offline and must never execute user code, and the extension must stay
@@ -17,7 +17,7 @@ interactive graph UI inside the editor, which in VS Code means a webview.
 
 ## Decision
 
-Readback consists of three parts that talk through versioned contracts:
+Hearback consists of three parts that talk through versioned contracts:
 
 - **Extension host** (TypeScript, `src/`): commands, settings, interpreter discovery, the engine
   lifecycle and the webview panels; later the change tracker (Phase 1), the comprehension ledger
@@ -50,8 +50,8 @@ empty webview with theme support and a strict CSP, CI and this documentation.
   vendored dependencies.
 - Each part can be tested on its own: the TypeScript core without `vscode`, the engine connection
   against a fake engine, both sides of each contract against its schema.
-- Users need a Python 3.10 or newer interpreter; Readback does not ship one. Clear messages and
-  Readback: Select Python Interpreter cover the cases where none is found.
+- Users need a Python 3.10 or newer interpreter; Hearback does not ship one. Clear messages and
+  Hearback: Select Python Interpreter cover the cases where none is found.
 - There are two runtimes to build, test and package, on three operating systems.
 - The first request pays the engine's start-up time; one long-lived process per window keeps
   later requests fast and allows caching.
@@ -63,7 +63,7 @@ empty webview with theme support and a strict CSP, CI and this documentation.
   reimplemented. The spec prefers maintained libraries over custom code.
 - **Python compiled to WebAssembly (Pyodide) inside the extension:** a download of tens of
   megabytes and a slower start, for no gain in safety over the sandboxed engine.
-- **Language Server Protocol:** Readback's requests return graphs, not diagnostics or completions.
+- **Language Server Protocol:** Hearback's requests return graphs, not diagnostics or completions.
   LSP's document synchronization and capability negotiation would add machinery without benefit
   (spec section 5.2).
 - **One process per request:** no caching across requests and the start-up cost on every request.

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Readback are documented in this file. The format is based on
+All notable changes to Hearback are documented in this file. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Versions 0.x are published as
 pre-releases.
@@ -11,7 +11,7 @@ Phase 0 (foundation). Nothing has been released yet.
 
 ### Added
 
-- Extension `lldeters.readback-code` ("Readback – Understand AI-Written Code") for VS Code 1.105 or
+- Extension `lldeters.hearback` ("Hearback – Understand AI-Written Code") for VS Code 1.105 or
   newer and compatible editors. It activates only through its commands, runs on the workspace side
   in remote sessions and supports untrusted workspaces in a limited mode.
 - Analysis engine for CPython 3.10 or newer: one sandboxed process per window, started on first
@@ -19,20 +19,20 @@ Phase 0 (foundation). Nothing has been released yet.
   server, an audit hook blocks process creation (`multiprocessing` included), network access and
   `ctypes`. The engine restarts automatically with backoff after a crash or when it stops
   responding, and shuts down in an orderly way.
-- Interpreter discovery: `readback.engine.pythonPath`, then the active environment of the Python
+- Interpreter discovery: `hearback.engine.pythonPath`, then the active environment of the Python
   extension if it is installed, then `python3` or `python` on `PATH` (`py -3` on Windows). Every
   candidate is checked for CPython 3.10 or newer, and problems come with the actions Select
   Interpreter…, Manage Workspace Trust and Show Log.
 - Restricted Mode: the interpreter setting from workspace settings is ignored, and interpreters
   inside the workspace are never started. An interpreter path from workspace settings needs a
   one-time confirmation in every workspace.
-- Commands Readback: Show Engine Status, Select Python Interpreter, Restart Engine, Show Log and
+- Commands Hearback: Show Engine Status, Select Python Interpreter, Restart Engine, Show Log and
   Open Graph View. Show Engine Status reports the interpreter and where it came from, the versions,
   the sandbox and trust state and every rejected candidate with the reason, and says so when the
   engine does not respond. Select Python Interpreter lists the interpreters it found, accepts a
   typed or browsed path, saves the choice in the user settings and offers to ignore a value from
   workspace settings that would override it.
-- Settings `readback.engine.pythonPath` and `readback.engine.timeoutMs`.
+- Settings `hearback.engine.pythonPath` and `hearback.engine.timeoutMs`.
 - Graph view with an empty React Flow canvas, VS Code theme support including high contrast, a
   strict Content Security Policy and a check of the layout worker.
 - Graph schema and engine protocol schema (JSON Schema 2020-12) with generated TypeScript types
@@ -43,7 +43,12 @@ Phase 0 (foundation). Nothing has been released yet.
 - Continuous integration on Linux, Windows and macOS: lint, unit tests, engine tests on Python
   3.10 and 3.15, integration tests on VS Code 1.105.1 and stable, Restricted Mode tests, and
   packaging with a completeness check of the VSIX and a run of the packaged engine.
-- Documentation: README, architecture overview, architecture decision records 001 to 009,
+- Documentation: README, architecture overview, architecture decision records 001 to 010,
   security policy and agent guidelines (`CLAUDE.md`).
+
+### Changed
+
+- The working title Readback was replaced by Hearback because that name is already taken in the
+  Visual Studio Marketplace ([ADR 010](docs/adr/010-product-name.md)).
 
 [Unreleased]: https://github.com/lldeters/Readback/commits/main

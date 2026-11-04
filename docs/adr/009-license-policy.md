@@ -5,7 +5,7 @@
 
 ## Context
 
-Readback is MIT-licensed. Spec section 0.5 allows only licenses compatible with MIT and names MIT,
+Hearback is MIT-licensed. Spec section 0.5 allows only licenses compatible with MIT and names MIT,
 BSD and Apache 2.0. The dependencies the research selected are more varied:
 
 - parso contains PSF-2.0 files (its `pgen2` package, `tokenize.py` and `token.py`), and jedi's
@@ -25,16 +25,16 @@ BSD and Apache 2.0. The dependencies the research selected are more varied:
 
 ## Decision
 
-- **Readback is MIT** (`LICENSE`).
+- **Hearback is MIT** (`LICENSE`).
 - **Shipped dependencies may use any permissive license.** The allowlist, as SPDX identifiers:
   MIT, ISC, BSD-2-Clause, BSD-3-Clause, Apache-2.0, 0BSD, PSF-2.0, Python-2.0, Zlib,
   BlueOak-1.0.0, CC0-1.0 and Unlicense.
-- **elkjs is the only documented exception.** From Phase 1 Readback uses it under EPL-2.0 and
+- **elkjs is the only documented exception.** From Phase 1 Hearback uses it under EPL-2.0 and
   fulfills the obligations: the elkjs files are shipped unmodified as separate files, not bundled
-  with Readback's code; its license text (`LICENSE.md`) is shipped; `THIRD_PARTY_NOTICES.md` states
+  with Hearback's code; its license text (`LICENSE.md`) is shipped; `THIRD_PARTY_NOTICES.md` states
   that elkjs is used under EPL-2.0 and links its source for the shipped version
   (`https://github.com/kieler/elkjs/tree/<version>`) and the Eclipse Layout Kernel it is built
-  from (`https://github.com/eclipse-elk/elk`); its notices are kept. Readback's own code that calls
+  from (`https://github.com/eclipse-elk/elk`); its notices are kept. Hearback's own code that calls
   elkjs remains MIT.
 - **Dev-only tools that are not shipped are not affected**, for example ovsx (EPL-2.0), which runs
   through `npx` in the release job and is not a dependency. Assets under other licenses, such as the
