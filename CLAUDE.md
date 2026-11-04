@@ -12,7 +12,7 @@ visualizations; an optional comprehension mode follows in later phases.
 - Extension ID `lldeters.hearback` (package name `hearback`, publisher `lldeters`), display name
   "Hearback – Understand AI-Written Code", command category `Hearback`, settings prefix
   `hearback.`, environment variables `HEARBACK_*`, per-repository work folder `.hearback/`
-  ([ADR 010](docs/adr/010-product-name.md) proposes the name; the owner has not confirmed it yet).
+  ([ADR 010](docs/adr/010-product-name.md)).
   Every other name that the specification spells with readback uses hearback as well, such as the
   SQL comment `-- hearback: dialect=…` and the hook script `.hearback/bin/hearback_hook.py`
   (`hooks/hearback_hook.py` in the repository).

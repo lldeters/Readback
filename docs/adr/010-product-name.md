@@ -1,6 +1,6 @@
 # ADR 010: Product name Hearback
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-04
 
 ## Context
@@ -22,9 +22,8 @@ Marketplace:
 - A search on 2026-11-04 found no extension called Hearback in the Visual Studio Marketplace or on
   Open VSX.
 
-The owner did not choose a new name, so this record only proposes one. The code and the
-documentation already use it, because renaming again stays mechanical until the first release. The
-record becomes Accepted once the owner confirms the name and says whether the slogan stays.
+On 2026-11-04 the owner chose Hearback from three options: Hearback, keeping Readback with the
+distinct display name, and "Readback Code".
 
 ## Decision
 
@@ -60,10 +59,11 @@ record becomes Accepted once the owner confirms the name and says whether the sl
   a work folder under the old names.
 - Nothing reserves the name before the first release: until then another publisher could publish
   an extension called Hearback in the Visual Studio Marketplace.
-- The name suggests listening, which is close to what `speechify.readback` offers ("Hear your AI
-  coding agent's replies in a Speechify voice…"), and the slogan "Readback correct." at the top of
-  the README and the Marketplace page repeats that extension's name. Both are part of the owner's
-  confirmation.
+- The name suggests listening, which is near what `speechify.readback` offers ("Hear your AI coding
+  agent's replies in a Speechify voice…"); the subtitle "Understand AI-Written Code" and the
+  visualizations set Hearback apart. The slogan "Readback correct." (specification section 1)
+  contains the other extension's name; it stays because it is the aviation phrase for a confirmed
+  readback.
 - The earlier records (ADR 001 to 009) and the other documents use the new names. This is an
   editorial change; their decisions and dates stay as they were.
 - Repository name and product name differ until the repository is renamed. GitHub then redirects
@@ -74,6 +74,8 @@ record becomes Accepted once the owner confirms the name and says whether the sl
 - **Keeping Readback** with the package name `readback-code` and the subtitle in the display name:
   even if the Marketplace accepted these identifiers, the product would share its name with an
   established extension for the same audience.
+- **"Readback Code"** as the display name with the ID `lldeters.readback-code`: a little more
+  distance, but still next to Speechify's extension in search results.
 - **Other aviation terms**, checked in the Visual Studio Marketplace and on Open VSX on
   2026-11-04: Crosscheck (pilots cross-check each other's actions and readings) and Walkaround (the
   inspection around the aircraft before a flight) were free and do not suggest listening, but they
