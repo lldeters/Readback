@@ -17,7 +17,7 @@ the only exception. [`docs/architecture.md`](../architecture.md) describes the r
 | [007](007-vendoring.md)                          | Vendoring the engine's Python dependencies                  | Accepted                                                              |
 | [008](008-webview.md)                            | Webview: CSP, workers, theme and localization               | Accepted                                                              |
 | [009](009-license-policy.md)                     | License policy and the license gate                         | Accepted                                                              |
-| [010](010-product-name.md)                       | Product name Hearback                                       | Accepted                                                              |
+| [010](010-product-name.md)                       | Product name Hearback                                       | Proposed                                                              |
 | [011](011-workspace-interpreter-confirmation.md) | Confirming workspace interpreters from the Python extension | Accepted                                                              |
 
 New records use the next number and this outline:

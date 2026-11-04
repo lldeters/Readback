@@ -12,7 +12,7 @@ visualizations; an optional comprehension mode follows in later phases.
 - Extension ID `lldeters.hearback` (package name `hearback`, publisher `lldeters`), display name
   "Hearback – Understand AI-Written Code", command category `Hearback`, settings prefix
   `hearback.`, environment variables `HEARBACK_*`, per-repository work folder `.hearback/`
-  ([ADR 010](docs/adr/010-product-name.md) records the name).
+  ([ADR 010](docs/adr/010-product-name.md) proposes the name; the owner has not confirmed it yet).
 - Three parts: the extension host (TypeScript, `src/`), a sandboxed Python analysis engine
   (`engine/`, CPython 3.10 or newer, JSON-RPC 2.0 over stdio) and a React webview (`webview/`).
   The contracts are the JSON Schemas in `shared/`.

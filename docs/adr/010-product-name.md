@@ -1,6 +1,6 @@
 # ADR 010: Product name Hearback
 
-- Status: Accepted
+- Status: Proposed
 - Date: 2026-11-04
 
 ## Context
@@ -21,6 +21,10 @@ Marketplace:
   users: confusing in search results, reviews and support, and a name the project could never own.
 - A search on 2026-11-04 found no extension called Hearback in the Visual Studio Marketplace or on
   Open VSX.
+
+The owner did not choose a new name, so this record only proposes one. The code and the
+documentation already use it, because renaming again stays mechanical until the first release. The
+record becomes Accepted once the owner confirms the name and says whether the slogan stays.
 
 ## Decision
 
@@ -53,6 +57,10 @@ Marketplace:
   a work folder under the old names.
 - Nothing reserves the name before the first release: until then another publisher could publish
   an extension called Hearback in the Visual Studio Marketplace.
+- The name suggests listening, which is close to what `speechify.readback` offers ("Hear your AI
+  coding agent's replies in a Speechify voice…"), and the slogan "Readback correct." at the top of
+  the README and the Marketplace page repeats that extension's name. Both are part of the owner's
+  confirmation.
 - The earlier records (ADR 001 to 009) and the other documents use the new names. This is an
   editorial change; their decisions and dates stay as they were.
 - Repository name and product name differ until the repository is renamed. GitHub then redirects
@@ -63,6 +71,11 @@ Marketplace:
 - **Keeping Readback** with the package name `readback-code` and the subtitle in the display name:
   even if the Marketplace accepted these identifiers, the product would share its name with an
   established extension for the same audience.
+- **Other aviation terms**, checked in the Visual Studio Marketplace and on Open VSX on
+  2026-11-04: Crosscheck (pilots cross-check each other's actions and readings) and Walkaround (the
+  inspection around the aircraft before a flight) were free and do not suggest listening, but they
+  lose the link to the readback and its slogan. Debrief and Preflight are taken by extensions for
+  AI-written code.
 - **Renaming the GitHub repository at the same time:** left to the owner; the redirects make the
   timing uncritical.
 - **Migrating `readback.*` settings and state:** unnecessary, since nothing was released.
