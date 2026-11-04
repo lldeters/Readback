@@ -96,7 +96,7 @@ describe('InterpreterSetting', () => {
       scope: 'workspace',
     });
     expect(state.prompts).toEqual([
-      'This workspace wants Readback to run "./.venv/bin/python" as its Python interpreter.',
+      'This workspace wants Hearback to run "./.venv/bin/python" as its Python interpreter.',
     ]);
     // A new session (new instance) with the same global state does not ask again.
     await new InterpreterSetting(globalState as never).read({ interactive: true });

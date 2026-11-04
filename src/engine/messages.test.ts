@@ -81,7 +81,7 @@ describe('formatStatus', () => {
       'Startup: 412 ms · ping 3 ms',
       '',
       'Interpreter search:',
-      '  · readback.engine.pythonPath – not set',
+      '  · hearback.engine.pythonPath – not set',
       '  · Python extension – not installed',
       '  ✓ PATH: /usr/bin/python3 – Python 3.12.3',
     ]);
@@ -100,7 +100,7 @@ describe('formatStatus', () => {
     expect(text).toContain('State: failed');
     expect(text).toContain('Workspace: Restricted Mode');
     expect(text).toContain(
-      'Problem: Readback needs Python 3.10 or newer, but no suitable interpreter was found.',
+      'Problem: Hearback needs Python 3.10 or newer, but no suitable interpreter was found.',
     );
   });
 });
@@ -110,7 +110,7 @@ describe('formatStatus with a failed ping', () => {
     const { EngineRequestFailure } = await import('./engineConnection');
     const text = formatStatus(running, undefined, new EngineRequestFailure('timeout', 'x'));
     expect(text).toContain('Ping: failed (no answer in time)');
-    expect(text).toContain('Problem: The Readback engine does not respond.');
+    expect(text).toContain('Problem: The Hearback engine does not respond.');
   });
 });
 
@@ -134,7 +134,7 @@ describe('describeFailure', () => {
         },
       }),
     ).toBe(
-      'The interpreter in readback.engine.pythonPath (user settings) cannot be used: rejected: lies inside the untrusted workspace.',
+      'The interpreter in hearback.engine.pythonPath (user settings) cannot be used: rejected: lies inside the untrusted workspace.',
     );
   });
 
@@ -149,7 +149,7 @@ describe('describeFailure', () => {
           required: '3.10',
         }),
       }),
-    ).toBe('Python 3.9.6 is too old for Readback. Python 3.10 or newer is required.');
+    ).toBe('Python 3.9.6 is too old for Hearback. Python 3.10 or newer is required.');
   });
 });
 

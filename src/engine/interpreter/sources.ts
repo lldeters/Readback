@@ -1,4 +1,4 @@
-// Editor-facing interpreter sources: the readback.engine.pythonPath setting (with the approved
+// Editor-facing interpreter sources: the hearback.engine.pythonPath setting (with the approved
 // one-time confirmation for workspace values) and the Python extension's active environment.
 import { PythonExtension } from '@vscode/python-extension';
 import * as vscode from 'vscode';
@@ -9,9 +9,9 @@ import type { SettingScope } from './types';
 
 export const PYTHON_EXTENSION_ID = 'ms-python.python';
 
-const APPROVALS_KEY = 'readback.approvedWorkspaceInterpreters';
+const APPROVALS_KEY = 'hearback.approvedWorkspaceInterpreters';
 /** Workspace values the user chose to ignore, e.g. by picking another interpreter. */
-const IGNORED_KEY = 'readback.ignoredWorkspaceInterpreters';
+const IGNORED_KEY = 'hearback.ignoredWorkspaceInterpreters';
 const MAX_APPROVALS = 200;
 /** The Python extension can take seconds to activate (discovery, experiments). */
 const API_TIMEOUT_MS = 10_000;
@@ -47,7 +47,7 @@ export interface ReadOptions {
 }
 
 /**
- * readback.engine.pythonPath. Restricted Mode already drops workspace values (manifest
+ * hearback.engine.pythonPath. Restricted Mode already drops workspace values (manifest
  * restrictedConfigurations). Because some editors ship with Workspace Trust disabled, a value
  * from workspace settings additionally needs a one-time confirmation per (workspace, path).
  */
@@ -135,11 +135,11 @@ export class InterpreterSetting {
     const allow = vscode.l10n.t('Allow');
     const ignore = vscode.l10n.t('Ignore Workspace Setting');
     const choice = await vscode.window.showWarningMessage(
-      vscode.l10n.t('This workspace wants Readback to run "{0}" as its Python interpreter.', value),
+      vscode.l10n.t('This workspace wants Hearback to run "{0}" as its Python interpreter.', value),
       {
         modal: true,
         detail: vscode.l10n.t(
-          'The path comes from the workspace settings ({0}). Readback will execute this program. Only allow it if you trust the files in this workspace.',
+          'The path comes from the workspace settings ({0}). Hearback will execute this program. Only allow it if you trust the files in this workspace.',
           PYTHON_PATH_SETTING,
         ),
       },

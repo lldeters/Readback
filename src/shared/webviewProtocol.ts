@@ -3,12 +3,12 @@
 import type { GraphDocument } from './generated/graph';
 
 /** Id of the <meta> element whose data-boot attribute carries the WebviewBootData. */
-export const BOOT_ELEMENT_ID = 'readback-boot';
+export const BOOT_ELEMENT_ID = 'hearback-boot';
 
 /** Id of the element the webview app renders into. */
 export const ROOT_ELEMENT_ID = 'root';
 
-/** Data the host embeds in the webview HTML (data-boot attribute of #readback-boot, HTML-escaped JSON). */
+/** Data the host embeds in the webview HTML (data-boot attribute of #hearback-boot, HTML-escaped JSON). */
 export interface WebviewBootData {
   /** Which view the panel shows. Phase 0 only has the empty graph view. */
   readonly view: 'graph';

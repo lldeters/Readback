@@ -18,9 +18,9 @@ from typing import Any
 import pytest
 import support
 
-import readback_engine
+import hearback_engine
 import run_engine
-from readback_engine import protocol
+from hearback_engine import protocol
 
 
 def fatal_payload(text: str) -> dict[str, Any]:
@@ -32,7 +32,7 @@ def fatal_payload(text: str) -> dict[str, Any]:
 
 
 def test_constants_match_the_engine() -> None:
-    assert run_engine.MIN_PYTHON == readback_engine.MIN_PYTHON
+    assert run_engine.MIN_PYTHON == hearback_engine.MIN_PYTHON
     assert run_engine.FATAL_PREFIX == protocol.FATAL_PREFIX
     assert run_engine.EXIT_PYTHON_TOO_OLD == protocol.ExitCode.PYTHON_TOO_OLD
     assert run_engine.EXIT_BOOTSTRAP_FAILED == protocol.ExitCode.BOOTSTRAP_FAILED
@@ -74,16 +74,16 @@ def test_prepend_paths_puts_them_first_without_duplicates(monkeypatch: pytest.Mo
     assert sys.path == ["/a", "/b", "/stdlib", "/stdlib/lib-dynload"]
 
 
-# Stand-ins that start() imports from a test folder instead of readback_engine. The real sandbox
+# Stand-ins that start() imports from a test folder instead of hearback_engine. The real sandbox
 # must never be installed in the pytest process: audit hooks cannot be removed, and it would
 # refuse every later subprocess.
 FAKE_SANDBOX = "EVENTS = []\n\ndef install():\n    EVENTS.append('install')\n    return True\n"
 FAKE_SERVER = """\
-import rb_fake_sandbox
-rb_fake_sandbox.EVENTS.append('import server')
+import hb_fake_sandbox
+hb_fake_sandbox.EVENTS.append('import server')
 
 def main():
-    rb_fake_sandbox.EVENTS.append('main')
+    hb_fake_sandbox.EVENTS.append('main')
     return 7
 """
 
@@ -92,35 +92,35 @@ def main():
 def modules(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     """A folder with the stand-in modules; start() puts it first on sys.path."""
     monkeypatch.setattr(sys, "path", list(sys.path))
-    (tmp_path / "rb_fake_sandbox.py").write_text(FAKE_SANDBOX, encoding="utf-8")
-    (tmp_path / "rb_fake_server.py").write_text(FAKE_SERVER, encoding="utf-8")
+    (tmp_path / "hb_fake_sandbox.py").write_text(FAKE_SANDBOX, encoding="utf-8")
+    (tmp_path / "hb_fake_server.py").write_text(FAKE_SERVER, encoding="utf-8")
     yield tmp_path
-    for name in [name for name in sys.modules if name.startswith("rb_")]:
+    for name in [name for name in sys.modules if name.startswith("hb_")]:
         del sys.modules[name]
 
 
 def test_start_installs_the_sandbox_before_it_imports_the_server(modules: Path) -> None:
     stream = io.StringIO()
-    assert run_engine.start([str(modules)], stream, "rb_fake_server", "rb_fake_sandbox") == 7
-    assert sys.modules["rb_fake_sandbox"].EVENTS == ["install", "import server", "main"]
+    assert run_engine.start([str(modules)], stream, "hb_fake_server", "hb_fake_sandbox") == 7
+    assert sys.modules["hb_fake_sandbox"].EVENTS == ["install", "import server", "main"]
     assert stream.getvalue() == ""
 
 
 @pytest.mark.parametrize(
     ("source", "detail"),
     [
-        (None, "ModuleNotFoundError: No module named 'rb_missing_server'"),
+        (None, "ModuleNotFoundError: No module named 'hb_missing_server'"),
         ("raise RuntimeError('boom')\n", "RuntimeError: boom"),
-        ("x = 1\n", "AttributeError: module 'rb_missing_server' has no attribute 'main'"),
+        ("x = 1\n", "AttributeError: module 'hb_missing_server' has no attribute 'main'"),
     ],
 )
 def test_failures_before_the_server_runs_are_reported(
     modules: Path, protocol_schema: dict[str, Any], source: str | None, detail: str
 ) -> None:
     if source is not None:
-        (modules / "rb_missing_server.py").write_text(source, encoding="utf-8")
+        (modules / "hb_missing_server.py").write_text(source, encoding="utf-8")
     stream = io.StringIO()
-    assert run_engine.start([str(modules)], stream, "rb_missing_server", "rb_fake_sandbox") == 4
+    assert run_engine.start([str(modules)], stream, "hb_missing_server", "hb_fake_sandbox") == 4
     payload = fatal_payload(stream.getvalue())
     assert payload == {"code": "bootstrap-failed", "detail": detail}
     support.assert_valid(protocol_schema, "FatalStartupError", payload)
@@ -130,20 +130,20 @@ def test_failures_before_the_server_runs_are_reported(
 @pytest.mark.parametrize(
     ("source", "detail"),
     [
-        (None, "ModuleNotFoundError: No module named 'rb_missing_sandbox'"),
+        (None, "ModuleNotFoundError: No module named 'hb_missing_sandbox'"),
         ("def install():\n    raise RuntimeError('no hook')\n", "RuntimeError: no hook"),
-        ("x = 1\n", "AttributeError: module 'rb_missing_sandbox' has no attribute 'install'"),
+        ("x = 1\n", "AttributeError: module 'hb_missing_sandbox' has no attribute 'install'"),
     ],
 )
 def test_without_a_sandbox_the_server_is_not_even_imported(
     modules: Path, source: str | None, detail: str
 ) -> None:
     if source is not None:
-        (modules / "rb_missing_sandbox.py").write_text(source, encoding="utf-8")
+        (modules / "hb_missing_sandbox.py").write_text(source, encoding="utf-8")
     stream = io.StringIO()
-    assert run_engine.start([str(modules)], stream, "rb_fake_server", "rb_missing_sandbox") == 4
+    assert run_engine.start([str(modules)], stream, "hb_fake_server", "hb_missing_sandbox") == 4
     assert fatal_payload(stream.getvalue()) == {"code": "bootstrap-failed", "detail": detail}
-    assert "rb_fake_server" not in sys.modules
+    assert "hb_fake_server" not in sys.modules
 
 
 def test_the_server_is_imported_under_the_real_sandbox(
@@ -151,13 +151,13 @@ def test_the_server_is_imported_under_the_real_sandbox(
 ) -> None:
     """Module-level code of the server already runs under the audit hook (in a subprocess,
     because the hook cannot be removed again)."""
-    (tmp_path / "rb_eager_server.py").write_text(
+    (tmp_path / "hb_eager_server.py").write_text(
         "import os\nos.system('exit 0')\n\n\ndef main():\n    return 0\n", encoding="utf-8"
     )
     code = (
         "import sys; sys.path[0:0] = [sys.argv[1]]; import run_engine;"
         "sys.exit(run_engine.start([sys.argv[2], *run_engine.engine_paths()], None,"
-        " 'rb_eager_server'))"
+        " 'hb_eager_server'))"
     )
     result = subprocess.run(
         [*support.isolated_python(code), str(support.ENGINE_DIR), str(tmp_path)],
@@ -176,7 +176,7 @@ def test_the_server_is_imported_under_the_real_sandbox(
     payload = fatal_payload(fatal + "\n")
     assert payload == {
         "code": "bootstrap-failed",
-        "detail": "PermissionError: Readback engine sandbox: os.system is not allowed",
+        "detail": "PermissionError: Hearback engine sandbox: os.system is not allowed",
     }
     support.assert_valid(protocol_schema, "FatalStartupError", payload)
 
@@ -198,7 +198,7 @@ def test_main_runs_the_version_check_first(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_broken_layout_in_a_real_process(tmp_path: Path, protocol_schema: dict[str, Any]) -> None:
-    """run_engine.py without readback_engine next to it, started like the extension does."""
+    """run_engine.py without hearback_engine next to it, started like the extension does."""
     script = tmp_path / "run_engine.py"
     shutil.copy(support.BOOTSTRAP, script)
     result = subprocess.run(
@@ -215,7 +215,7 @@ def test_broken_layout_in_a_real_process(tmp_path: Path, protocol_schema: dict[s
     payload = fatal_payload(result.stderr.decode("utf-8"))
     assert payload == {
         "code": "bootstrap-failed",
-        "detail": "ModuleNotFoundError: No module named 'readback_engine'",
+        "detail": "ModuleNotFoundError: No module named 'hearback_engine'",
     }
     support.assert_valid(protocol_schema, "FatalStartupError", payload)
 

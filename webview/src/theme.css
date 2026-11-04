@@ -1,5 +1,5 @@
 /*
- * Readback webview theme: maps VS Code's theme variables (--vscode-*) onto the page and onto React
+ * Hearback webview theme: maps VS Code's theme variables (--vscode-*) onto the page and onto React
  * Flow's variables (--xy-*). VS Code defines a --vscode-* variable only when the active theme has a
  * value for that color (contrastBorder, for example, exists only in high contrast themes), so every
  * var() has a fallback. VS Code updates the variables and the body classes in place when the theme
@@ -8,39 +8,39 @@
 
 :root {
   /* Read by diagnostics.ts to detect a stylesheet that was blocked or failed to load. */
-  --readback-stylesheet: loaded;
+  --hearback-stylesheet: loaded;
 
-  --readback-focus-color: var(--vscode-focusBorder, #0090f1);
-  --readback-code-font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
-  --readback-code-font-size: var(--vscode-editor-font-size, 13px);
+  --hearback-focus-color: var(--vscode-focusBorder, #0090f1);
+  --hearback-code-font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+  --hearback-code-font-size: var(--vscode-editor-font-size, 13px);
 
   /*
    * Change status (spec 5.5). Reserved for the Phase 1 overlays, which always combine the color
    * with a symbol and a line style, so the status never depends on color alone.
    */
-  --readback-change-added-color: var(
+  --hearback-change-added-color: var(
     --vscode-gitDecoration-addedResourceForeground,
     var(--vscode-editorGutter-addedBackground, #587c0c)
   );
-  --readback-change-modified-color: var(
+  --hearback-change-modified-color: var(
     --vscode-gitDecoration-modifiedResourceForeground,
     var(--vscode-editorGutter-modifiedBackground, #895503)
   );
-  --readback-change-deleted-color: var(
+  --hearback-change-deleted-color: var(
     --vscode-gitDecoration-deletedResourceForeground,
     var(--vscode-editorGutter-deletedBackground, #ad0707)
   );
-  --readback-change-added-symbol: '+';
-  --readback-change-modified-symbol: '~';
-  --readback-change-deleted-symbol: '\2212';
-  --readback-change-added-border-style: solid;
-  --readback-change-modified-border-style: dashed;
-  --readback-change-deleted-border-style: dotted;
+  --hearback-change-added-symbol: '+';
+  --hearback-change-modified-symbol: '~';
+  --hearback-change-deleted-symbol: '\2212';
+  --hearback-change-added-border-style: solid;
+  --hearback-change-modified-border-style: dashed;
+  --hearback-change-deleted-border-style: dotted;
 
   /* Edge confidence (spec 2.2): certain edges are solid, inferred dashed, unresolved dotted. */
-  --readback-edge-dasharray-certain: none;
-  --readback-edge-dasharray-inferred: 6 4;
-  --readback-edge-dasharray-unresolved: 2 4;
+  --hearback-edge-dasharray-certain: none;
+  --hearback-edge-dasharray-inferred: 6 4;
+  --hearback-edge-dasharray-unresolved: 2 4;
 }
 
 /* VS Code's default webview stylesheet pads the body; the canvas fills the whole panel. */
@@ -66,7 +66,7 @@ body {
 }
 
 :focus-visible {
-  outline: 1px solid var(--readback-focus-color);
+  outline: 1px solid var(--hearback-focus-color);
   outline-offset: -1px;
 }
 
@@ -141,7 +141,7 @@ body {
     var(--vscode-editorWidget-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35)));
   --xy-node-border-radius: 4px;
   --xy-node-boxshadow-hover: 0 1px 4px 1px var(--vscode-widget-shadow, transparent);
-  --xy-node-boxshadow-selected: 0 0 0 1px var(--readback-focus-color);
+  --xy-node-boxshadow-selected: 0 0 0 1px var(--hearback-focus-color);
   --xy-node-group-background-color: color-mix(
     in srgb,
     var(--vscode-editorWidget-background, rgba(128, 128, 128, 0.25)) 40%,
@@ -158,17 +158,17 @@ body {
   );
 
   --xy-edge-stroke: var(--vscode-descriptionForeground, var(--xy-edge-stroke-default));
-  --xy-edge-stroke-selected: var(--readback-focus-color);
+  --xy-edge-stroke-selected: var(--hearback-focus-color);
   --xy-edge-stroke-width: 1;
   --xy-edge-label-color: var(--vscode-descriptionForeground, var(--xy-edge-label-color-default));
   --xy-edge-label-background-color: var(
     --vscode-editor-background,
     var(--xy-edge-label-background-color-default)
   );
-  --xy-connectionline-stroke: var(--readback-focus-color);
+  --xy-connectionline-stroke: var(--hearback-focus-color);
 
-  --xy-selection-background-color: color-mix(in srgb, var(--readback-focus-color) 12%, transparent);
-  --xy-selection-border: 1px dotted var(--readback-focus-color);
+  --xy-selection-background-color: color-mix(in srgb, var(--hearback-focus-color) 12%, transparent);
+  --xy-selection-border: 1px dotted var(--hearback-focus-color);
 
   --xy-controls-button-background-color: var(
     --vscode-editorWidget-background,
@@ -221,7 +221,7 @@ body {
 }
 
 .react-flow__controls-button:focus-visible {
-  outline: 1px solid var(--readback-focus-color);
+  outline: 1px solid var(--hearback-focus-color);
   outline-offset: -1px;
 }
 
@@ -231,12 +231,12 @@ body {
 
 /* React Flow removes the focus outline of nodes and edges; keyboard users need to see it. */
 .react-flow__node.selectable:focus-visible {
-  outline: 1px solid var(--readback-focus-color);
+  outline: 1px solid var(--hearback-focus-color);
   outline-offset: 2px;
 }
 
 .react-flow__edge.selectable:focus-visible .react-flow__edge-path {
-  stroke: var(--readback-focus-color);
+  stroke: var(--hearback-focus-color);
   stroke-width: 2;
 }
 

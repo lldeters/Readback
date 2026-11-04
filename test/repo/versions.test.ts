@@ -4,12 +4,12 @@ import { MIN_PYTHON, PROTOCOL_VERSION } from '../../src/engine/protocol';
 import { asRecord, readJson, readText } from './helpers';
 
 const manifest = asRecord(readJson('package.json'));
-const engineInit = readText('engine/readback_engine/__init__.py');
+const engineInit = readText('engine/hearback_engine/__init__.py');
 
 function pythonConstant(name: string): string {
   const match = new RegExp(`^${name}\\s*=\\s*(.+)$`, 'm').exec(engineInit);
   if (!match?.[1]) {
-    throw new Error(`${name} not found in engine/readback_engine/__init__.py`);
+    throw new Error(`${name} not found in engine/hearback_engine/__init__.py`);
   }
   return match[1].trim();
 }

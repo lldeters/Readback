@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/lldeters/Readback/blob/main/shared/graph-schema.json",
   "title": "GraphDocument",
-  "description": "Readback graph model. Single source of truth for the analysis engine (Python), the extension host and the webview (TypeScript). Positions are zero-based; 'character' counts UTF-16 code units (LSP semantics).",
+  "description": "Hearback graph model. Single source of truth for the analysis engine (Python), the extension host and the webview (TypeScript). Positions are zero-based; 'character' counts UTF-16 code units (LSP semantics).",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "view", "nodes", "edges", "diagnostics", "meta"],
@@ -337,7 +337,7 @@
           "type": "string"
         },
         "truncated": {
-          "description": "True when the graph was cut at readback.graph.maxNodes.",
+          "description": "True when the graph was cut at hearback.graph.maxNodes.",
           "type": "boolean"
         }
       }

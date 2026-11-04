@@ -1,4 +1,4 @@
-// Interpreter resolution order (spec 5.2): readback.engine.pythonPath, then the active environment
+// Interpreter resolution order (spec 5.2): hearback.engine.pythonPath, then the active environment
 // of the Python extension, then PATH. vscode-free: the editor-facing sources are injected.
 import { isInsideAny, pathApi } from './policy';
 import type { PathLookup, PathSearchResult } from './pathSearch';
@@ -97,7 +97,7 @@ export async function resolveInterpreter(context: ResolveContext): Promise<Resol
     trusted: context.trusted,
   });
 
-  // 1. readback.engine.pythonPath
+  // 1. hearback.engine.pythonPath
   const setting = await context.readSetting();
   if (setting.declinedWorkspaceValue !== undefined) {
     attempts.push({

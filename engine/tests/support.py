@@ -1,6 +1,6 @@
 """Helpers shared by the engine tests (tests/ is on pytest's pythonpath).
 
-Framing helpers here are written independently of readback_engine.rpc, so that the tests do not
+Framing helpers here are written independently of hearback_engine.rpc, so that the tests do not
 check the engine's framing against itself.
 """
 
@@ -17,7 +17,7 @@ from typing import Any, Final, cast
 
 from jsonschema import Draft202012Validator
 
-from readback_engine.server import Engine
+from hearback_engine.server import Engine
 
 ENGINE_DIR: Final = Path(__file__).resolve().parent.parent
 REPO_ROOT: Final = ENGINE_DIR.parent

@@ -1,7 +1,7 @@
 """The engine's own code imports no network, process or native-code modules (spec 5.2).
 
 Vendored libraries import some of these transitively; the sandbox covers them at runtime
-(test_sandbox.py). This test covers readback_engine/ and the bootstrap, like ruff's banned-api.
+(test_sandbox.py). This test covers hearback_engine/ and the bootstrap, like ruff's banned-api.
 """
 
 from __future__ import annotations
@@ -32,10 +32,10 @@ BANNED_OS_ATTRIBUTES = {"system", "popen", "startfile", "fork", "forkpty", "posi
 BANNED_OS_PREFIXES = ("exec", "spawn")
 # The sandbox wraps _posixsubprocess.fork_exec so that it raises an audit event on every Python
 # version (ruff's banned-api has a noqa on the same import).
-ALLOWED_IMPORTS = {"readback_engine/sandbox.py": {"_posixsubprocess"}}
+ALLOWED_IMPORTS = {"hearback_engine/sandbox.py": {"_posixsubprocess"}}
 
 ENGINE_SOURCES = [
-    *sorted((support.ENGINE_DIR / "readback_engine").rglob("*.py")),
+    *sorted((support.ENGINE_DIR / "hearback_engine").rglob("*.py")),
     support.BOOTSTRAP,
 ]
 
@@ -95,7 +95,7 @@ def test_engine_code_avoids_network_and_processes(path: Path) -> None:
 
 def test_every_engine_module_is_checked() -> None:
     names = {relative_name(path) for path in ENGINE_SOURCES}
-    assert {"run_engine.py", "readback_engine/server.py", "readback_engine/rpc.py"} <= names
+    assert {"run_engine.py", "hearback_engine/server.py", "hearback_engine/rpc.py"} <= names
     assert set(ALLOWED_IMPORTS) <= names
 
 

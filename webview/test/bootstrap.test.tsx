@@ -77,7 +77,7 @@ describe('bootstrap', () => {
       { type: 'error', message: 'Invalid boot data: data-boot is not valid JSON.' },
     ]);
     expect(screen.getByRole('alert').textContent).toBe(
-      'Readback could not display this view. See the Readback log for details.',
+      'Hearback could not display this view. See the Hearback log for details.',
     );
     expect(screen.queryByRole('application')).toBeNull();
   });

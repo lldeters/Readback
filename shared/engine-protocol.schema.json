@@ -148,7 +148,7 @@
     },
     "FatalStartupError": {
       "title": "FatalStartupError",
-      "description": "Written by engine/run_engine.py as one stderr line 'READBACK_ENGINE_FATAL <json>' before exiting with code 3 (python-too-old) or 4 (bootstrap-failed).",
+      "description": "Written by engine/run_engine.py as one stderr line 'HEARBACK_ENGINE_FATAL <json>' before exiting with code 3 (python-too-old) or 4 (bootstrap-failed).",
       "type": "object",
       "additionalProperties": false,
       "required": ["code"],

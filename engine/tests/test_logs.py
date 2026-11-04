@@ -10,7 +10,7 @@ import warnings
 import pytest
 import support
 
-from readback_engine import logs
+from hearback_engine import logs
 
 
 def record(level: int, message: str, *, exc: bool = False) -> logging.LogRecord:
@@ -20,7 +20,7 @@ def record(level: int, message: str, *, exc: bool = False) -> logging.LogRecord:
             raise ValueError("bad value")
         except ValueError:
             exc_info = sys.exc_info()
-    return logging.LogRecord("readback.test", level, __file__, 1, message, None, exc_info)
+    return logging.LogRecord("hearback.test", level, __file__, 1, message, None, exc_info)
 
 
 def format_record(level: int, message: str, *, exc: bool = False) -> str:
@@ -82,9 +82,9 @@ def test_stack_info_is_included() -> None:
 def test_install_routes_all_logging_and_warnings() -> None:
     stream = io.StringIO()
     logs.install(stream, "debug")
-    logging.getLogger("readback.test").debug("from the engine")
+    logging.getLogger("hearback.test").debug("from the engine")
     logging.getLogger("sqlglot").warning("from a library")
-    logging.getLogger("readback.test").log(logs.TRACE, "hidden at debug")
+    logging.getLogger("hearback.test").log(logs.TRACE, "hidden at debug")
     with warnings.catch_warnings():
         warnings.simplefilter("always")
         warnings.warn("deprecated thing", DeprecationWarning, stacklevel=1)
@@ -99,7 +99,7 @@ def test_install_routes_all_logging_and_warnings() -> None:
 def test_levels_filter_records() -> None:
     stream = io.StringIO()
     logs.install(stream)
-    logger = logging.getLogger("readback.test")
+    logger = logging.getLogger("hearback.test")
     logger.debug("not at info")
     logger.info("at info")
     logs.set_level("trace")

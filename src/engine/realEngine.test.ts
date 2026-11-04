@@ -1,7 +1,7 @@
 // End-to-end without VS Code: our own interpreter discovery, EngineConnection and the real Python
-// engine in engine/. Skipped when no CPython >= 3.10 is on PATH (set READBACK_TEST_PYTHON to pick
-// one explicitly). CI's package job points READBACK_ENGINE_DIR at the engine inside the unpacked
-// VSIX and sets READBACK_EXPECT_VENDORED=1, so the shipped layout is executed too.
+// engine in engine/. Skipped when no CPython >= 3.10 is on PATH (set HEARBACK_TEST_PYTHON to pick
+// one explicitly). CI's package job points HEARBACK_ENGINE_DIR at the engine inside the unpacked
+// VSIX and sets HEARBACK_EXPECT_VENDORED=1, so the shipped layout is executed too.
 import { Ajv2020 } from 'ajv/dist/2020';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -15,11 +15,11 @@ import type { InterpreterCandidate } from './interpreter/types';
 import { Methods, PROTOCOL_VERSION } from './protocol';
 
 const engineDirectory =
-  process.env.READBACK_ENGINE_DIR ?? fileURLToPath(new URL('../../engine', import.meta.url));
-const expectVendored = process.env.READBACK_EXPECT_VENDORED === '1';
+  process.env.HEARBACK_ENGINE_DIR ?? fileURLToPath(new URL('../../engine', import.meta.url));
+const expectVendored = process.env.HEARBACK_EXPECT_VENDORED === '1';
 
 async function findPython(): Promise<string | undefined> {
-  const explicit = process.env.READBACK_TEST_PYTHON;
+  const explicit = process.env.HEARBACK_TEST_PYTHON;
   const candidates: InterpreterCandidate[] = explicit
     ? [{ source: 'setting', command: explicit, prefixArgs: [] }]
     : (
@@ -60,7 +60,7 @@ function start(executable: string): Promise<EngineConnection> {
     executable,
     engineDirectory,
     env: sanitizedEnv(process.env),
-    client: { name: 'readback-unit-test', version: '0.0.1' },
+    client: { name: 'hearback-unit-test', version: '0.0.1' },
     logLevel: 'info',
     workspaceTrusted: true,
     locale: 'en',

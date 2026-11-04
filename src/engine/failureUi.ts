@@ -16,7 +16,7 @@ export async function showEngineFailure(
   const actions = vscode.workspace.isTrusted ? [select, showLog] : [select, manageTrust, showLog];
   const choice = await vscode.window.showErrorMessage(describeFailure(failure), ...actions);
   if (choice === select) {
-    await vscode.commands.executeCommand('readback.selectInterpreter');
+    await vscode.commands.executeCommand('hearback.selectInterpreter');
   } else if (choice === manageTrust) {
     await vscode.commands.executeCommand(MANAGE_TRUST_COMMAND);
   } else if (choice === showLog) {

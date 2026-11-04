@@ -11,14 +11,14 @@ function required(name: string): string {
   return value;
 }
 
-const marker = required('READBACK_UNTRUSTED_MARKER');
-const workspaceFolder = required('READBACK_UNTRUSTED_WORKSPACE');
-const fakeInterpreter = required('READBACK_FAKE_INTERPRETER');
+const marker = required('HEARBACK_UNTRUSTED_MARKER');
+const workspaceFolder = required('HEARBACK_UNTRUSTED_WORKSPACE');
+const fakeInterpreter = required('HEARBACK_FAKE_INTERPRETER');
 
 suite('Restricted Mode', function () {
   this.timeout(60_000);
 
-  // The hidden readback._test.* commands are not contributed, so they do not activate the extension.
+  // The hidden hearback._test.* commands are not contributed, so they do not activate the extension.
   suiteSetup(async () => {
     await extension().activate();
   });
@@ -27,14 +27,14 @@ suite('Restricted Mode', function () {
     assert.strictEqual(vscode.workspace.isTrusted, false);
   });
 
-  test('ignores readback.engine.pythonPath from the workspace settings', () => {
-    const config = vscode.workspace.getConfiguration('readback');
+  test('ignores hearback.engine.pythonPath from the workspace settings', () => {
+    const config = vscode.workspace.getConfiguration('hearback');
     assert.strictEqual(config.get('engine.pythonPath'), '');
     assert.strictEqual(config.inspect('engine.pythonPath')?.workspaceValue, undefined);
   });
 
   test('skips the Python extension and uses an interpreter outside the workspace', async () => {
-    const result = await command<Resolution>('readback._test.resolveInterpreter');
+    const result = await command<Resolution>('hearback._test.resolveInterpreter');
     assert.strictEqual(result.trusted, false);
     const extensionAttempt = result.attempts.find(
       (attempt) => attempt.source === 'pythonExtension',
@@ -48,10 +48,10 @@ suite('Restricted Mode', function () {
   });
 
   test('rejects a user-level interpreter path that points into the workspace', async () => {
-    const config = vscode.workspace.getConfiguration('readback');
+    const config = vscode.workspace.getConfiguration('hearback');
     await config.update('engine.pythonPath', fakeInterpreter, vscode.ConfigurationTarget.Global);
     try {
-      const result = await command<Resolution>('readback._test.resolveInterpreter');
+      const result = await command<Resolution>('hearback._test.resolveInterpreter');
       assert.strictEqual(result.interpreter, undefined);
       assert.strictEqual(result.blockedBySetting, true);
       assert.deepStrictEqual(result.attempts.at(-1)?.outcome, {
@@ -64,7 +64,7 @@ suite('Restricted Mode', function () {
   });
 
   test('the engine still runs, sandboxed', async () => {
-    const status = await command<Status>('readback._test.engineStatus');
+    const status = await command<Status>('hearback._test.engineStatus');
     assert.strictEqual(status.state, 'running', JSON.stringify(status.failure));
     assert.strictEqual(status.trusted, false);
     assert.strictEqual(status.engine?.sandboxed, true);

@@ -20,7 +20,7 @@ export interface GraphCanvasProps {
   readonly onFlowError: (message: string) => void;
 }
 
-/** The pannable, zoomable canvas. Readback graphs are read-only: nothing can be moved or deleted. */
+/** The pannable, zoomable canvas. Hearback graphs are read-only: nothing can be moved or deleted. */
 export function GraphCanvas({ colorMode, onFlowError }: GraphCanvasProps) {
   // Read after l10n.config() has run, so these must not be module constants.
   const ariaLabels = useMemo(() => flowAriaLabels(), []);

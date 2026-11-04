@@ -35,7 +35,7 @@ describe('readBootData', () => {
   it('reports a missing element or attribute', () => {
     expect(readBootData(documentWith(''))).toEqual({
       ok: false,
-      reason: 'the #readback-boot element or its data-boot attribute is missing',
+      reason: 'the #hearback-boot element or its data-boot attribute is missing',
     });
     expect(readBootData(documentWith(`<meta id="${BOOT_ELEMENT_ID}">`))).toMatchObject({
       ok: false,

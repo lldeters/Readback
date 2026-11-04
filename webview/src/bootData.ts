@@ -11,7 +11,7 @@ export { BOOT_ELEMENT_ID, type BootDataResult };
 /** Validates already parsed boot data. */
 export const parseBootData = parseWebviewBootData;
 
-/** Parses the data-boot attribute of the #readback-boot element. */
+/** Parses the data-boot attribute of the #hearback-boot element. */
 export function readBootData(document: Document): BootDataResult {
   const raw = document.getElementById(BOOT_ELEMENT_ID)?.dataset.boot;
   if (raw === undefined) {

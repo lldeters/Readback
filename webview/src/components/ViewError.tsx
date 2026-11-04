@@ -4,7 +4,7 @@ import * as l10n from '@vscode/l10n';
 export function ViewError() {
   return (
     <div className="view-error" role="alert">
-      <p>{l10n.t('Readback could not display this view. See the Readback log for details.')}</p>
+      <p>{l10n.t('Hearback could not display this view. See the Hearback log for details.')}</p>
     </div>
   );
 }

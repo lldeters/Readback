@@ -35,7 +35,7 @@ if sys.platform == "win32":
 if TYPE_CHECKING:
     from .rpc import ByteReader, ByteWriter, RequestContext
 
-log = logging.getLogger("readback.engine")
+log = logging.getLogger("hearback.engine")
 
 # Exit without a preceding engine/shutdown, after a protocol error, or after a crash.
 EXIT_UNCLEAN: Final = 1
@@ -229,7 +229,7 @@ def exit_now(code: int) -> NoReturn:
 def _log_startup(*, sandboxed: bool) -> None:
     info = runtime_info.python_info()
     log.info(
-        "Readback engine %s (protocol %d) on %s %s, pid %d.",
+        "Hearback engine %s (protocol %d) on %s %s, pid %d.",
         ENGINE_VERSION,
         PROTOCOL_VERSION,
         info["implementation"],

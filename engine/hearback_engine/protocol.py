@@ -156,4 +156,4 @@ class ExitCode:
 
 
 # Prefix of the single machine-readable stderr line written before a fatal startup exit.
-FATAL_PREFIX = "READBACK_ENGINE_FATAL "
+FATAL_PREFIX = "HEARBACK_ENGINE_FATAL "

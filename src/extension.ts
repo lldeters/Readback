@@ -10,7 +10,7 @@ let log: vscode.LogOutputChannel | undefined;
 export function activate(context: vscode.ExtensionContext): void {
   // Not in context.subscriptions: VS Code disposes those synchronously while deactivate() is still
   // stopping the engine, and the engine logs until it has exited.
-  log = vscode.window.createOutputChannel('Readback', { log: true });
+  log = vscode.window.createOutputChannel('Hearback', { log: true });
   engine = new EngineService(context, log);
   context.subscriptions.push(
     engine,

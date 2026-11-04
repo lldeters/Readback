@@ -8,9 +8,9 @@ from typing import Final
 
 from .protocol import PythonInfo, VendoredPackage
 
-log = logging.getLogger("readback.runtime")
+log = logging.getLogger("hearback.runtime")
 
-# The shipped layout: engine/run_engine.py, engine/readback_engine/, engine/vendor/.
+# The shipped layout: engine/run_engine.py, engine/hearback_engine/, engine/vendor/.
 ENGINE_DIR: Final = Path(__file__).absolute().parent.parent
 VENDOR_DIR: Final = ENGINE_DIR / "vendor"
 

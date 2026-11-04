@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 import support
 
-from readback_engine import rpc
+from hearback_engine import rpc
 
 
 class TrickleRaw(io.RawIOBase):

@@ -16,7 +16,7 @@ import {
 } from './fakes';
 
 const EMPTY_TITLE = 'No graph to show yet.';
-const EMPTY_DETAIL = 'Readback visualizations will appear here.';
+const EMPTY_DETAIL = 'Hearback visualizations will appear here.';
 
 function renderApp(checkWorker: WorkerCheck = pendingWorkerCheck, host = new FakeHost()) {
   const view = render(<App host={host} boot={bootData()} checkWorker={checkWorker} />);
@@ -112,14 +112,14 @@ describe('App', () => {
     l10n.config({
       contents: {
         [EMPTY_TITLE]: 'Noch kein Graph vorhanden.',
-        [EMPTY_DETAIL]: 'Hier erscheinen die Visualisierungen von Readback.',
+        [EMPTY_DETAIL]: 'Hier erscheinen die Visualisierungen von Hearback.',
         'Zoom in': 'Vergrößern',
         'Graph canvas': 'Graph-Zeichenfläche',
       },
     });
     renderApp();
     expect(screen.getByText('Noch kein Graph vorhanden.')).toBeTruthy();
-    expect(screen.getByText('Hier erscheinen die Visualisierungen von Readback.')).toBeTruthy();
+    expect(screen.getByText('Hier erscheinen die Visualisierungen von Hearback.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Vergrößern' })).toBeTruthy();
     expect(screen.getByRole('application', { name: 'Graph-Zeichenfläche' })).toBeTruthy();
   });

@@ -132,7 +132,7 @@ export interface EngineErrorData {
   detail?: string;
 }
 /**
- * Written by engine/run_engine.py as one stderr line 'READBACK_ENGINE_FATAL <json>' before exiting with code 3 (python-too-old) or 4 (bootstrap-failed).
+ * Written by engine/run_engine.py as one stderr line 'HEARBACK_ENGINE_FATAL <json>' before exiting with code 3 (python-too-old) or 4 (bootstrap-failed).
  *
  * This interface was referenced by `EngineProtocol`'s JSON-Schema
  * via the `definition` "FatalStartupError".

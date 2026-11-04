@@ -39,7 +39,7 @@ export function scopeLabel(scope: SettingScope): string {
   }
 }
 
-/** The setting name plus where its value came from, e.g. "readback.engine.pythonPath (workspace settings)". */
+/** The setting name plus where its value came from, e.g. "hearback.engine.pythonPath (workspace settings)". */
 export function settingLabel(scope: SettingScope | undefined): string {
   return scope === undefined
     ? PYTHON_PATH_SETTING
@@ -119,31 +119,31 @@ function describeStartFailure(error: EngineStartFailure): string {
   switch (error.kind) {
     case 'pythonTooOld':
       return vscode.l10n.t(
-        'Python {0} is too old for Readback. Python {1} or newer is required.',
+        'Python {0} is too old for Hearback. Python {1} or newer is required.',
         error.fatal?.version ?? '?',
         REQUIRED,
       );
     case 'startupTimeout':
-      return vscode.l10n.t('The Readback engine did not start in time.');
+      return vscode.l10n.t('The Hearback engine did not start in time.');
     case 'spawnFailed':
-      return vscode.l10n.t('The Readback engine could not be started: {0}', error.message);
+      return vscode.l10n.t('The Hearback engine could not be started: {0}', error.message);
     case 'bootstrapFailed':
       return error.fatal?.detail
-        ? vscode.l10n.t('The Readback engine could not load its files: {0}', error.fatal.detail)
-        : vscode.l10n.t('The Readback engine could not load its files.');
+        ? vscode.l10n.t('The Hearback engine could not load its files: {0}', error.fatal.detail)
+        : vscode.l10n.t('The Hearback engine could not load its files.');
     case 'exitedDuringStartup':
       return vscode.l10n.t(
-        'The Readback engine exited during startup ({0}).',
+        'The Hearback engine exited during startup ({0}).',
         error.exit?.signal
           ? vscode.l10n.t('signal {0}', error.exit.signal)
           : vscode.l10n.t('exit code {0}', String(error.exit?.code ?? '?')),
       );
     case 'protocolMismatch':
       return vscode.l10n.t(
-        'The Readback engine does not match this version of the extension. Reinstall Readback.',
+        'The Hearback engine does not match this version of the extension. Reinstall Hearback.',
       );
     case 'initializeFailed':
-      return vscode.l10n.t('The Readback engine rejected the start: {0}', error.message);
+      return vscode.l10n.t('The Hearback engine rejected the start: {0}', error.message);
   }
 }
 
@@ -170,7 +170,7 @@ export function describeFailure(failure: EngineFailure): string {
   switch (failure.kind) {
     case 'noInterpreter':
       return vscode.l10n.t(
-        'Readback needs Python {0} or newer, but no suitable interpreter was found.',
+        'Hearback needs Python {0} or newer, but no suitable interpreter was found.',
         REQUIRED,
       );
     case 'settingUnusable': {
@@ -185,7 +185,7 @@ export function describeFailure(failure: EngineFailure): string {
       return describeStartFailure(failure.error);
     case 'crashLoop':
       return vscode.l10n.t(
-        'The Readback engine crashed repeatedly. Automatic restarts are paused.',
+        'The Hearback engine crashed repeatedly. Automatic restarts are paused.',
       );
   }
 }
@@ -207,7 +207,7 @@ function stateLabel(status: EngineStatus): string {
   }
 }
 
-/** The multi-line report shown by "Readback: Show Engine Status" and copied to the clipboard. */
+/** The multi-line report shown by "Hearback: Show Engine Status" and copied to the clipboard. */
 export function formatStatus(
   status: EngineStatus,
   pingMs?: number,
@@ -279,7 +279,7 @@ export function formatStatus(
     lines.push(vscode.l10n.t('Problem: {0}', describeFailure(status.failure)));
   } else if (pingError) {
     lines.push(
-      vscode.l10n.t('Problem: {0}', vscode.l10n.t('The Readback engine does not respond.')),
+      vscode.l10n.t('Problem: {0}', vscode.l10n.t('The Hearback engine does not respond.')),
     );
   }
   if (status.resolution) {

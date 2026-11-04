@@ -1,4 +1,4 @@
-"""readback_engine.protocol mirrors the constants of src/engine/protocol.ts exactly."""
+"""hearback_engine.protocol mirrors the constants of src/engine/protocol.ts exactly."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ import re
 import pytest
 import support
 
-import readback_engine
-from readback_engine import protocol
-from readback_engine.server import Engine
+import hearback_engine
+from hearback_engine import protocol
+from hearback_engine.server import Engine
 
 TS_SOURCE = (support.REPO_ROOT / "src" / "engine" / "protocol.ts").read_text(encoding="utf-8")
 
@@ -55,10 +55,10 @@ def test_constant_groups_match(ts_name: str, namespace: type, python_only: set[s
 
 
 def test_scalar_constants_match() -> None:
-    assert ts_constant("PROTOCOL_VERSION") == readback_engine.PROTOCOL_VERSION
+    assert ts_constant("PROTOCOL_VERSION") == hearback_engine.PROTOCOL_VERSION
     assert ts_constant("FATAL_PREFIX") == protocol.FATAL_PREFIX
     minimum = ts_object("MIN_PYTHON")
-    assert (minimum["major"], minimum["minor"]) == readback_engine.MIN_PYTHON
+    assert (minimum["major"], minimum["minor"]) == hearback_engine.MIN_PYTHON
 
 
 def test_engine_handles_exactly_the_typescript_methods() -> None:

@@ -1,5 +1,5 @@
 {
-  "name": "readback-code",
+  "name": "hearback",
   "displayName": "%displayName%",
   "description": "%description%",
   "version": "0.0.1",
@@ -47,7 +47,7 @@
       "supported": "limited",
       "description": "%capabilities.untrustedWorkspaces.description%",
       "restrictedConfigurations": [
-        "readback.engine.pythonPath"
+        "hearback.engine.pythonPath"
       ]
     },
     "virtualWorkspaces": {
@@ -58,42 +58,42 @@
   "contributes": {
     "commands": [
       {
-        "command": "readback.showEngineStatus",
+        "command": "hearback.showEngineStatus",
         "title": "%command.showEngineStatus.title%",
-        "category": "Readback"
+        "category": "Hearback"
       },
       {
-        "command": "readback.selectInterpreter",
+        "command": "hearback.selectInterpreter",
         "title": "%command.selectInterpreter.title%",
-        "category": "Readback"
+        "category": "Hearback"
       },
       {
-        "command": "readback.restartEngine",
+        "command": "hearback.restartEngine",
         "title": "%command.restartEngine.title%",
-        "category": "Readback"
+        "category": "Hearback"
       },
       {
-        "command": "readback.showLog",
+        "command": "hearback.showLog",
         "title": "%command.showLog.title%",
-        "category": "Readback"
+        "category": "Hearback"
       },
       {
-        "command": "readback.openGraphView",
+        "command": "hearback.openGraphView",
         "title": "%command.openGraphView.title%",
-        "category": "Readback"
+        "category": "Hearback"
       }
     ],
     "configuration": {
-      "title": "Readback",
+      "title": "Hearback",
       "properties": {
-        "readback.engine.pythonPath": {
+        "hearback.engine.pythonPath": {
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
           "order": 0,
           "markdownDescription": "%config.engine.pythonPath.markdownDescription%"
         },
-        "readback.engine.timeoutMs": {
+        "hearback.engine.timeoutMs": {
           "type": "integer",
           "default": 30000,
           "minimum": 1000,

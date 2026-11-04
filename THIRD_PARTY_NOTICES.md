@@ -1,6 +1,6 @@
 # Third-party notices
 
-Readback ("Readback – Understand AI-Written Code", extension ID `lldeters.readback-code`)
+Hearback ("Hearback – Understand AI-Written Code", extension ID `lldeters.hearback`)
 contains the third-party software listed below. Each package is licensed under its own terms,
 reproduced in full.
 

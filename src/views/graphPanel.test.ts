@@ -171,7 +171,7 @@ describe('registerGraphPanel', () => {
     run(OPEN_GRAPH_VIEW_COMMAND);
     const panel = onlyPanel();
     expect(panel.viewType).toBe(GRAPH_VIEW_TYPE);
-    expect(panel.title).toBe('Readback');
+    expect(panel.title).toBe('Hearback');
     expect(panel.showOptions).toBe(-1);
     const { localResourceRoots, ...flags } = panel.options;
     expect(flags).toEqual({

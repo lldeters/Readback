@@ -1,13 +1,13 @@
 {
-  "displayName": "Readback – Understand AI-Written Code",
+  "displayName": "Hearback – Understand AI-Written Code",
   "description": "Deterministic visualizations of Python and SQL that show what AI-written code does and what changed.",
   "command.showEngineStatus.title": "Show Engine Status",
   "command.selectInterpreter.title": "Select Python Interpreter",
   "command.restartEngine.title": "Restart Engine",
   "command.showLog.title": "Show Log",
   "command.openGraphView.title": "Open Graph View",
-  "capabilities.untrustedWorkspaces.description": "In Restricted Mode, Readback ignores readback.engine.pythonPath from workspace settings and never runs a Python interpreter located inside the workspace. Static analysis keeps working.",
-  "capabilities.virtualWorkspaces.description": "Readback needs files on disk and a local Python interpreter.",
-  "config.engine.pythonPath.markdownDescription": "Python interpreter (3.10 or newer) for the Readback analysis engine. Leave empty to use the active environment of the Python extension, then `python3` (`py -3` on Windows) from `PATH`. Ignored in the workspace settings of untrusted workspaces; a path from workspace settings needs a one-time confirmation.",
+  "capabilities.untrustedWorkspaces.description": "In Restricted Mode, Hearback ignores hearback.engine.pythonPath from workspace settings and never runs a Python interpreter located inside the workspace. Static analysis keeps working.",
+  "capabilities.virtualWorkspaces.description": "Hearback needs files on disk and a local Python interpreter.",
+  "config.engine.pythonPath.markdownDescription": "Python interpreter (3.10 or newer) for the Hearback analysis engine. Leave empty to use the active environment of the Python extension, then `python3` (`py -3` on Windows) from `PATH`. Ignored in the workspace settings of untrusted workspaces; a path from workspace settings needs a one-time confirmation.",
   "config.engine.timeoutMs.markdownDescription": "Timeout in milliseconds for a single analysis engine request."
 }

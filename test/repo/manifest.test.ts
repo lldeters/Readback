@@ -22,21 +22,21 @@ describe('package.json', () => {
   it('restricts the interpreter path in untrusted workspaces', () => {
     const trust = asRecord(asRecord(manifest.capabilities).untrustedWorkspaces);
     expect(trust.supported).toBe('limited');
-    expect(trust.restrictedConfigurations).toContain('readback.engine.pythonPath');
+    expect(trust.restrictedConfigurations).toContain('hearback.engine.pythonPath');
   });
 
-  it('contributes only readback.* commands in the Readback category', () => {
+  it('contributes only hearback.* commands in the Hearback category', () => {
     for (const command of contributes.commands as Record<string, unknown>[]) {
-      expect(command.command).toMatch(/^readback\.[a-zA-Z]+$/);
-      expect(command.category).toBe('Readback');
+      expect(command.command).toMatch(/^hearback\.[a-zA-Z]+$/);
+      expect(command.category).toBe('Hearback');
       expect(command.title).toMatch(/^%command\.[a-zA-Z]+\.title%$/);
     }
   });
 
-  it('contributes only readback.* settings with localized descriptions', () => {
+  it('contributes only hearback.* settings with localized descriptions', () => {
     const properties = asRecord(asRecord(contributes.configuration).properties);
     for (const [key, value] of Object.entries(properties)) {
-      expect(key).toMatch(/^readback\./);
+      expect(key).toMatch(/^hearback\./);
       expect(asRecord(value).markdownDescription).toMatch(/^%config\.[\w.]+%$/);
     }
   });

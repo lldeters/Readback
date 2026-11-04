@@ -14,8 +14,8 @@ import pytest
 import support
 from support import EngineHarness, encode_frame, notification, request
 
-from readback_engine import ENGINE_VERSION, logs, runtime_info, sandbox, server
-from readback_engine.protocol import FATAL_PREFIX, ErrorCode, ErrorKind
+from hearback_engine import ENGINE_VERSION, logs, runtime_info, sandbox, server
+from hearback_engine.protocol import FATAL_PREFIX, ErrorCode, ErrorKind
 
 ENGINE_METHODS = [
     "engine/initialize",
@@ -249,7 +249,7 @@ def test_main_serves_a_session(monkeypatch: pytest.MonkeyPatch) -> None:
     assert [response["id"] for response in responses] == [1, 2, 3]
     assert responses[0]["result"]["sandboxed"] is True
     records = support.assert_log_lines(fake.stderr.getvalue())
-    assert records[0].startswith(f"[info] Readback engine {ENGINE_VERSION} (protocol 1) on ")
+    assert records[0].startswith(f"[info] Hearback engine {ENGINE_VERSION} (protocol 1) on ")
 
 
 def test_main_reports_setup_failures_as_bootstrap_failed(monkeypatch: pytest.MonkeyPatch) -> None:

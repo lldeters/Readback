@@ -1,9 +1,9 @@
-"""Bootstrap of the Readback analysis engine.
+"""Bootstrap of the Hearback analysis engine.
 
 The extension starts it as ``<python> -I -S -X utf8 <extension>/engine/run_engine.py`` with
 the engine folder as working directory. Under -I neither the script's folder nor the working
 directory is on sys.path, so this file puts engine/ and engine/vendor/ there itself. Then it
-installs the audit-hook sandbox (readback_engine/sandbox.py) and only after that imports the
+installs the audit-hook sandbox (hearback_engine/sandbox.py) and only after that imports the
 server, so that no module-level code of the server or of what it imports runs outside the hook.
 
 This file must stay parseable by Python 2.7 and 3.6 (ASCII only; no f-strings, annotations,
@@ -21,14 +21,14 @@ MYPY = False
 if MYPY:  # typing does not exist on Python 2.7; the names are used in type comments only
     from typing import Sequence, TextIO  # noqa: F401
 
-# Equal to readback_engine.MIN_PYTHON and the values in readback_engine.protocol (the package
+# Equal to hearback_engine.MIN_PYTHON and the values in hearback_engine.protocol (the package
 # itself cannot be imported before the version check); engine/tests/test_bootstrap.py checks it.
 MIN_PYTHON = (3, 10)
-FATAL_PREFIX = "READBACK_ENGINE_FATAL "
+FATAL_PREFIX = "HEARBACK_ENGINE_FATAL "
 EXIT_PYTHON_TOO_OLD = 3
 EXIT_BOOTSTRAP_FAILED = 4
-SERVER_MODULE = "readback_engine.server"
-SANDBOX_MODULE = "readback_engine.sandbox"
+SERVER_MODULE = "hearback_engine.server"
+SANDBOX_MODULE = "hearback_engine.sandbox"
 
 
 def report_fatal(payload, stream=None):

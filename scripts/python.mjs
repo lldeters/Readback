@@ -1,11 +1,11 @@
 // @ts-check
-// Runs repository Python scripts with a Python >= 3.10: $READBACK_PYTHON, else `py -3` (Windows),
+// Runs repository Python scripts with a Python >= 3.10: $HEARBACK_PYTHON, else `py -3` (Windows),
 // `python3`, `python`. Usage: node scripts/python.mjs <python arguments...>
 import { spawnSync } from 'node:child_process';
 
 /** @type {string[][]} */
-const candidates = process.env.READBACK_PYTHON
-  ? [[process.env.READBACK_PYTHON]]
+const candidates = process.env.HEARBACK_PYTHON
+  ? [[process.env.HEARBACK_PYTHON]]
   : process.platform === 'win32'
     ? [['py', '-3'], ['python'], ['python3']]
     : [['python3'], ['python']];
@@ -27,6 +27,6 @@ for (const [command, ...prefix] of candidates) {
   }
 }
 console.error(
-  'No Python >= 3.10 found. Set READBACK_PYTHON to the path of a suitable interpreter.',
+  'No Python >= 3.10 found. Set HEARBACK_PYTHON to the path of a suitable interpreter.',
 );
 process.exit(1);

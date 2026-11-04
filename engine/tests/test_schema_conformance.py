@@ -1,7 +1,7 @@
 """The Python mirrors of the JSON Schemas in shared/ (the contract) stay in sync with them.
 
 1. The schemas are valid draft 2020-12 schemas; the examples and real engine outputs validate.
-2. Every TypedDict and Literal alias in readback_engine.protocol and readback_engine.graph matches
+2. Every TypedDict and Literal alias in hearback_engine.protocol and hearback_engine.graph matches
    its $def: required and optional keys, property types, and enumeration values.
 """
 
@@ -16,7 +16,7 @@ import support
 from jsonschema import Draft202012Validator
 from support import EngineHarness, notification
 
-from readback_engine import ENGINE_VERSION, SCHEMA_VERSION, graph, protocol
+from hearback_engine import ENGINE_VERSION, SCHEMA_VERSION, graph, protocol
 
 JsonObject = dict[str, Any]
 

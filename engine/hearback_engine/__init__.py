@@ -1,4 +1,4 @@
-"""Readback analysis engine.
+"""Hearback analysis engine.
 
 The extension host starts it as ``python -I -S -X utf8 engine/run_engine.py`` and talks
 JSON-RPC 2.0 over stdio (see shared/engine-protocol.schema.json).

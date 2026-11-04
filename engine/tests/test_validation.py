@@ -7,8 +7,8 @@ from typing import Any
 import pytest
 import support
 
-from readback_engine import rpc, validation
-from readback_engine.protocol import ErrorKind
+from hearback_engine import rpc, validation
+from hearback_engine.protocol import ErrorKind
 
 CLIENT = {"name": "vscode", "version": "1.105.1"}
 BASE: dict[str, Any] = {

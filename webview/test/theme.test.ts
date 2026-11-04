@@ -68,7 +68,7 @@ describe('theme.css', () => {
   });
 
   it('defines the marker diagnostics.ts checks', () => {
-    expect(css).toMatch(/:root\s*\{[^}]*--readback-stylesheet:\s*loaded/);
+    expect(css).toMatch(/:root\s*\{[^}]*--hearback-stylesheet:\s*loaded/);
   });
 
   it('maps the React Flow variables to VS Code colors', () => {
@@ -84,9 +84,9 @@ describe('theme.css', () => {
       '--xy-minimap-background-color',
       '--xy-minimap-node-background-color',
     ]) {
-      // Directly, or through --readback-focus-color (which is --vscode-focusBorder).
+      // Directly, or through --hearback-focus-color (which is --vscode-focusBorder).
       expect(css).toMatch(
-        new RegExp(`${variable}:\\s*[^;]*var\\(\\s*(--vscode-|--readback-focus-color\\))`),
+        new RegExp(`${variable}:\\s*[^;]*var\\(\\s*(--vscode-|--hearback-focus-color\\))`),
       );
     }
   });
@@ -99,8 +99,8 @@ describe('theme.css', () => {
   });
 
   it('shows keyboard focus with the focus border color', () => {
-    expect(css).toMatch(/:focus-visible\s*\{[^}]*outline:[^;]*var\(--readback-focus-color\)/);
-    expect(css).toMatch(/--readback-focus-color:\s*var\(--vscode-focusBorder,/);
+    expect(css).toMatch(/:focus-visible\s*\{[^}]*outline:[^;]*var\(--hearback-focus-color\)/);
+    expect(css).toMatch(/--hearback-focus-color:\s*var\(--vscode-focusBorder,/);
   });
 
   it('turns off motion when VS Code asks for reduced motion', () => {
@@ -109,8 +109,8 @@ describe('theme.css', () => {
   });
 
   it('prepares change symbols so status never relies on color alone', () => {
-    expect(css).toContain("--readback-change-added-symbol: '+'");
-    expect(css).toContain("--readback-change-modified-symbol: '~'");
-    expect(css).toContain("--readback-change-deleted-symbol: '\\2212'");
+    expect(css).toContain("--hearback-change-added-symbol: '+'");
+    expect(css).toContain("--hearback-change-modified-symbol: '~'");
+    expect(css).toContain("--hearback-change-deleted-symbol: '\\2212'");
   });
 });

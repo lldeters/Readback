@@ -241,7 +241,7 @@ jobs:
         run: python scripts/vendor_engine.py
       # vsce runs vscode:prepublish first: vendor:check, build:prod and notices:check (license gate).
       - name: Package
-        run: npx vsce package --pre-release --no-dependencies -o readback-code.vsix
+        run: npx vsce package --pre-release --no-dependencies -o hearback.vsix
       - name: List the VSIX contents
         run: npx vsce ls --tree --no-dependencies
       - name: Check the VSIX contents
@@ -249,7 +249,7 @@ jobs:
         # "!" patterns in .vscodeignore win over later exclusions); the file limit keeps installs
         # fast.
         run: |
-          unzip -Z1 readback-code.vsix > vsix-files.txt
+          unzip -Z1 hearback.vsix > vsix-files.txt
           count=$(wc -l < vsix-files.txt)
           echo "The VSIX contains $count files."
           if grep -E '\.map$|(^|/)(tests?|__tests__|fixtures?|__pycache__)/|\.(test|spec)\.[cm]?[jt]sx?$|\.py[co]$' vsix-files.txt; then
@@ -264,7 +264,7 @@ jobs:
       # not ship. vsce still packages when a .vscodeignore pattern is too narrow and drops files, so
       # the next steps check and run the unpacked VSIX itself.
       - name: Unpack the VSIX
-        run: unzip -q readback-code.vsix -d vsix
+        run: unzip -q hearback.vsix -d vsix
       - name: Check that the VSIX is complete
         # The expected files come from the tree, not from a hand-kept list: every engine and
         # vendored file and every bundle, plus the manifest and its translations, the runtime l10n
@@ -272,7 +272,7 @@ jobs:
         # the readme and changelog under lowercase names.
         run: |
           {
-            find engine/run_engine.py engine/readback_engine engine/vendor -type f \
+            find engine/run_engine.py engine/hearback_engine engine/vendor -type f \
               ! -path '*/__pycache__/*' ! -name '*.py[co]'
             find dist -type f ! -name '*.map'
             printf '%s\n' package.json package.nls*.json l10n/bundle.l10n.*.json \
@@ -297,8 +297,8 @@ jobs:
         # connection code and expects jedi, parso and sqlglot in the handshake. It skips itself
         # when it finds no Python 3.10 or newer, so the JSON report has to show that every test ran.
         env:
-          READBACK_ENGINE_DIR: ${{ github.workspace }}/vsix/extension/engine
-          READBACK_EXPECT_VENDORED: '1'
+          HEARBACK_ENGINE_DIR: ${{ github.workspace }}/vsix/extension/engine
+          HEARBACK_EXPECT_VENDORED: '1'
         run: |
           npx vitest run src/engine/realEngine.test.ts --reporter=default \
             --reporter=github-actions --reporter=json --outputFile.json=engine-tests.json
@@ -308,7 +308,7 @@ jobs:
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: readback-code-vsix
-          path: readback-code.vsix
+          name: hearback-vsix
+          path: hearback.vsix
           if-no-files-found: error
           retention-days: 14

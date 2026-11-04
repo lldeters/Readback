@@ -19,7 +19,7 @@ import pytest
 import support
 from support import encode_frame, notification, request
 
-from readback_engine import ENGINE_VERSION
+from hearback_engine import ENGINE_VERSION
 
 TIMEOUT = 30.0
 # Spec 8: engine cold start (spawn to initialize response) under two seconds.
@@ -203,7 +203,7 @@ def test_startup_does_not_import_the_analysis_libraries(vendored: Path) -> None:
     """Phase 0 keeps sqlglot, jedi and parso out of the startup path (cold start target)."""
     code = (
         "import sys; sys.path[0:0] = [sys.argv[1], sys.argv[2]];"
-        "import readback_engine.server as s, io;"
+        "import hearback_engine.server as s, io;"
         "s.Engine(io.BytesIO(), io.BytesIO(), sandboxed=False);"
         "print(sorted(m for m in sys.modules if m.split('.')[0] in ('sqlglot', 'jedi', 'parso')))"
     )

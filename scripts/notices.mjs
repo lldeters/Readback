@@ -6,9 +6,9 @@
 //   node scripts/notices.mjs --check   fail if the file is out of date or a license is not allowed
 // Options (relative paths are resolved against the current directory):
 //   --metafiles <a.json,b.json>  esbuild metafiles, default out/meta/{extension,webview,worker}.json
-//                                (environment: READBACK_NOTICES_METAFILES)
+//                                (environment: HEARBACK_NOTICES_METAFILES)
 //   --vendor <VENDOR.json>       vendored Python packages, default engine/vendor/VENDOR.json
-//                                (environment: READBACK_NOTICES_VENDOR)
+//                                (environment: HEARBACK_NOTICES_VENDOR)
 //   --root <dir>                 directory esbuild ran in, default the repository root
 //   --out <file>                 notices file, default THIRD_PARTY_NOTICES.md
 // Exit codes: 0 success, 1 license gate failed or notices out of date, 2 usage or input error.
@@ -53,7 +53,7 @@ export const ALLOWED_LICENSES = Object.freeze([
 /**
  * @typedef {object} LicenseException
  * @property {string} expression  The exact SPDX expression the package must declare.
- * @property {readonly string[]} allow  Licenses beyond ALLOWED_LICENSES that Readback relies on.
+ * @property {readonly string[]} allow  Licenses beyond ALLOWED_LICENSES that Hearback relies on.
  * @property {string} decision  Where the exception was approved.
  * @property {string} notice  Text for the package's entry; {version} is replaced.
  */
@@ -72,8 +72,8 @@ export const NPM_LICENSE_EXCEPTIONS = new Map([
       decision: POLICY,
       // EPL-2.0 section 3.1(a): say that the code is EPL-2.0 and how to obtain its source.
       notice:
-        'Readback uses elkjs under the Eclipse Public License 2.0 and ships its files unmodified, ' +
-        "separate from Readback's own code. Source code: " +
+        'Hearback uses elkjs under the Eclipse Public License 2.0 and ships its files unmodified, ' +
+        "separate from Hearback's own code. Source code: " +
         'https://github.com/kieler/elkjs/tree/{version}, built from the Eclipse Layout Kernel ' +
         '(https://github.com/eclipse-elk/elk).',
     },
@@ -742,7 +742,7 @@ export async function collectPythonPackages(packages, vendorDirectory, problems)
 const INTRO = [
   '# Third-party notices',
   '',
-  'Readback ("Readback – Understand AI-Written Code", extension ID `lldeters.readback-code`)',
+  'Hearback ("Hearback – Understand AI-Written Code", extension ID `lldeters.hearback`)',
   'contains the third-party software listed below. Each package is licensed under its own terms,',
   'reproduced in full.',
   '',
@@ -913,8 +913,8 @@ function parseArguments(argv, env) {
         throw new UsageError(`unknown argument "${argument}"`);
     }
   }
-  const envMetafiles = env.READBACK_NOTICES_METAFILES
-    ? splitList(env.READBACK_NOTICES_METAFILES)
+  const envMetafiles = env.HEARBACK_NOTICES_METAFILES
+    ? splitList(env.HEARBACK_NOTICES_METAFILES)
     : undefined;
   const metafiles = given.metafiles ?? envMetafiles;
   // An empty list would silently report "no bundled packages".
@@ -926,7 +926,7 @@ function parseArguments(argv, env) {
   return {
     check,
     metafiles: metafiles?.map(fromCwd) ?? DEFAULT_METAFILES.map(fromRepo),
-    vendor: fromCwd(given.vendor ?? env.READBACK_NOTICES_VENDOR ?? fromRepo(DEFAULT_VENDOR)),
+    vendor: fromCwd(given.vendor ?? env.HEARBACK_NOTICES_VENDOR ?? fromRepo(DEFAULT_VENDOR)),
     root: given.root ? fromCwd(given.root) : repoRoot,
     out: given.out ? fromCwd(given.out) : fromRepo(DEFAULT_OUT),
   };

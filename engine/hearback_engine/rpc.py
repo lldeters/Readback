@@ -21,7 +21,7 @@ from typing import Final, Literal, Protocol, TypeGuard
 from .logs import TRACE
 from .protocol import EngineErrorData, ErrorCode, ErrorKind, Method
 
-log = logging.getLogger("readback.rpc")
+log = logging.getLogger("hearback.rpc")
 
 # One message never gets near this; a larger length means garbage or a runaway client.
 MAX_CONTENT_LENGTH: Final = 64 * 1024 * 1024

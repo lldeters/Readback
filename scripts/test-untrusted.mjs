@@ -30,7 +30,7 @@ const executable = await downloadAndUnzipVSCode({
   cachePath: path.join(root, '.vscode-test'),
 });
 
-const sandbox = await mkdtemp(path.join(os.tmpdir(), 'readback-untrusted-'));
+const sandbox = await mkdtemp(path.join(os.tmpdir(), 'hearback-untrusted-'));
 const workspace = path.join(sandbox, 'workspace');
 const userData = path.join(sandbox, 'user-data');
 const extensions = path.join(sandbox, 'extensions');
@@ -47,7 +47,7 @@ await chmod(fakeInterpreter, 0o755);
 await mkdir(path.join(workspace, '.vscode'), { recursive: true });
 await writeFile(
   path.join(workspace, '.vscode', 'settings.json'),
-  JSON.stringify({ 'readback.engine.pythonPath': fakeInterpreter }, undefined, 2),
+  JSON.stringify({ 'hearback.engine.pythonPath': fakeInterpreter }, undefined, 2),
 );
 await writeFile(path.join(workspace, 'sample.py'), 'print("untrusted")\n');
 await mkdir(path.join(userData, 'User'), { recursive: true });
@@ -88,9 +88,9 @@ const exitCode = await new Promise((resolve) => {
     stdio: 'inherit',
     env: {
       ...process.env,
-      READBACK_UNTRUSTED_MARKER: marker,
-      READBACK_UNTRUSTED_WORKSPACE: workspace,
-      READBACK_FAKE_INTERPRETER: fakeInterpreter,
+      HEARBACK_UNTRUSTED_MARKER: marker,
+      HEARBACK_UNTRUSTED_WORKSPACE: workspace,
+      HEARBACK_FAKE_INTERPRETER: fakeInterpreter,
     },
   });
   child.on('error', (error) => {

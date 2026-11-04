@@ -16,7 +16,7 @@ suite('Engine', function () {
   this.timeout(60_000);
 
   test('finds an interpreter on PATH without the Python extension', async () => {
-    const result = await command<Resolution>('readback._test.resolveInterpreter');
+    const result = await command<Resolution>('hearback._test.resolveInterpreter');
     assert.ok(result.interpreter, JSON.stringify(result.attempts, undefined, 2));
     assert.strictEqual(result.interpreter.candidate.source, 'path');
     const [major = 0, minor = 0] = result.interpreter.probe.version;
@@ -31,7 +31,7 @@ suite('Engine', function () {
   });
 
   test('starts the engine on first use and reports its status', async () => {
-    const status = await command<Status>('readback._test.engineStatus');
+    const status = await command<Status>('hearback._test.engineStatus');
     assert.strictEqual(status.state, 'running', JSON.stringify(status.failure));
     assert.ok(status.engine);
     assert.ok(
@@ -50,27 +50,27 @@ suite('Engine', function () {
   });
 
   test('restarts with a new process', async () => {
-    const before = await command<Status>('readback._test.engineStatus');
-    const after = await command<Status>('readback._test.restartEngine');
+    const before = await command<Status>('hearback._test.engineStatus');
+    const after = await command<Status>('hearback._test.restartEngine');
     assert.strictEqual(after.state, 'running', JSON.stringify(after.failure));
     assert.notStrictEqual(after.pid, before.pid);
   });
 
   test('stops on an unusable interpreter setting instead of falling back', async () => {
-    const config = vscode.workspace.getConfiguration('readback');
+    const config = vscode.workspace.getConfiguration('hearback');
     await config.update(
       'engine.pythonPath',
       '/definitely/not/a/python',
       vscode.ConfigurationTarget.Global,
     );
     try {
-      const status = await command<Status>('readback._test.restartEngine');
+      const status = await command<Status>('hearback._test.restartEngine');
       assert.strictEqual(status.state, 'failed');
       assert.strictEqual(status.failure?.kind, 'settingUnusable');
     } finally {
       await config.update('engine.pythonPath', undefined, vscode.ConfigurationTarget.Global);
     }
-    const recovered = await command<Status>('readback._test.restartEngine');
+    const recovered = await command<Status>('hearback._test.restartEngine');
     assert.strictEqual(recovered.state, 'running', JSON.stringify(recovered.failure));
   });
 });

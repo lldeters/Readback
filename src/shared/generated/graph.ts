@@ -108,7 +108,7 @@ export type Confidence = 'certain' | 'inferred' | 'unresolved';
 export type Severity = 'error' | 'warning' | 'information' | 'hint';
 
 /**
- * Readback graph model. Single source of truth for the analysis engine (Python), the extension host and the webview (TypeScript). Positions are zero-based; 'character' counts UTF-16 code units (LSP semantics).
+ * Hearback graph model. Single source of truth for the analysis engine (Python), the extension host and the webview (TypeScript). Positions are zero-based; 'character' counts UTF-16 code units (LSP semantics).
  */
 export interface GraphDocument {
   /**
@@ -235,7 +235,7 @@ export interface Meta {
    */
   dialect?: string;
   /**
-   * True when the graph was cut at readback.graph.maxNodes.
+   * True when the graph was cut at hearback.graph.maxNodes.
    */
   truncated?: boolean;
 }

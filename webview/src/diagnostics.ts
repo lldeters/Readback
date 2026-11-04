@@ -5,7 +5,7 @@ import type { HostApi } from './hostApi';
 import { describeError, truncate } from './text';
 
 /** Custom property set by theme.css; its absence means main.css was not applied. */
-export const STYLESHEET_MARKER = '--readback-stylesheet';
+export const STYLESHEET_MARKER = '--hearback-stylesheet';
 
 /**
  * Installs the listeners. Call this before anything else runs so early problems are caught too.

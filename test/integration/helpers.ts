@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-export const EXTENSION_ID = 'lldeters.readback-code';
+export const EXTENSION_ID = 'lldeters.hearback';
 
 export function extension(): vscode.Extension<unknown> {
   const found = vscode.extensions.getExtension(EXTENSION_ID);

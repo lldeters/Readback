@@ -1,4 +1,4 @@
-// HTML document of Readback's webview panels. Pure functions without 'vscode' so the Content
+// HTML document of Hearback's webview panels. Pure functions without 'vscode' so the Content
 // Security Policy and the attribute escaping can be unit-tested.
 import { randomBytes } from 'node:crypto';
 import { BOOT_ELEMENT_ID, ROOT_ELEMENT_ID, type WebviewBootData } from '../shared/webviewProtocol';

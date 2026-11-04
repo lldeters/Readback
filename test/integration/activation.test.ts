@@ -3,12 +3,12 @@ import * as vscode from 'vscode';
 import { command, extension } from './helpers';
 
 // A root-level hook runs once before the suites of every file, whatever order Mocha loads the
-// files in. It activates the extension (the hidden readback._test.* commands are not contributed,
+// files in. It activates the extension (the hidden hearback._test.* commands are not contributed,
 // so calling them would not activate it) and records the engine state right after activation.
 let stateAfterActivation: string | undefined;
 suiteSetup(async () => {
   await extension().activate();
-  stateAfterActivation = await command<string>('readback._test.engineState');
+  stateAfterActivation = await command<string>('hearback._test.engineState');
 });
 
 suite('Activation', () => {

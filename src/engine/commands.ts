@@ -1,5 +1,5 @@
 // Engine commands. Every engine start here is triggered by the user (spec 2.6: no engine start on
-// activation, no unprompted popups). Hidden readback._test.* commands serve the integration tests.
+// activation, no unprompted popups). Hidden hearback._test.* commands serve the integration tests.
 import * as vscode from 'vscode';
 import { errorMessage } from '../util/log';
 import { EngineRequestFailure } from './engineConnection';
@@ -15,7 +15,7 @@ async function showStatus(service: EngineService, log: vscode.LogOutputChannel):
     pingMs = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Window,
-        title: vscode.l10n.t('Checking Readback engine…'),
+        title: vscode.l10n.t('Checking Hearback engine…'),
       },
       () => service.ping({ interactive: true }),
     );
@@ -47,7 +47,7 @@ async function showStatus(service: EngineService, log: vscode.LogOutputChannel):
   } else if (pingError) {
     log.warn(`Engine status:\n${report}`);
     choice = await vscode.window.showErrorMessage(
-      vscode.l10n.t('The Readback engine does not respond.'),
+      vscode.l10n.t('The Hearback engine does not respond.'),
       { modal: true, detail: report },
       restart,
       copy,
@@ -55,7 +55,7 @@ async function showStatus(service: EngineService, log: vscode.LogOutputChannel):
     );
   } else {
     choice = await vscode.window.showInformationMessage(
-      vscode.l10n.t('Readback engine status'),
+      vscode.l10n.t('Hearback engine status'),
       { modal: true, detail: report },
       copy,
       showLog,
@@ -66,11 +66,11 @@ async function showStatus(service: EngineService, log: vscode.LogOutputChannel):
   } else if (choice === showLog) {
     log.show();
   } else if (choice === select) {
-    await vscode.commands.executeCommand('readback.selectInterpreter');
+    await vscode.commands.executeCommand('hearback.selectInterpreter');
   } else if (choice === manageTrust) {
     await vscode.commands.executeCommand(MANAGE_TRUST_COMMAND);
   } else if (choice === restart) {
-    await vscode.commands.executeCommand('readback.restartEngine');
+    await vscode.commands.executeCommand('hearback.restartEngine');
   }
 }
 
@@ -79,13 +79,13 @@ async function restartEngine(service: EngineService, log: vscode.LogOutputChanne
     const connection = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Window,
-        title: vscode.l10n.t('Restarting Readback engine…'),
+        title: vscode.l10n.t('Restarting Hearback engine…'),
       },
       () => service.restart({ interactive: true }),
     );
     vscode.window.setStatusBarMessage(
       vscode.l10n.t(
-        'Readback engine restarted (Python {0})',
+        'Hearback engine restarted (Python {0})',
         connection.initializeResult.python.version,
       ),
       5_000,
@@ -115,19 +115,19 @@ export function registerEngineCommands(
   log: vscode.LogOutputChannel,
 ): vscode.Disposable {
   return vscode.Disposable.from(
-    vscode.commands.registerCommand('readback.showEngineStatus', () => showStatus(service, log)),
-    vscode.commands.registerCommand('readback.restartEngine', () => restartEngine(service, log)),
-    vscode.commands.registerCommand('readback.selectInterpreter', () =>
+    vscode.commands.registerCommand('hearback.showEngineStatus', () => showStatus(service, log)),
+    vscode.commands.registerCommand('hearback.restartEngine', () => restartEngine(service, log)),
+    vscode.commands.registerCommand('hearback.selectInterpreter', () =>
       selectInterpreter(service, log),
     ),
-    vscode.commands.registerCommand('readback.showLog', () => {
+    vscode.commands.registerCommand('hearback.showLog', () => {
       log.show();
     }),
-    vscode.commands.registerCommand('readback._test.engineState', () => service.state),
-    vscode.commands.registerCommand('readback._test.resolveInterpreter', async () =>
+    vscode.commands.registerCommand('hearback._test.engineState', () => service.state),
+    vscode.commands.registerCommand('hearback._test.resolveInterpreter', async () =>
       plain(await service.resolve({ interactive: false })),
     ),
-    vscode.commands.registerCommand('readback._test.engineStatus', async () => {
+    vscode.commands.registerCommand('hearback._test.engineStatus', async () => {
       let pingMs: number | undefined;
       try {
         pingMs = await service.ping({ interactive: false });
@@ -136,7 +136,7 @@ export function registerEngineCommands(
       }
       return plain({ ...service.status(), pingMs });
     }),
-    vscode.commands.registerCommand('readback._test.restartEngine', async () => {
+    vscode.commands.registerCommand('hearback._test.restartEngine', async () => {
       try {
         await service.restart({ interactive: false });
       } catch {

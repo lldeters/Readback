@@ -1,4 +1,4 @@
-// Path rules for Restricted Mode: an untrusted workspace must never be able to make Readback run a
+// Path rules for Restricted Mode: an untrusted workspace must never be able to make Hearback run a
 // binary that lives inside it (a .venv symlink to a system Python still runs attacker code through
 // pyvenv.cfg 'home', even under -I -S).
 import path from 'node:path';

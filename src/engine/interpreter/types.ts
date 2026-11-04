@@ -1,7 +1,7 @@
 /** Where a Python interpreter candidate came from, in resolution order. */
 export type InterpreterSource = 'setting' | 'pythonExtension' | 'path';
 
-/** Scope of the readback.engine.pythonPath value that is in effect. */
+/** Scope of the hearback.engine.pythonPath value that is in effect. */
 export type SettingScope = 'user' | 'workspace' | 'workspaceFolder';
 
 export interface InterpreterCandidate {
@@ -47,7 +47,7 @@ export type FailureReason =
   | 'timeout'
   | 'apiError';
 
-/** Why a readback.engine.pythonPath value could not be turned into a path (localized later). */
+/** Why a hearback.engine.pythonPath value could not be turned into a path (localized later). */
 export type PathProblem = 'workspaceFolderUntrusted' | 'relativeUntrusted' | 'unsupportedVariable';
 
 export type AttemptOutcome =
@@ -79,7 +79,7 @@ export interface ResolutionResult {
   readonly interpreter: ResolvedInterpreter | undefined;
   readonly attempts: readonly ResolutionAttempt[];
   /**
-   * True when readback.engine.pythonPath is set but unusable. Like Microsoft's template we then
+   * True when hearback.engine.pythonPath is set but unusable. Like Microsoft's template we then
    * stop instead of silently falling back to another interpreter.
    */
   readonly blockedBySetting: boolean;

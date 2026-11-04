@@ -6,10 +6,10 @@ suite('Graph view', function () {
   this.timeout(60_000);
 
   test('opens with a working layout worker and without CSP violations', async () => {
-    await command('readback.openGraphView');
+    await command('hearback.openGraphView');
     const state = await waitFor(
       async () => {
-        const current = await command<GraphPanelState>('readback._test.graphPanelState');
+        const current = await command<GraphPanelState>('hearback._test.graphPanelState');
         return current.ready && current.workerReady ? current : undefined;
       },
       30_000,
@@ -22,8 +22,8 @@ suite('Graph view', function () {
   });
 
   test('reuses the open panel', async () => {
-    await command('readback.openGraphView');
-    const state = await command<GraphPanelState>('readback._test.graphPanelState');
+    await command('hearback.openGraphView');
+    const state = await command<GraphPanelState>('hearback._test.graphPanelState');
     assert.strictEqual(state.open, true);
   });
 });

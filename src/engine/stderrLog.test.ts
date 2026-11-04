@@ -30,7 +30,7 @@ describe('StderrParser', () => {
   it('recognizes the fatal startup line', () => {
     expect(
       parse(
-        'READBACK_ENGINE_FATAL {"code": "python-too-old", "version": "3.9.6", "required": "3.10"}\n',
+        'HEARBACK_ENGINE_FATAL {"code": "python-too-old", "version": "3.9.6", "required": "3.10"}\n',
       ),
     ).toEqual([
       { kind: 'fatal', error: { code: 'python-too-old', version: '3.9.6', required: '3.10' } },
@@ -38,9 +38,9 @@ describe('StderrParser', () => {
   });
 
   it('reports everything else as raw output', () => {
-    expect(parse('print from a library\n\nREADBACK_ENGINE_FATAL not json\n')).toEqual([
+    expect(parse('print from a library\n\nHEARBACK_ENGINE_FATAL not json\n')).toEqual([
       { kind: 'raw', message: 'print from a library' },
-      { kind: 'raw', message: 'READBACK_ENGINE_FATAL not json' },
+      { kind: 'raw', message: 'HEARBACK_ENGINE_FATAL not json' },
     ]);
     // Without a preceding record, indented lines are raw too.
     expect(parse('    orphan\n')).toEqual([{ kind: 'raw', message: '    orphan' }]);

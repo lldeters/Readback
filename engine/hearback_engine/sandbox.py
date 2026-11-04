@@ -22,7 +22,7 @@ from typing import Any, Final
 if sys.platform != "win32":
     import _posixsubprocess  # noqa: TID251 - only the sandbox may use it: install() wraps it
 
-log = logging.getLogger("readback.sandbox")
+log = logging.getLogger("hearback.sandbox")
 
 # _posixsubprocess.fork_exec raises it itself from Python 3.14 on; install() makes it raise the
 # event on older versions too (see audited_fork_exec()).
@@ -59,7 +59,7 @@ NATIVE_CODE_EVENTS: Final = frozenset({"ctypes.dlopen"})
 BLOCKED_EVENTS: Final = PROCESS_EVENTS | NETWORK_EVENTS | NATIVE_CODE_EVENTS
 
 # Raised once after installation to prove the hook is really active (see install()).
-PROBE_EVENT: Final = "readback.sandbox.probe"
+PROBE_EVENT: Final = "hearback.sandbox.probe"
 _MAX_ARGUMENT_REPR: Final = 120
 
 
@@ -72,7 +72,7 @@ class SandboxHook:
     def __call__(self, event: str, args: tuple[object, ...]) -> None:
         if event in BLOCKED_EVENTS:
             log.warning("Sandbox blocked %s (%s).", event, _subject(event, args))
-            msg = f"Readback engine sandbox: {event} is not allowed"
+            msg = f"Hearback engine sandbox: {event} is not allowed"
             raise PermissionError(msg)
         if event == PROBE_EVENT:
             self.active = True

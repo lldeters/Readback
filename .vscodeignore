@@ -10,7 +10,7 @@
 !dist/webview/*.js
 !dist/webview/*.css
 !engine/run_engine.py
-!engine/readback_engine/**/*.py
+!engine/hearback_engine/**/*.py
 !engine/vendor/**
 !README.md
 !CHANGELOG.md

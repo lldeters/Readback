@@ -7,13 +7,13 @@ const scenario = process.argv[2] ?? 'normal';
 
 if (scenario === 'too-old') {
   process.stderr.write(
-    'READBACK_ENGINE_FATAL {"code": "python-too-old", "version": "3.9.6", "required": "3.10"}\n',
+    'HEARBACK_ENGINE_FATAL {"code": "python-too-old", "version": "3.9.6", "required": "3.10"}\n',
   );
   process.exit(3);
 }
 if (scenario === 'bootstrap-failed') {
   process.stderr.write(
-    'READBACK_ENGINE_FATAL {"code": "bootstrap-failed", "detail": "ImportError: no module"}\n',
+    'HEARBACK_ENGINE_FATAL {"code": "bootstrap-failed", "detail": "ImportError: no module"}\n',
   );
   process.exit(4);
 }

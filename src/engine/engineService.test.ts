@@ -82,7 +82,7 @@ let workspace: string;
 const harnesses: Harness[] = [];
 
 beforeEach(async () => {
-  workspace = await mkdtemp(path.join(os.tmpdir(), 'readback-service-'));
+  workspace = await mkdtemp(path.join(os.tmpdir(), 'hearback-service-'));
   await mkdir(path.join(workspace, 'extension', 'engine'), { recursive: true });
   mock.inspected = {};
   mock.timeout = 30_000;
@@ -122,7 +122,7 @@ function harness(restartPolicy?: RestartPolicy): Harness {
         return Promise.resolve();
       },
     },
-    extension: { id: 'lldeters.readback-code', packageJSON: { version: '0.0.1' } },
+    extension: { id: 'lldeters.hearback', packageJSON: { version: '0.0.1' } },
   };
   const connections: EngineConnection[] = [];
   const created: Harness = {
@@ -161,7 +161,7 @@ function harness(restartPolicy?: RestartPolicy): Harness {
 
 function changeConfiguration(): void {
   for (const listener of mock.configurationListeners) {
-    listener({ affectsConfiguration: (key: string) => key === 'readback.engine.pythonPath' });
+    listener({ affectsConfiguration: (key: string) => key === 'hearback.engine.pythonPath' });
   }
 }
 
@@ -261,7 +261,7 @@ describe('EngineService', () => {
     expect(connection.isRunning).toBe(true);
   });
 
-  it('clamps readback.engine.timeoutMs to the manifest range', () => {
+  it('clamps hearback.engine.timeoutMs to the manifest range', () => {
     const { service } = harness();
     mock.timeout = 3_000_000_000;
     expect(service.timeoutMs()).toBe(600_000);

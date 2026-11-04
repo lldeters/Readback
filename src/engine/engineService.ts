@@ -51,7 +51,7 @@ export type EngineFailure =
 /** Thrown by ensureStarted/request when no engine is available; carries the reason. */
 export class EngineUnavailableError extends Error {
   constructor(readonly failure: EngineFailure) {
-    super(`Readback engine unavailable: ${failure.kind}`);
+    super(`Hearback engine unavailable: ${failure.kind}`);
     this.name = 'EngineUnavailableError';
   }
 }
@@ -81,7 +81,7 @@ const INTERPRETER_CHANGE_DEBOUNCE_MS = 1_000;
 const DEFAULT_TIMEOUT_MS = 30_000;
 /** How long ping() waits for a killed engine's exit event before giving up. */
 const EXIT_SETTLE_MS = 500;
-/** Same bounds as readback.engine.timeoutMs in package.json. */
+/** Same bounds as hearback.engine.timeoutMs in package.json. */
 const MIN_TIMEOUT_MS = 1_000;
 const MAX_TIMEOUT_MS = 600_000;
 
@@ -192,7 +192,7 @@ export class EngineService implements vscode.Disposable {
   /** Starts the engine unless it runs; concurrent callers share one start. */
   async ensureStarted(options: ReadOptions): Promise<EngineConnection> {
     if (this.disposed) {
-      throw new Error('The Readback engine service has been disposed.');
+      throw new Error('The Hearback engine service has been disposed.');
     }
     if (this.connection?.isRunning) {
       return this.connection;
@@ -338,7 +338,7 @@ export class EngineService implements vscode.Disposable {
     };
   }
 
-  /** readback.engine.timeoutMs, clamped to the manifest's range (VS Code does not enforce it). */
+  /** hearback.engine.timeoutMs, clamped to the manifest's range (VS Code does not enforce it). */
   timeoutMs(): number {
     const value = vscode.workspace
       .getConfiguration(SETTING_SECTION)
@@ -423,7 +423,7 @@ export class EngineService implements vscode.Disposable {
     }
     if (this.disposed) {
       await connection.stop();
-      throw new Error('The Readback engine service has been disposed.');
+      throw new Error('The Hearback engine service has been disposed.');
     }
     this.startupMs = performance.now() - started;
     this.connection = connection;
@@ -458,7 +458,7 @@ export class EngineService implements vscode.Disposable {
     if (delay === undefined) {
       this.failure = { kind: 'crashLoop', lastExit: exit };
       this.log.error(
-        'The engine crashed repeatedly; automatic restarts are paused until "Readback: Restart Engine".',
+        'The engine crashed repeatedly; automatic restarts are paused until "Hearback: Restart Engine".',
       );
       this.fireState();
       return;
@@ -596,7 +596,7 @@ export class EngineService implements vscode.Disposable {
  */
 async function canWriteInto(directory: string): Promise<boolean> {
   try {
-    const probe = await mkdtemp(path.join(directory, '.readback-write-test-'));
+    const probe = await mkdtemp(path.join(directory, '.hearback-write-test-'));
     try {
       await writeFile(path.join(probe, 'probe'), '');
     } finally {

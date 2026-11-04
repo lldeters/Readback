@@ -1,8 +1,8 @@
 // Engine JSON-RPC protocol constants. Payload types are generated from
 // shared/engine-protocol.schema.json; the Python side mirrors these names in
-// engine/readback_engine/protocol.py (test/repo/versions.test.ts keeps both in sync).
+// engine/hearback_engine/protocol.py (test/repo/versions.test.ts keeps both in sync).
 
-/** Bump on every incompatible protocol change (and in engine/readback_engine/__init__.py). */
+/** Bump on every incompatible protocol change (and in engine/hearback_engine/__init__.py). */
 export const PROTOCOL_VERSION = 1;
 
 export const Methods = {
@@ -26,7 +26,7 @@ export const ErrorCodes = {
   requestCancelled: -32800,
 } as const;
 
-/** Exit codes of engine/run_engine.py, reported together with a READBACK_ENGINE_FATAL stderr line. */
+/** Exit codes of engine/run_engine.py, reported together with a HEARBACK_ENGINE_FATAL stderr line. */
 export const EngineExitCodes = {
   ok: 0,
   pythonTooOld: 3,
@@ -34,7 +34,7 @@ export const EngineExitCodes = {
 } as const;
 
 /** Prefix of the single machine-readable stderr line written before a fatal startup exit. */
-export const FATAL_PREFIX = 'READBACK_ENGINE_FATAL ';
+export const FATAL_PREFIX = 'HEARBACK_ENGINE_FATAL ';
 
 /** Minimum Python version the engine supports. */
 export const MIN_PYTHON = { major: 3, minor: 10 } as const;

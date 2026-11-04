@@ -15,8 +15,8 @@ import pytest
 import support
 from support import EngineHarness, encode_frame, notification, request
 
-from readback_engine import rpc
-from readback_engine.protocol import ErrorCode, ErrorKind
+from hearback_engine import rpc
+from hearback_engine.protocol import ErrorCode, ErrorKind
 
 TIMEOUT = 10.0
 

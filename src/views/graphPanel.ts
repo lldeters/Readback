@@ -1,4 +1,4 @@
-// The "Readback" graph panel: a single webview panel that hosts the React app from webview/src.
+// The "Hearback" graph panel: a single webview panel that hosts the React app from webview/src.
 // This file only adapts the VS Code API; message handling and state live in graphPanelState.ts.
 import * as vscode from 'vscode';
 import type { GraphPanelState, WebviewBootData } from '../shared/webviewProtocol';
@@ -10,10 +10,10 @@ import {
 } from './graphPanelState';
 import { createNonce, renderWebviewHtml } from './webviewHtml';
 
-export const GRAPH_VIEW_TYPE = 'readback.graph';
-export const OPEN_GRAPH_VIEW_COMMAND = 'readback.openGraphView';
+export const GRAPH_VIEW_TYPE = 'hearback.graph';
+export const OPEN_GRAPH_VIEW_COMMAND = 'hearback.openGraphView';
 /** Not contributed in package.json: integration tests read the panel state through it. */
-export const GRAPH_PANEL_STATE_COMMAND = 'readback._test.graphPanelState';
+export const GRAPH_PANEL_STATE_COMMAND = 'hearback._test.graphPanelState';
 
 /** Registers the graph panel commands. Disposing the result also closes an open panel. */
 export function registerGraphPanel(
@@ -56,7 +56,7 @@ class GraphPanel implements vscode.Disposable {
     const assets = vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview');
     const panel = vscode.window.createWebviewPanel(
       GRAPH_VIEW_TYPE,
-      vscode.l10n.t('Readback'),
+      vscode.l10n.t('Hearback'),
       // Beside the code it visualizes; in the active group when no editor is open.
       vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.Active,
       {

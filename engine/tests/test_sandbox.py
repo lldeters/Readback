@@ -12,16 +12,16 @@ from typing import Any
 import pytest
 import support
 
-from readback_engine import sandbox
+from hearback_engine import sandbox
 
-FORK_EXEC_REFUSED = f"Readback engine sandbox: {sandbox.FORK_EXEC_EVENT} is not allowed"
+FORK_EXEC_REFUSED = f"Hearback engine sandbox: {sandbox.FORK_EXEC_EVENT} is not allowed"
 
 # Runs inside the sandboxed subprocess; prints one JSON report on stdout.
 PROBE = r"""
 import json, os, sys
 engine, vendor = sys.argv[1], sys.argv[2]
 sys.path[0:0] = [engine, vendor]
-from readback_engine import sandbox
+from hearback_engine import sandbox
 report = {"installed": sandbox.install()}
 
 def attempt(name, action):
@@ -86,7 +86,7 @@ def vendored():
 attempt("vendored", vendored)
 
 def read_files():
-    with open(os.path.join(engine, "readback_engine", "__init__.py"), encoding="utf-8") as f:
+    with open(os.path.join(engine, "hearback_engine", "__init__.py"), encoding="utf-8") as f:
         assert "ENGINE_VERSION" in f.read()
     os.listdir(vendor)
 attempt("files", read_files)
@@ -137,7 +137,7 @@ DANGEROUS_ATTEMPTS = [
 def test_dangerous_operations_are_blocked(report: dict[str, Any], attempt: str) -> None:
     if attempt not in report:
         pytest.skip(f"{attempt} does not exist on this platform")
-    assert report[attempt].startswith("blocked: Readback engine sandbox: "), report[attempt]
+    assert report[attempt].startswith("blocked: Hearback engine sandbox: "), report[attempt]
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Windows has no _posixsubprocess")
@@ -170,7 +170,7 @@ def earlier_hook(event, args):
         if sys.argv[2] == "veto":
             raise RuntimeError("no more hooks")  # sys.addaudithook() then skips the new hook
 sys.addaudithook(earlier_hook)
-from readback_engine import sandbox
+from hearback_engine import sandbox
 print(json.dumps([sandbox.install(), sandbox.install(), len(added)]))
 """
 

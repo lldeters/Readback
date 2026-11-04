@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 import support
 
-from readback_engine import runtime_info
+from hearback_engine import runtime_info
 
 
 def test_python_info_describes_this_interpreter() -> None:

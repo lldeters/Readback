@@ -1,4 +1,4 @@
-// "Readback: Select Python Interpreter": pick a detected interpreter, type a path or browse for
+// "Hearback: Select Python Interpreter": pick a detected interpreter, type a path or browse for
 // one. The choice is stored in the user settings (never in the workspace), then the engine
 // restarts with it. A pythonPath in workspace settings would override that choice, so the user
 // decides first whether to ignore it.
@@ -58,7 +58,7 @@ async function detectedItems(service: EngineService): Promise<InterpreterItem[]>
 /** Lets the user pick; resolves to the chosen item and the typed text, or undefined. */
 async function pickInterpreter(service: EngineService, log: vscode.LogOutputChannel) {
   const pick = vscode.window.createQuickPick<InterpreterItem>();
-  pick.title = vscode.l10n.t('Readback: Python interpreter for the analysis engine');
+  pick.title = vscode.l10n.t('Hearback: Python interpreter for the analysis engine');
   pick.placeholder = vscode.l10n.t('Python 3.10 or newer');
   pick.busy = true;
   pick.matchOnDescription = true;
@@ -114,7 +114,7 @@ async function pickInterpreter(service: EngineService, log: vscode.LogOutputChan
 
 async function askForPath(initial: string): Promise<string | undefined> {
   const value = await vscode.window.showInputBox({
-    title: vscode.l10n.t('Python interpreter for Readback'),
+    title: vscode.l10n.t('Python interpreter for Hearback'),
     prompt: vscode.l10n.t('Full path of a Python 3.10+ executable, or a command on PATH'),
     value: initial,
     ignoreFocusOut: true,
@@ -128,7 +128,7 @@ async function browseForPath(): Promise<string | undefined> {
   const files = await vscode.window.showOpenDialog({
     canSelectMany: false,
     openLabel: vscode.l10n.t('Select Interpreter'),
-    title: vscode.l10n.t('Python interpreter for Readback'),
+    title: vscode.l10n.t('Python interpreter for Hearback'),
     ...(process.platform === 'win32'
       ? { filters: { [vscode.l10n.t('Executables')]: ['exe'] } }
       : {}),
@@ -220,13 +220,13 @@ export async function selectInterpreter(
     const connection = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Window,
-        title: vscode.l10n.t('Restarting Readback engine…'),
+        title: vscode.l10n.t('Restarting Hearback engine…'),
       },
       () => service.restart({ interactive: true }),
     );
     vscode.window.setStatusBarMessage(
       vscode.l10n.t(
-        'Readback engine runs on Python {0}',
+        'Hearback engine runs on Python {0}',
         connection.initializeResult.python.version,
       ),
       5_000,
