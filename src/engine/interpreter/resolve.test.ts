@@ -382,11 +382,17 @@ describe('resolveInterpreter', () => {
       });
       const fallback = await resolveInterpreter(declined);
       expect(declined.asked).toEqual([venv]);
-      expect(fallback.attempts).toContainEqual({
-        source: 'pythonExtension',
-        command: venv,
-        outcome: { kind: 'skipped', reason: 'notConfirmed' },
-      });
+      // Show Engine Status keeps the probe of the reported path, then the withheld executable.
+      expect(fallback.attempts).toEqual([
+        { source: 'setting', outcome: { kind: 'skipped', reason: 'notConfigured' } },
+        { source: 'pythonExtension', command: shim, outcome: ok(venv) },
+        {
+          source: 'pythonExtension',
+          command: venv,
+          outcome: { kind: 'skipped', reason: 'notConfirmed' },
+        },
+        { source: 'path', command: '/usr/bin/python3', outcome: ok('/usr/bin/python3') },
+      ]);
       expect(fallback.interpreter?.candidate.source).toBe('path');
 
       const approved = context({

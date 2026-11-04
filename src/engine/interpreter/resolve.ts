@@ -258,6 +258,8 @@ async function usePythonExtension(
   if (outcome.kind === 'ok' && reported === 'outside' && outcome.probe.executable !== command) {
     const executable = await checkWorkspaceInterpreter(outcome.probe.executable, context);
     if (executable !== 'outside' && executable !== 'approved') {
+      // The status lists the probe of the reported path, then why its executable did not run.
+      attempts.push({ source: 'pythonExtension', command, outcome });
       skip(outcome.probe.executable, executable);
       return undefined;
     }
