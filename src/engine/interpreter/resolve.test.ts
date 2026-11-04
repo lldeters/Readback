@@ -399,6 +399,30 @@ describe('resolveInterpreter', () => {
       expect(result.interpreter?.probe.executable).toBe(venv);
     });
 
+    it('counts relative paths as inside, wherever the working directory is', async () => {
+      const relative = 'repo/.venv/bin/python';
+      const reported = context({
+        pythonExtension: { kind: 'found', executable: relative },
+        path: onPath,
+        probes: { [relative]: ok(relative), '/usr/bin/python3': ok('/usr/bin/python3') },
+      });
+      const result = await resolveInterpreter(reported);
+      expect(reported.asked).toEqual([relative]);
+      expect(reported.probed.map((c) => c.command)).toEqual(['/usr/bin/python3']);
+      expect(result.interpreter?.candidate.source).toBe('path');
+
+      // A relative sys.executable of an interpreter outside the workspace needs the answer too.
+      const shim = '/usr/local/bin/python3';
+      const executable = context({
+        pythonExtension: { kind: 'found', executable: shim },
+        path: onPath,
+        probes: { [shim]: ok('python3.12'), '/usr/bin/python3': ok('/usr/bin/python3') },
+      });
+      const fallback = await resolveInterpreter(executable);
+      expect(executable.asked).toEqual(['python3.12']);
+      expect(fallback.interpreter?.candidate.source).toBe('path');
+    });
+
     it('asks only once when an approved interpreter reports another path inside', async () => {
       const ctx = context({
         pythonExtension: { kind: 'found', executable: venv },
@@ -512,6 +536,20 @@ describe('checkWorkspaceInterpreter', () => {
     await expect(checkWorkspaceInterpreter('/home/dev/link', ctx)).resolves.toBe('notConfirmed');
     expect(ctx.asked).toEqual(['/work/repo/.venv/bin/python', '/home/dev/link']);
     expect(ctx.probed).toEqual([]);
+  });
+
+  it('asks for relative paths, which cannot be placed', async () => {
+    for (const [platform, path] of [
+      ['linux', '.venv/bin/python'],
+      ['darwin', 'python3'],
+      ['win32', '.venv\\Scripts\\python.exe'],
+      // Relative to the current directory of drive C:.
+      ['win32', 'C:python.exe'],
+    ] as const) {
+      const ctx = context({ platform });
+      await expect(checkWorkspaceInterpreter(path, ctx), path).resolves.toBe('notConfirmed');
+      expect(ctx.asked, path).toEqual([path]);
+    }
   });
 });
 

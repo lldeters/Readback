@@ -97,9 +97,13 @@ type WorkspaceContext = Pick<ResolveContext, 'platform' | 'workspaceFolders' | '
  * Whether the path or its real path lies inside a workspace folder, compared with the folders as
  * opened and with their real paths: a venv's python links to a base interpreter outside the
  * workspace, so only its own path shows where it lives, also when the folder was opened through a
- * symlink. Nothing is run.
+ * symlink. Nothing is run. Callers pass absolute paths; a relative one counts as inside, because
+ * resolving it against the extension host's working directory says nothing about where it lives.
  */
 async function liesInsideWorkspace(path: string, context: WorkspaceContext): Promise<boolean> {
+  if (!pathApi(context.platform).isAbsolute(path)) {
+    return true;
+  }
   const real = (file: string): Promise<string> => context.realpath(file).catch(() => file);
   const folders = [
     ...context.workspaceFolders,
