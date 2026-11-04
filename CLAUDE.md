@@ -13,6 +13,9 @@ visualizations; an optional comprehension mode follows in later phases.
   "Hearback – Understand AI-Written Code", command category `Hearback`, settings prefix
   `hearback.`, environment variables `HEARBACK_*`, per-repository work folder `.hearback/`
   ([ADR 010](docs/adr/010-product-name.md) proposes the name; the owner has not confirmed it yet).
+  Every other name that the specification spells with readback uses hearback as well, such as the
+  SQL comment `-- hearback: dialect=…` and the hook script `.hearback/bin/hearback_hook.py`
+  (`hooks/hearback_hook.py` in the repository).
 - Three parts: the extension host (TypeScript, `src/`), a sandboxed Python analysis engine
   (`engine/`, CPython 3.10 or newer, JSON-RPC 2.0 over stdio) and a React webview (`webview/`).
   The contracts are the JSON Schemas in `shared/`.
@@ -165,5 +168,6 @@ Debugging:
 - **Integration tests do not run in the cloud sandbox:** the VS Code download host
   (`vscode.download.prss.microsoft.com`) is blocked there. Rely on CI for them.
 - **The GitHub repository keeps the working title.** Its URL `https://github.com/lldeters/Readback`
-  stays until the owner renames the repository, and so do the slogan "Readback correct." and the
-  aviation term readback; everything else says Hearback ([ADR 010](docs/adr/010-product-name.md)).
+  stays until the owner renames the repository. The slogan "Readback correct." and the aviation
+  term readback in the name story do not depend on that rename and stay; everything else says
+  Hearback ([ADR 010](docs/adr/010-product-name.md)).

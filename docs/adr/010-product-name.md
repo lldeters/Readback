@@ -31,7 +31,7 @@ record becomes Accepted once the owner confirms the name and says whether the sl
 - The product is called **Hearback**. In aviation, pilots read safety-critical clearances back to
   air traffic control (the readback); the controller listens and corrects any mistake (the
   hearback). Hearback takes the controller's part for AI-written code: the AI delivers the code,
-  the developer reads it back through visualizations and checks, and Hearback checks that
+  the developer reads it back through visualizations and checks, and Hearback verifies that
   understanding against static analysis.
 - Every identifier follows: package name `hearback` (extension ID `lldeters.hearback`; the
   publisher stays `lldeters`), display name "Hearback – Understand AI-Written Code" ("Hearback –
@@ -41,12 +41,15 @@ record becomes Accepted once the owner confirms the name and says whether the sl
   properties `--hearback-*` and the boot element `hearback-boot`, environment variables
   `HEARBACK_*`, the engine package `engine/hearback_engine/` with its `hearback.*` loggers, the
   fatal startup line `HEARBACK_ENGINE_FATAL`, the per-repository work folder `.hearback/` and the
-  VSIX that CI builds, `hearback.vsix`.
+  VSIX that CI builds, `hearback.vsix`. Every other name that the specification spells with
+  readback uses hearback as well, for example the side bar "Hearback" (Phase 1), the comment
+  `-- hearback: dialect=…` in SQL files (Phase 2) and the hook script
+  `.hearback/bin/hearback_hook.py`, in the repository `hooks/hearback_hook.py` (Phase 4).
 - **What stays:** the GitHub repository `lldeters/Readback` and its URLs (`repository`, `bugs` and
   `homepage` in `package.json`, the schemas' `$id`, links in the documentation) until the owner
-  renames the repository; the slogan **Readback correct.**, which the controller says after a
-  correct readback and which is exactly Hearback's role; and the aviation term readback where the
-  name story uses it.
+  renames the repository; the slogan **Readback correct.**, the phrase with which the controller
+  may confirm a correct readback and so exactly Hearback's role; and the aviation term readback
+  where the name story uses it.
 - `PROTOCOL_VERSION` and `schemaVersion` stay 1. The fatal startup prefix is a contract between
   `run_engine.py` and the extension, which always ship together, and both sides changed in the
   same commit; the JSON-RPC payloads and the graph schema are unchanged apart from descriptions.

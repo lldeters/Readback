@@ -9,10 +9,10 @@ mode builds on them later: it marks changes you have not yet understood and lets
 with short checks, as strictly as you choose.
 
 The name comes from aviation. Pilots read safety-critical clearances back to air traffic control:
-the readback. The controller listens and corrects any mistake: the hearback. A correct readback
-is confirmed with "readback correct". Hearback takes the controller's part for AI-written code:
-the AI delivers the code, you read it back through visualizations and checks, and Hearback checks
-your understanding against static analysis.
+the readback. The controller listens and corrects any mistake: the hearback. If the readback is
+right, the controller may confirm it with "readback correct". Hearback takes the controller's part
+for AI-written code: the AI delivers the code, you read it back through visualizations and checks,
+and Hearback verifies your understanding against static analysis.
 
 ## Status
 
