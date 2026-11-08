@@ -331,6 +331,7 @@ def test_class_anatomy_needs_no_target(protocol_schema: JsonObject) -> None:
         ("WorkspaceFiles", "files", validation.MAX_WORKSPACE_FILES),
         ("WorkspaceFiles", "overlays", validation.MAX_WORKSPACE_FILES),
         ("WorkspaceFiles", "bases", validation.MAX_WORKSPACE_FILES),
+        ("WorkspaceFiles", "omittedBases", validation.MAX_WORKSPACE_FILES),
         ("WorkspaceBatch", "files", validation.MAX_BATCH_FILES),
         ("WorkspaceBatch", "overlays", validation.MAX_BATCH_FILES),
     ],
@@ -344,6 +345,19 @@ def test_list_limits_agree_with_the_schema(
     assert disagreements(protocol_schema, name, iter(cases)) == []
     assert accepted(CHECKS[name], cases[0])
     assert not accepted(CHECKS[name], cases[1])
+
+
+@pytest.mark.parametrize("key", ["bases", "omittedBases"])
+def test_workspace_bases_need_the_base_revision(protocol_schema: JsonObject, key: str) -> None:
+    example = support.PARAMS_EXAMPLES["WorkspaceFiles"]
+    without = {name: value for name, value in example.items() if name != "baseRevision"}
+    only = {name: value for name, value in without.items() if name in ("root", "files", key)}
+    compared = {"root": "/w", "files": [], "baseRevision": example["baseRevision"]}
+    cases = [without, only, compared, {**compared, key: example[key]}]
+    assert disagreements(protocol_schema, "WorkspaceFiles", iter(cases)) == []
+    assert not accepted(CHECKS["WorkspaceFiles"], only)
+    # A base revision alone compares without any changed file: everything is unchanged.
+    assert accepted(CHECKS["WorkspaceFiles"], compared)
 
 
 def test_scopes_have_the_workspace_limit(protocol_schema: JsonObject) -> None:

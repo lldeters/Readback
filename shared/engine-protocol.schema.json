@@ -271,7 +271,7 @@
     },
     "WorkspaceFiles": {
       "title": "WorkspaceFiles",
-      "description": "The Python files of one workspace folder (at most 5,000).",
+      "description": "The Python files of one workspace folder (at most 5,000), the text of its dirty documents and, when the request compares, the diff base of its changed files. The engine reads every other file itself with its safe reader.",
       "type": "object",
       "additionalProperties": false,
       "required": ["root", "files"],
@@ -282,22 +282,38 @@
           "minLength": 1
         },
         "files": {
-          "description": "Absolute paths of the folder's Python files, filtered by the host.",
+          "description": "Absolute paths of the folder's Python files in the working tree, filtered by the host.",
           "type": "array",
           "maxItems": 5000,
           "items": { "type": "string", "minLength": 1 }
         },
         "overlays": {
+          "description": "The current text of the dirty documents among files.",
           "type": "array",
           "maxItems": 5000,
           "items": { "$ref": "#/$defs/FileOverlay" }
         },
+        "baseRevision": {
+          "description": "The resolved commit SHA of the folder's diff base. When it is set, the request compares: a file with an entry in bases gets its change status from it, a file in omittedBases gets none, and every other file is unchanged; meta.baseRevision repeats it. Required with bases or omittedBases.",
+          "type": "string",
+          "minLength": 1
+        },
         "bases": {
-          "description": "The base versions of changed files, when compared.",
+          "description": "The base versions of the changed files. An entry whose file is not in files is a file deleted in the working tree: its nodes come back as ghosts.",
           "type": "array",
           "maxItems": 5000,
           "items": { "$ref": "#/$defs/FileBase" }
+        },
+        "omittedBases": {
+          "description": "Absolute paths of changed files whose base the host did not send, for example beyond its 16 MB limit for bases: their nodes get no change status, and the result carries changes-partial.",
+          "type": "array",
+          "maxItems": 5000,
+          "items": { "type": "string", "minLength": 1 }
         }
+      },
+      "dependentRequired": {
+        "bases": ["baseRevision"],
+        "omittedBases": ["baseRevision"]
       }
     },
     "WorkspaceBatch": {
@@ -334,7 +350,7 @@
     },
     "ClassAnatomyParams": {
       "title": "ClassAnatomyParams",
-      "description": "python/classAnatomy -> GraphDocument (view classAnatomy) of the whole file, state-matrix data included. It focuses on the class or method named by symbol, else on the one at position, else on none.",
+      "description": "python/classAnatomy -> GraphDocument (view classAnatomy) of the whole file, state-matrix data included, with context cards for base classes in other workspace files. It focuses on the class or method named by symbol, else on the one at position, else on none. base compares the source file, workspace.baseRevision the other files (WorkspaceFiles); for the source file, source.text and base take precedence over its entries in workspace.overlays and workspace.bases.",
       "type": "object",
       "additionalProperties": false,
       "required": ["source"],
@@ -347,13 +363,13 @@
           "minLength": 1
         },
         "base": { "$ref": "#/$defs/BaseVersion" },
-        "workspace": { "$ref": "#/$defs/WorkspaceRoot" },
+        "workspace": { "$ref": "#/$defs/WorkspaceFiles" },
         "options": { "$ref": "#/$defs/AnalysisOptions" }
       }
     },
     "CallGraphParams": {
       "title": "CallGraphParams",
-      "description": "python/callGraph -> GraphDocument (view callGraph): callers and callees of the function or method named by symbol, else of the innermost one at position, over hops levels, across the workspace files. It needs position or symbol.",
+      "description": "python/callGraph -> GraphDocument (view callGraph): callers and callees of the function or method named by symbol, else of the innermost one at position, over hops levels, across the workspace files. It needs position or symbol. base compares the source file, workspace.baseRevision the other files (WorkspaceFiles); for the source file, source.text and base take precedence over its entries in workspace.overlays and workspace.bases.",
       "type": "object",
       "additionalProperties": false,
       "required": ["source", "hops", "direction", "workspace"],
@@ -388,7 +404,7 @@
     },
     "ControlFlowParams": {
       "title": "ControlFlowParams",
-      "description": "python/controlFlow -> GraphDocument (view controlFlow) of the function or method named by symbol, else of the innermost one at position. It needs position or symbol.",
+      "description": "python/controlFlow -> GraphDocument (view controlFlow) of the function or method named by symbol, else of the innermost one at position. It needs position or symbol. The result is compared when base is given.",
       "type": "object",
       "additionalProperties": false,
       "required": ["source"],
@@ -416,7 +432,7 @@
     },
     "ModuleGraphParams": {
       "title": "ModuleGraphParams",
-      "description": "python/moduleGraph -> GraphDocument (view moduleGraph): the import dependencies of the workspace folder.",
+      "description": "python/moduleGraph -> GraphDocument (view moduleGraph): the import dependencies of the workspace folder. The result is compared when workspace.baseRevision is given.",
       "type": "object",
       "additionalProperties": false,
       "required": ["workspace"],

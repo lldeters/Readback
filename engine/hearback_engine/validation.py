@@ -126,7 +126,7 @@ def class_anatomy_params(params: object) -> ClassAnatomyParams:
     if "base" in request:
         result["base"] = base_version(request["base"], "params.base")
     if "workspace" in request:
-        result["workspace"] = workspace_root(request["workspace"], "params.workspace")
+        result["workspace"] = workspace_files(request["workspace"], "params.workspace")
     if "options" in request:
         result["options"] = analysis_options(request["options"], "params.options")
     return result
@@ -296,7 +296,13 @@ def workspace_root(value: object, where: str) -> WorkspaceRoot:
 
 
 def workspace_files(value: object, where: str) -> WorkspaceFiles:
-    item = _object(value, where, ("root", "files"), ("overlays", "bases"))
+    item = _object(
+        value, where, ("root", "files"), ("overlays", "baseRevision", "bases", "omittedBases")
+    )
+    # The schema's dependentRequired: bases and omittedBases only come with a base revision.
+    for key in ("bases", "omittedBases"):
+        if key in item and "baseRevision" not in item:
+            raise invalid_params(f"{where}.baseRevision is required with {where}.{key}")
     result: WorkspaceFiles = {
         "root": _string(item["root"], f"{where}.root"),
         "files": _array(item["files"], f"{where}.files", _string, max_items=MAX_WORKSPACE_FILES),
@@ -305,9 +311,15 @@ def workspace_files(value: object, where: str) -> WorkspaceFiles:
         result["overlays"] = _array(
             item["overlays"], f"{where}.overlays", file_overlay, max_items=MAX_WORKSPACE_FILES
         )
+    if "baseRevision" in item:
+        result["baseRevision"] = _string(item["baseRevision"], f"{where}.baseRevision")
     if "bases" in item:
         result["bases"] = _array(
             item["bases"], f"{where}.bases", file_base, max_items=MAX_WORKSPACE_FILES
+        )
+    if "omittedBases" in item:
+        result["omittedBases"] = _array(
+            item["omittedBases"], f"{where}.omittedBases", _string, max_items=MAX_WORKSPACE_FILES
         )
     return result
 

@@ -147,7 +147,11 @@ class _WorkspaceFilesRequired(TypedDict):
 
 class WorkspaceFiles(_WorkspaceFilesRequired, total=False):
     overlays: list[FileOverlay]
+    # Set when the request compares; required with bases or omittedBases.
+    baseRevision: str
     bases: list[FileBase]
+    # Changed files whose base the host did not send: no change status, changes-partial.
+    omittedBases: list[str]
 
 
 class _WorkspaceBatchRequired(TypedDict):
@@ -168,7 +172,7 @@ class ClassAnatomyParams(_ClassAnatomyParamsRequired, total=False):
     # The id of the symbol to focus on; it takes precedence over position.
     symbol: str
     base: BaseVersion
-    workspace: WorkspaceRoot
+    workspace: WorkspaceFiles
     options: AnalysisOptions
 
 

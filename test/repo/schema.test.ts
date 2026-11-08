@@ -295,6 +295,25 @@ describe('engine protocol schema', () => {
     expect(anatomy({ source, symbol })).toBe(true);
   });
 
+  it('switches comparison on per folder and sends class anatomy the workspace files', () => {
+    const revision = '3f2c1d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e';
+    const files = definition('protocol', 'WorkspaceFiles');
+    const folder = { root: '/w', files: ['/w/a.py', '/w/b.py'] };
+    const bases = [{ file: '/w/gone.py', base: { revision, text: 'x = 1\n' } }];
+    expect(files({ ...folder, baseRevision: revision })).toBe(true);
+    expect(files({ ...folder, baseRevision: revision, bases, omittedBases: ['/w/b.py'] })).toBe(
+      true,
+    );
+    // Bases and omitted bases only come with the revision that switches comparison on.
+    expect(files({ ...folder, bases })).toBe(false);
+    expect(files({ ...folder, omittedBases: ['/w/b.py'] })).toBe(false);
+    expect(files({ ...folder, baseRevision: '' })).toBe(false);
+    const anatomy = definition('protocol', 'ClassAnatomyParams');
+    const source = { file: '/w/a.py' };
+    expect(anatomy({ source, workspace: { ...folder, overlays: [] } })).toBe(true);
+    expect(anatomy({ source, workspace: { root: '/w' } })).toBe(false);
+  });
+
   it('does not reference the graph schema', () => {
     expect(JSON.stringify(protocolSchema)).not.toContain('graph-schema.json#');
     const references = [...JSON.stringify(protocolSchema).matchAll(/"\$ref":"([^"]*)"/g)];

@@ -140,7 +140,9 @@ _FILES: Final = {
     "root": "/w",
     "files": ["/w/a.py", "/w/b.py"],
     "overlays": [_OVERLAY],
+    "baseRevision": _REVISION,
     "bases": [_FILE_BASE],
+    "omittedBases": ["/w/a.py"],
 }
 _BATCH: Final = {"root": "/w", "files": ["/w/a.py", "/w/b.py"], "overlays": [_OVERLAY]}
 
@@ -161,7 +163,7 @@ PARAMS_EXAMPLES: Final[dict[str, JsonObject]] = {
         "position": _POSITION,
         "symbol": _SYMBOL,
         "base": _BASE,
-        "workspace": _ROOT,
+        "workspace": _FILES,
         "options": _OPTIONS,
     },
     "CallGraphParams": {

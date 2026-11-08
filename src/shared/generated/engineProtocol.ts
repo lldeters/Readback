@@ -252,7 +252,7 @@ export interface WorkspaceRoot {
   root: string;
 }
 /**
- * The Python files of one workspace folder (at most 5,000).
+ * The Python files of one workspace folder (at most 5,000), the text of its dirty documents and, when the request compares, the diff base of its changed files. The engine reads every other file itself with its safe reader.
  *
  * This interface was referenced by `EngineProtocol`'s JSON-Schema
  * via the `definition` "WorkspaceFiles".
@@ -263,21 +263,33 @@ export interface WorkspaceFiles {
    */
   root: string;
   /**
-   * Absolute paths of the folder's Python files, filtered by the host.
+   * Absolute paths of the folder's Python files in the working tree, filtered by the host.
    *
    * @maxItems 5000
    */
   files: string[];
   /**
+   * The current text of the dirty documents among files.
+   *
    * @maxItems 5000
    */
   overlays?: FileOverlay[];
   /**
-   * The base versions of changed files, when compared.
+   * The resolved commit SHA of the folder's diff base. When it is set, the request compares: a file with an entry in bases gets its change status from it, a file in omittedBases gets none, and every other file is unchanged; meta.baseRevision repeats it. Required with bases or omittedBases.
+   */
+  baseRevision?: string;
+  /**
+   * The base versions of the changed files. An entry whose file is not in files is a file deleted in the working tree: its nodes come back as ghosts.
    *
    * @maxItems 5000
    */
   bases?: FileBase[];
+  /**
+   * Absolute paths of changed files whose base the host did not send, for example beyond its 16 MB limit for bases: their nodes get no change status, and the result carries changes-partial.
+   *
+   * @maxItems 5000
+   */
+  omittedBases?: string[];
 }
 /**
  * One batch of python/indexFiles.
@@ -302,7 +314,7 @@ export interface WorkspaceBatch {
   overlays?: FileOverlay[];
 }
 /**
- * python/classAnatomy -> GraphDocument (view classAnatomy) of the whole file, state-matrix data included. It focuses on the class or method named by symbol, else on the one at position, else on none.
+ * python/classAnatomy -> GraphDocument (view classAnatomy) of the whole file, state-matrix data included, with context cards for base classes in other workspace files. It focuses on the class or method named by symbol, else on the one at position, else on none. base compares the source file, workspace.baseRevision the other files (WorkspaceFiles); for the source file, source.text and base take precedence over its entries in workspace.overlays and workspace.bases.
  *
  * This interface was referenced by `EngineProtocol`'s JSON-Schema
  * via the `definition` "ClassAnatomyParams".
@@ -315,11 +327,11 @@ export interface ClassAnatomyParams {
    */
   symbol?: string;
   base?: BaseVersion;
-  workspace?: WorkspaceRoot;
+  workspace?: WorkspaceFiles;
   options?: AnalysisOptions;
 }
 /**
- * python/callGraph -> GraphDocument (view callGraph): callers and callees of the function or method named by symbol, else of the innermost one at position, over hops levels, across the workspace files. It needs position or symbol.
+ * python/callGraph -> GraphDocument (view callGraph): callers and callees of the function or method named by symbol, else of the innermost one at position, over hops levels, across the workspace files. It needs position or symbol. base compares the source file, workspace.baseRevision the other files (WorkspaceFiles); for the source file, source.text and base take precedence over its entries in workspace.overlays and workspace.bases.
  *
  * This interface was referenced by `EngineProtocol`'s JSON-Schema
  * via the `definition` "CallGraphParams".
@@ -341,7 +353,7 @@ export interface CallGraphParams {
   options?: AnalysisOptions;
 }
 /**
- * python/controlFlow -> GraphDocument (view controlFlow) of the function or method named by symbol, else of the innermost one at position. It needs position or symbol.
+ * python/controlFlow -> GraphDocument (view controlFlow) of the function or method named by symbol, else of the innermost one at position. It needs position or symbol. The result is compared when base is given.
  *
  * This interface was referenced by `EngineProtocol`'s JSON-Schema
  * via the `definition` "ControlFlowParams".
@@ -358,7 +370,7 @@ export interface ControlFlowParams {
   options?: AnalysisOptions;
 }
 /**
- * python/moduleGraph -> GraphDocument (view moduleGraph): the import dependencies of the workspace folder.
+ * python/moduleGraph -> GraphDocument (view moduleGraph): the import dependencies of the workspace folder. The result is compared when workspace.baseRevision is given.
  *
  * This interface was referenced by `EngineProtocol`'s JSON-Schema
  * via the `definition` "ModuleGraphParams".
