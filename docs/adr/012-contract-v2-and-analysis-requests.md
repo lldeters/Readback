@@ -108,9 +108,12 @@ are `TextPosition`, `SourceFile`, `BaseVersion` (`text` is null for a file the b
   reads every other file itself with its safe reader.
 - `diff/compare` without a base returns the outline of the file, which covers the spec's
   `python/analyzeFile`.
-- Analysis problems are diagnostics in the result. JSON-RPC errors mean only invalid params
-  (-32602), cancellation (-32800) or an internal error (-32603). The engine sends no notifications
-  to the host in 0.1.0.
+- Analysis problems are diagnostics in the result, never JSON-RPC errors. Besides the lifecycle
+  errors of [ADR 005](005-engine-protocol.md) (-32002 before `engine/initialize`, -32600 after
+  `engine/shutdown`, and -32601 for a method the engine does not implement yet, which matters
+  while Phase 1 adds the requests package by package), an analysis request fails only with invalid
+  params (-32602), cancellation (-32800) or an internal error (-32603). The engine sends no
+  notifications to the host in 0.1.0.
 
 **Method order.** `Methods` in `src/engine/protocol.ts`, `Method` in
 `engine/hearback_engine/protocol.py` and `MethodTable.names()` list `engine/initialize`,
