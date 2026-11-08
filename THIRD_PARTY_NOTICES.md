@@ -79,7 +79,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### @xyflow/react 12.12.0
+### @xyflow/react 12.12.1
 
 - License: MIT
 - Source: https://github.com/xyflow/xyflow
@@ -111,7 +111,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### @xyflow/system 0.0.83
+### @xyflow/system 0.0.84
 
 - License: MIT
 - Source: https://github.com/xyflow/xyflow
@@ -161,7 +161,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### d3-color 3.1.0
+### d3-color 3.1.1
 
 - License: ISC
 - Source: https://github.com/d3/d3-color
@@ -170,7 +170,7 @@ THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 `LICENSE`:
 
 ```text
-Copyright 2010-2022 Mike Bostock
+Copyright 2010-2026 Mike Bostock
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
@@ -185,7 +185,7 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ```
 
-### d3-dispatch 3.0.1
+### d3-dispatch 3.0.2
 
 - License: ISC
 - Source: https://github.com/d3/d3-dispatch
@@ -194,7 +194,7 @@ THIS SOFTWARE.
 `LICENSE`:
 
 ```text
-Copyright 2010-2021 Mike Bostock
+Copyright 2010-2026 Mike Bostock
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
@@ -209,7 +209,7 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ```
 
-### d3-drag 3.0.0
+### d3-drag 3.0.1
 
 - License: ISC
 - Source: https://github.com/d3/d3-drag
@@ -218,7 +218,7 @@ THIS SOFTWARE.
 `LICENSE`:
 
 ```text
-Copyright 2010-2021 Mike Bostock
+Copyright 2010-2026 Mike Bostock
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
@@ -233,7 +233,7 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ```
 
-### d3-ease 3.0.1
+### d3-ease 3.0.2
 
 - License: BSD-3-Clause
 - Source: https://github.com/d3/d3-ease
@@ -242,7 +242,7 @@ THIS SOFTWARE.
 `LICENSE`:
 
 ```text
-Copyright 2010-2021 Mike Bostock
+Copyright 2010-2026 Mike Bostock
 Copyright 2001 Robert Penner
 All rights reserved.
 
@@ -272,7 +272,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### d3-interpolate 3.0.1
+### d3-interpolate 3.0.2
 
 - License: ISC
 - Source: https://github.com/d3/d3-interpolate
@@ -281,7 +281,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 `LICENSE`:
 
 ```text
-Copyright 2010-2021 Mike Bostock
+Copyright 2010-2026 Mike Bostock
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
@@ -296,7 +296,7 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ```
 
-### d3-selection 3.0.0
+### d3-selection 3.0.1
 
 - License: ISC
 - Source: https://github.com/d3/d3-selection
@@ -305,7 +305,7 @@ THIS SOFTWARE.
 `LICENSE`:
 
 ```text
-Copyright 2010-2021 Mike Bostock
+Copyright 2010-2026 Mike Bostock
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
@@ -320,7 +320,7 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ```
 
-### d3-timer 3.0.1
+### d3-timer 3.0.2
 
 - License: ISC
 - Source: https://github.com/d3/d3-timer
@@ -329,7 +329,7 @@ THIS SOFTWARE.
 `LICENSE`:
 
 ```text
-Copyright 2010-2021 Mike Bostock
+Copyright 2010-2026 Mike Bostock
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
@@ -344,7 +344,7 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ```
 
-### d3-transition 3.0.1
+### d3-transition 3.0.2
 
 - License: ISC
 - Source: https://github.com/d3/d3-transition
@@ -353,7 +353,7 @@ THIS SOFTWARE.
 `LICENSE`:
 
 ```text
-Copyright 2010-2021 Mike Bostock
+Copyright 2010-2026 Mike Bostock
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
@@ -368,7 +368,7 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ```
 
-### d3-zoom 3.0.0
+### d3-zoom 3.0.1
 
 - License: ISC
 - Source: https://github.com/d3/d3-zoom
@@ -377,7 +377,7 @@ THIS SOFTWARE.
 `LICENSE`:
 
 ```text
-Copyright 2010-2021 Mike Bostock
+Copyright 2010-2026 Mike Bostock
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
