@@ -26,7 +26,7 @@ import type {
   SetLogLevelParams,
 } from '../shared/generated/engineProtocol';
 import { errorMessage, safeLogger, type Logger } from '../util/log';
-import { EngineExitCodes, ErrorCodes, Methods, PROTOCOL_VERSION } from './protocol';
+import { EngineExitCodes, ErrorCodes, Methods, PROTOCOL_VERSION, SCHEMA_VERSION } from './protocol';
 import { StderrParser, type StderrRecord } from './stderrLog';
 
 export const InitializeRequest = new RequestType<
@@ -332,6 +332,14 @@ export class EngineConnection {
         throw new EngineStartFailure(
           'protocolMismatch',
           `Engine protocol ${String(result.protocolVersion)} does not match ${String(PROTOCOL_VERSION)}.`,
+        );
+      }
+      // A schema-only bump changes no message of the protocol, but every result.
+      if (result.schemaVersion !== SCHEMA_VERSION) {
+        kill();
+        throw new EngineStartFailure(
+          'protocolMismatch',
+          `Engine graph schema ${String(result.schemaVersion)} does not match ${String(SCHEMA_VERSION)}.`,
         );
       }
       logger.info(

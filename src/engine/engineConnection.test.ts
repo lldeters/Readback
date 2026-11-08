@@ -12,6 +12,7 @@ import {
   timerSafeTimeout,
   type EngineLaunchOptions,
 } from './engineConnection';
+import { SCHEMA_VERSION } from './protocol';
 
 const fakeEngine = fileURLToPath(new URL('../../test/fixtures/fakeEngine.cjs', import.meta.url));
 
@@ -166,6 +167,14 @@ describe('EngineConnection', () => {
   it('rejects a protocol mismatch', async () => {
     const failure = await launch('wrong-protocol').started.catch((error: unknown) => error);
     expect(failure).toMatchObject({ kind: 'protocolMismatch' });
+  });
+
+  it('rejects an engine with another graph schema version', async () => {
+    const failure = await launch('wrong-schema').started.catch((error: unknown) => error);
+    expect(failure).toMatchObject({
+      kind: 'protocolMismatch',
+      message: `Engine graph schema 1 does not match ${String(SCHEMA_VERSION)}.`,
+    });
   });
 
   it('reports spawn errors', async () => {

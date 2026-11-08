@@ -1,6 +1,6 @@
 // Versions and protocol constants that live in more than one place must agree.
 import { describe, expect, it } from 'vitest';
-import { MIN_PYTHON, PROTOCOL_VERSION } from '../../src/engine/protocol';
+import { MIN_PYTHON, PROTOCOL_VERSION, SCHEMA_VERSION } from '../../src/engine/protocol';
 import { asRecord, readJson, readText } from './helpers';
 
 const manifest = asRecord(readJson('package.json'));
@@ -28,14 +28,15 @@ describe('version consistency', () => {
     expect(Number(pythonConstant('PROTOCOL_VERSION'))).toBe(PROTOCOL_VERSION);
   });
 
-  it('graph schema version matches the engine', () => {
+  it('graph schema version matches between the schema, TypeScript and Python', () => {
     const schema = asRecord(readJson('shared/graph-schema.json'));
     const schemaVersion = asRecord(asRecord(schema.properties).schemaVersion).const;
     expect(Number(pythonConstant('SCHEMA_VERSION'))).toBe(schemaVersion);
+    expect(SCHEMA_VERSION).toBe(schemaVersion);
   });
 
   it('is at contract v2: protocol version 2 and graph schema version 2 (ADR 012)', () => {
-    expect(PROTOCOL_VERSION).toBe(2);
+    expect([PROTOCOL_VERSION, SCHEMA_VERSION]).toEqual([2, 2]);
     const schema = asRecord(readJson('shared/graph-schema.json'));
     const defs = asRecord(schema.$defs);
     const versions = [

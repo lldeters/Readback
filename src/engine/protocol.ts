@@ -6,6 +6,12 @@
 export const PROTOCOL_VERSION = 2;
 
 /**
+ * The schemaVersion of shared/graph-schema.json that this extension reads (SCHEMA_VERSION in
+ * engine/hearback_engine/__init__.py). The handshake refuses an engine that reports another one.
+ */
+export const SCHEMA_VERSION = 2;
+
+/**
  * Request and notification names, in the order fixed by ADR 012: engine/initialize, engine/ping,
  * engine/shutdown, python/classAnatomy, python/callGraph, python/controlFlow, python/moduleGraph,
  * python/indexFiles and diff/compare, then the notifications engine/exit and engine/setLogLevel

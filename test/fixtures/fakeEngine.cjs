@@ -37,7 +37,7 @@ if (scenario === 'silent') {
     return {
       engineVersion: '0.0.1',
       protocolVersion: scenario === 'wrong-protocol' ? 99 : params.protocolVersion,
-      schemaVersion: 1,
+      schemaVersion: scenario === 'wrong-schema' ? 1 : 2,
       python: {
         version: '3.12.3',
         versionInfo: { major: 3, minor: 12, micro: 3, releaseLevel: 'final', serial: 0 },
