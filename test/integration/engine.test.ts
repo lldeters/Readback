@@ -39,7 +39,8 @@ suite('Engine', function () {
       JSON.stringify(validateInitializeResult.errors),
     );
     assert.strictEqual(status.engine.engineVersion, packageVersion());
-    assert.strictEqual(status.engine.protocolVersion, 1);
+    assert.strictEqual(status.engine.protocolVersion, 2);
+    assert.strictEqual(status.engine.schemaVersion, 2);
     assert.strictEqual(status.engine.sandboxed, true);
     assert.strictEqual(typeof status.pingMs, 'number');
     // CI vendors the packages before the tests; a plain checkout may not have them yet.

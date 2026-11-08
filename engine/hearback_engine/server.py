@@ -1,6 +1,6 @@
 """The engine process: claims stdio, checks the sandbox, and serves the engine/* methods.
 
-Lifecycle (protocol version 1, LSP-like): engine/initialize must be the first request;
+Lifecycle (LSP-like): engine/initialize must be the first request;
 engine/shutdown makes every later request fail; the engine/exit notification or the end of input
 ends the process with code 0 after a shutdown and 1 otherwise.
 """

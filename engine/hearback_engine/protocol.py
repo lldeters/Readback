@@ -16,6 +16,8 @@ from typing import Literal, TypedDict
 LogLevel = Literal["trace", "debug", "info", "warning", "error", "off"]
 ReleaseLevel = Literal["alpha", "beta", "candidate", "final"]
 FatalErrorCode = Literal["python-too-old", "bootstrap-failed"]
+CallDirection = Literal["outgoing", "incoming", "both"]
+SourceLanguage = Literal["python"]
 
 
 # --- Payloads ($defs of the schema) -----------------------------------------------------------
@@ -35,6 +37,8 @@ class _InitializeParamsRequired(TypedDict):
 
 class InitializeParams(_InitializeParamsRequired, total=False):
     locale: str
+    # An absolute directory owned by Hearback; the engine keeps Jedi's cache in it.
+    storageDirectory: str
 
 
 class VersionInfo(TypedDict):
@@ -81,6 +85,146 @@ class SetLogLevelParams(TypedDict):
     level: LogLevel
 
 
+# --- Params of the analysis requests ----------------------------------------------------------
+# Their results (GraphDocument, ChangeSummary, IndexResult) are in hearback_engine.graph.
+
+
+class TextPosition(TypedDict):
+    line: int
+    character: int
+
+
+class _SourceFileRequired(TypedDict):
+    file: str
+
+
+class SourceFile(_SourceFileRequired, total=False):
+    # The text of a dirty document; without it the engine reads the file itself.
+    text: str
+
+
+class _BaseVersionRequired(TypedDict):
+    revision: str
+    # None when the file does not exist in the base version (an added file).
+    text: str | None
+
+
+class BaseVersion(_BaseVersionRequired, total=False):
+    # The path in the base version, when it differs (a renamed file).
+    file: str
+
+
+class FileOverlay(TypedDict):
+    file: str
+    text: str
+
+
+class FileBase(TypedDict):
+    file: str
+    base: BaseVersion
+
+
+class RulesSource(TypedDict):
+    path: str
+    text: str
+
+
+class AnalysisOptions(TypedDict, total=False):
+    useJedi: bool
+    maxNodes: int
+    sideEffectRules: RulesSource
+
+
+class WorkspaceRoot(TypedDict):
+    root: str
+
+
+class _WorkspaceFilesRequired(TypedDict):
+    root: str
+    files: list[str]
+
+
+class WorkspaceFiles(_WorkspaceFilesRequired, total=False):
+    overlays: list[FileOverlay]
+    bases: list[FileBase]
+
+
+class _WorkspaceBatchRequired(TypedDict):
+    root: str
+    files: list[str]
+
+
+class WorkspaceBatch(_WorkspaceBatchRequired, total=False):
+    overlays: list[FileOverlay]
+
+
+class _ClassAnatomyParamsRequired(TypedDict):
+    source: SourceFile
+
+
+class ClassAnatomyParams(_ClassAnatomyParamsRequired, total=False):
+    position: TextPosition
+    base: BaseVersion
+    workspace: WorkspaceRoot
+    options: AnalysisOptions
+
+
+class _CallGraphParamsRequired(TypedDict):
+    source: SourceFile
+    position: TextPosition
+    hops: int
+    direction: CallDirection
+    workspace: WorkspaceFiles
+
+
+class CallGraphParams(_CallGraphParamsRequired, total=False):
+    base: BaseVersion
+    options: AnalysisOptions
+
+
+class _ControlFlowParamsRequired(TypedDict):
+    source: SourceFile
+    position: TextPosition
+
+
+class ControlFlowParams(_ControlFlowParamsRequired, total=False):
+    base: BaseVersion
+    workspace: WorkspaceRoot
+    options: AnalysisOptions
+
+
+class _ModuleGraphParamsRequired(TypedDict):
+    workspace: WorkspaceFiles
+
+
+class ModuleGraphParams(_ModuleGraphParamsRequired, total=False):
+    scopes: list[str]
+    focusFile: str
+    options: AnalysisOptions
+
+
+class _IndexFilesParamsRequired(TypedDict):
+    workspace: WorkspaceBatch
+
+
+class IndexFilesParams(_IndexFilesParamsRequired, total=False):
+    options: AnalysisOptions
+
+
+class _DiffCompareParamsRequired(TypedDict):
+    language: SourceLanguage
+    source: SourceFile
+
+
+class DiffCompareParams(_DiffCompareParamsRequired, total=False):
+    base: BaseVersion
+    workspace: WorkspaceRoot
+    options: AnalysisOptions
+
+
+# --- Errors -----------------------------------------------------------------------------------
+
+
 class _EngineErrorDataRequired(TypedDict):
     kind: str
 
@@ -103,7 +247,13 @@ class FatalStartupError(_FatalStartupErrorRequired, total=False):
 
 
 class Method:
-    """Request and notification names (TS: ``Methods``)."""
+    """Request and notification names (TS: ``Methods``).
+
+    ADR 012 fixes their order: engine/initialize, engine/ping, engine/shutdown,
+    python/classAnatomy, python/callGraph, python/controlFlow, python/moduleGraph,
+    python/indexFiles and diff/compare, then the notifications engine/exit and
+    engine/setLogLevel. Each analysis request is added together with its handler.
+    """
 
     INITIALIZE = "engine/initialize"
     PING = "engine/ping"

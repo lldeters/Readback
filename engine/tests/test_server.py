@@ -38,7 +38,7 @@ def test_initialize_reports_the_engine(engine: EngineHarness) -> None:
     result = engine.initialize()
     assert result == {
         "engineVersion": ENGINE_VERSION,
-        "protocolVersion": 1,
+        "protocolVersion": 2,
         "schemaVersion": 2,
         "python": runtime_info.python_info(),
         "vendored": runtime_info.vendored_packages(support.VENDOR_DIR),
@@ -54,6 +54,11 @@ def test_initialize_keeps_the_client_settings(engine: EngineHarness) -> None:
     assert engine.engine.workspace_trusted is False
     assert engine.engine.locale == "de"
     assert logging.getLogger().level == logging.DEBUG
+
+
+def test_initialize_accepts_a_storage_directory(engine: EngineHarness) -> None:
+    result = engine.initialize(storageDirectory="/home/u/globalStorage/lldeters.hearback/engine")
+    assert result["protocolVersion"] == 2
 
 
 @pytest.mark.parametrize("method", ["engine/ping", "engine/shutdown", "engine/unknown"])
@@ -79,11 +84,12 @@ def test_second_initialize_is_rejected(initialized: EngineHarness) -> None:
     assert_error(response, ErrorCode.INVALID_REQUEST, ErrorKind.ALREADY_INITIALIZED)
 
 
-def test_protocol_mismatch(engine: EngineHarness) -> None:
-    params = support.initialize_params(protocolVersion=2, futureField=True)
+@pytest.mark.parametrize("version", [1, 3])
+def test_protocol_mismatch(engine: EngineHarness, version: int) -> None:
+    params = support.initialize_params(protocolVersion=version, futureField=True)
     response = engine.call("engine/initialize", params, id=3)
     assert_error(response, ErrorCode.INVALID_PARAMS, ErrorKind.PROTOCOL_MISMATCH)
-    assert response["error"]["data"]["detail"] == "client 2, engine 1"
+    assert response["error"]["data"]["detail"] == f"client {version}, engine 2"
     # Not initialized: a correct initialize still works.
     engine.initialize()
 
@@ -94,7 +100,7 @@ def test_protocol_mismatch(engine: EngineHarness) -> None:
         (None, "engine/initialize expects an object"),
         ([1], "engine/initialize expects an object"),
         (support.initialize_params(client=None), "params.client must be an object"),
-        ({"protocolVersion": 1}, "params.client is required"),
+        ({"protocolVersion": 2}, "params.client is required"),
         (support.initialize_params(extra=1), "params has an unknown property 'extra'"),
         (support.initialize_params(client={"name": ""}), "params.client.version is required"),
         (
@@ -110,6 +116,10 @@ def test_protocol_mismatch(engine: EngineHarness) -> None:
         (support.initialize_params(protocolVersion=True), "params.protocolVersion must be"),
         (support.initialize_params(protocolVersion="1"), "params.protocolVersion must be"),
         (support.initialize_params(locale=5), "params.locale must be a string"),
+        (
+            support.initialize_params(storageDirectory=""),
+            "params.storageDirectory must be a non-empty string",
+        ),
     ],
 )
 def test_invalid_initialize_params(engine: EngineHarness, params: object, detail: str) -> None:
@@ -249,7 +259,7 @@ def test_main_serves_a_session(monkeypatch: pytest.MonkeyPatch) -> None:
     assert [response["id"] for response in responses] == [1, 2, 3]
     assert responses[0]["result"]["sandboxed"] is True
     records = support.assert_log_lines(fake.stderr.getvalue())
-    assert records[0].startswith(f"[info] Hearback engine {ENGINE_VERSION} (protocol 1) on ")
+    assert records[0].startswith(f"[info] Hearback engine {ENGINE_VERSION} (protocol 2) on ")
 
 
 def test_main_reports_setup_failures_as_bootstrap_failed(monkeypatch: pytest.MonkeyPatch) -> None:

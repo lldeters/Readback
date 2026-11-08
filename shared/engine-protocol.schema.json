@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/lldeters/Readback/blob/main/shared/engine-protocol.schema.json",
   "title": "EngineProtocol",
-  "description": "Payloads of the JSON-RPC 2.0 protocol between the extension host and the analysis engine over stdio (Content-Length framing, UTF-8). Methods (protocol version 1): request engine/initialize (InitializeParams -> InitializeResult, must come first), request engine/ping (no params -> PingResult), request engine/shutdown (no params -> null), notification engine/exit (process exits), notification engine/setLogLevel (SetLogLevelParams), notification $/cancelRequest ({id}). See docs/architecture.md for error codes.",
+  "description": "Payloads of the JSON-RPC 2.0 protocol between the extension host and the analysis engine over stdio (Content-Length framing, UTF-8). Methods (protocol version 2): request engine/initialize (InitializeParams -> InitializeResult, must come first), request engine/ping (no params -> PingResult), request engine/shutdown (no params -> null), notification engine/exit (process exits), notification engine/setLogLevel (SetLogLevelParams), notification $/cancelRequest ({id}). Analysis requests, each listed in InitializeResult.capabilities.methods once the engine implements it: python/classAnatomy (ClassAnatomyParams), python/callGraph (CallGraphParams), python/controlFlow (ControlFlowParams) and python/moduleGraph (ModuleGraphParams) -> GraphDocument; python/indexFiles (IndexFilesParams) -> IndexResult; diff/compare (DiffCompareParams) -> ChangeSummary. The results are defined in graph-schema.json; this schema does not reference it. Analysis problems are diagnostics in the result; JSON-RPC errors only mean invalid params, cancellation or an internal error. See docs/architecture.md for error codes.",
   "type": "object",
   "$defs": {
     "LogLevel": {
@@ -30,7 +30,12 @@
         "client": { "$ref": "#/$defs/ClientInfo" },
         "logLevel": { "$ref": "#/$defs/LogLevel" },
         "workspaceTrusted": { "type": "boolean" },
-        "locale": { "type": "string" }
+        "locale": { "type": "string" },
+        "storageDirectory": {
+          "description": "An absolute directory owned by Hearback (the extension's global storage, engine/), created by the host; the engine keeps Jedi's cache in it.",
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "VersionInfo": {
@@ -129,6 +134,298 @@
       "required": ["level"],
       "properties": {
         "level": { "$ref": "#/$defs/LogLevel" }
+      }
+    },
+    "TextPosition": {
+      "title": "TextPosition",
+      "description": "Zero-based line and UTF-16 code unit offset within the line, like Position in graph-schema.json.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line", "character"],
+      "properties": {
+        "line": { "type": "integer", "minimum": 0 },
+        "character": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "SourceFile": {
+      "title": "SourceFile",
+      "description": "The file to analyze.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file"],
+      "properties": {
+        "file": {
+          "description": "Absolute path of the file; every Range.file of the result repeats it exactly.",
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "description": "The editor's current text of a dirty document. Without it the engine reads the file itself with its safe reader.",
+          "type": "string"
+        }
+      }
+    },
+    "BaseVersion": {
+      "title": "BaseVersion",
+      "description": "The diff base of a file, read by the host from Git.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision", "text"],
+      "properties": {
+        "revision": {
+          "description": "The resolved commit SHA of the diff base.",
+          "type": "string",
+          "minLength": 1
+        },
+        "file": {
+          "description": "Absolute path of the file in the base version, when it differs (a renamed file).",
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "description": "The file's text in the base version, or null when the file does not exist there (an added file).",
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "FileOverlay": {
+      "title": "FileOverlay",
+      "description": "The current text of a dirty document; it takes precedence over the file on disk.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "text"],
+      "properties": {
+        "file": {
+          "description": "Absolute path of the document.",
+          "type": "string",
+          "minLength": 1
+        },
+        "text": { "type": "string" }
+      }
+    },
+    "FileBase": {
+      "title": "FileBase",
+      "description": "The diff base of one workspace file.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "base"],
+      "properties": {
+        "file": {
+          "description": "Absolute path of the file in the working tree; for a deleted file, its last path.",
+          "type": "string",
+          "minLength": 1
+        },
+        "base": { "$ref": "#/$defs/BaseVersion" }
+      }
+    },
+    "RulesSource": {
+      "title": "RulesSource",
+      "description": "The side-effect rules file of hearback.sideEffects.rulesFile.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "text"],
+      "properties": {
+        "path": {
+          "description": "Absolute path of the rules file, for messages.",
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "description": "The file's text, read by the host (at most 1 MiB).",
+          "type": "string"
+        }
+      }
+    },
+    "AnalysisOptions": {
+      "title": "AnalysisOptions",
+      "description": "Settings that shape an analysis.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "useJedi": {
+          "description": "Resolution step 3 (Jedi) for obj.method() calls in python/callGraph; hearback.engine.useJedi, default true.",
+          "type": "boolean"
+        },
+        "maxNodes": {
+          "description": "hearback.graph.maxNodes, default 300: the engine cuts the graph at 10 × maxNodes, at most 10,000 nodes, and sets meta.truncated.",
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 5000
+        },
+        "sideEffectRules": { "$ref": "#/$defs/RulesSource" }
+      }
+    },
+    "WorkspaceRoot": {
+      "title": "WorkspaceRoot",
+      "description": "The workspace folder of a single-file analysis.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root"],
+      "properties": {
+        "root": {
+          "description": "Absolute path of the workspace folder: the source root for module names and imports.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "WorkspaceFiles": {
+      "title": "WorkspaceFiles",
+      "description": "The Python files of one workspace folder (at most 5,000).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "files"],
+      "properties": {
+        "root": {
+          "description": "Absolute path of the workspace folder.",
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "description": "Absolute paths of the folder's Python files, filtered by the host.",
+          "type": "array",
+          "maxItems": 5000,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "overlays": {
+          "type": "array",
+          "maxItems": 5000,
+          "items": { "$ref": "#/$defs/FileOverlay" }
+        },
+        "bases": {
+          "description": "The base versions of changed files, when compared.",
+          "type": "array",
+          "maxItems": 5000,
+          "items": { "$ref": "#/$defs/FileBase" }
+        }
+      }
+    },
+    "WorkspaceBatch": {
+      "title": "WorkspaceBatch",
+      "description": "One batch of python/indexFiles.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "files"],
+      "properties": {
+        "root": {
+          "description": "Absolute path of the workspace folder.",
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "description": "Absolute paths of the files of this batch; the host sends at most 250 files or 4 MB.",
+          "type": "array",
+          "maxItems": 500,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "overlays": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/FileOverlay" } }
+      }
+    },
+    "CallDirection": {
+      "title": "CallDirection",
+      "description": "outgoing: the callees; incoming: the callers; both.",
+      "type": "string",
+      "enum": ["outgoing", "incoming", "both"]
+    },
+    "SourceLanguage": {
+      "title": "SourceLanguage",
+      "type": "string",
+      "enum": ["python"]
+    },
+    "ClassAnatomyParams": {
+      "title": "ClassAnatomyParams",
+      "description": "python/classAnatomy -> GraphDocument (view classAnatomy) of the whole file, state-matrix data included, focused on the class or method at position.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "properties": {
+        "source": { "$ref": "#/$defs/SourceFile" },
+        "position": { "$ref": "#/$defs/TextPosition" },
+        "base": { "$ref": "#/$defs/BaseVersion" },
+        "workspace": { "$ref": "#/$defs/WorkspaceRoot" },
+        "options": { "$ref": "#/$defs/AnalysisOptions" }
+      }
+    },
+    "CallGraphParams": {
+      "title": "CallGraphParams",
+      "description": "python/callGraph -> GraphDocument (view callGraph): callers and callees of the function at position over hops levels, across the workspace files.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "position", "hops", "direction", "workspace"],
+      "properties": {
+        "source": { "$ref": "#/$defs/SourceFile" },
+        "position": { "$ref": "#/$defs/TextPosition" },
+        "hops": {
+          "description": "How many call levels to follow (hearback.graph.defaultHops, default 2).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "direction": { "$ref": "#/$defs/CallDirection" },
+        "workspace": { "$ref": "#/$defs/WorkspaceFiles" },
+        "base": { "$ref": "#/$defs/BaseVersion" },
+        "options": { "$ref": "#/$defs/AnalysisOptions" }
+      }
+    },
+    "ControlFlowParams": {
+      "title": "ControlFlowParams",
+      "description": "python/controlFlow -> GraphDocument (view controlFlow) of the innermost function at position.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "position"],
+      "properties": {
+        "source": { "$ref": "#/$defs/SourceFile" },
+        "position": { "$ref": "#/$defs/TextPosition" },
+        "base": { "$ref": "#/$defs/BaseVersion" },
+        "workspace": { "$ref": "#/$defs/WorkspaceRoot" },
+        "options": { "$ref": "#/$defs/AnalysisOptions" }
+      }
+    },
+    "ModuleGraphParams": {
+      "title": "ModuleGraphParams",
+      "description": "python/moduleGraph -> GraphDocument (view moduleGraph): the import dependencies of the workspace folder.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace"],
+      "properties": {
+        "workspace": { "$ref": "#/$defs/WorkspaceFiles" },
+        "scopes": {
+          "description": "Absolute paths of the folders selected in the Explorer; without them the whole workspace folder.",
+          "type": "array",
+          "maxItems": 5000,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "focusFile": {
+          "description": "Absolute path of the file whose module the graph focuses on.",
+          "type": "string",
+          "minLength": 1
+        },
+        "options": { "$ref": "#/$defs/AnalysisOptions" }
+      }
+    },
+    "IndexFilesParams": {
+      "title": "IndexFilesParams",
+      "description": "python/indexFiles -> IndexResult: fills the engine's per-file summaries for one batch.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace"],
+      "properties": {
+        "workspace": { "$ref": "#/$defs/WorkspaceBatch" },
+        "options": { "$ref": "#/$defs/AnalysisOptions" }
+      }
+    },
+    "DiffCompareParams": {
+      "title": "DiffCompareParams",
+      "description": "diff/compare -> ChangeSummary: the change status of every symbol against the base and the line hunks; without a base, the outline of the file.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["language", "source"],
+      "properties": {
+        "language": { "$ref": "#/$defs/SourceLanguage" },
+        "source": { "$ref": "#/$defs/SourceFile" },
+        "base": { "$ref": "#/$defs/BaseVersion" },
+        "workspace": { "$ref": "#/$defs/WorkspaceRoot" },
+        "options": { "$ref": "#/$defs/AnalysisOptions" }
       }
     },
     "EngineErrorData": {

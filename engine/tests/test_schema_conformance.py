@@ -349,7 +349,12 @@ def test_real_engine_outputs_validate(harness: EngineHarness, protocol_schema: J
 
 def test_engine_params_examples_validate(protocol_schema: JsonObject) -> None:
     support.assert_valid(protocol_schema, "InitializeParams", support.initialize_params())
+    support.assert_valid(
+        protocol_schema, "InitializeParams", support.initialize_params(storageDirectory="/s/e")
+    )
     support.assert_valid(protocol_schema, "SetLogLevelParams", {"level": "trace"})
+    for name, example in support.PARAMS_EXAMPLES.items():
+        support.assert_valid(protocol_schema, name, example)
 
 
 def test_graph_constructors_produce_valid_documents(graph_schema: JsonObject) -> None:

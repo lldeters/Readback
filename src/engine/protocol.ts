@@ -3,8 +3,15 @@
 // engine/hearback_engine/protocol.py (test/repo/versions.test.ts keeps both in sync).
 
 /** Bump on every incompatible protocol change (and in engine/hearback_engine/__init__.py). */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
+/**
+ * Request and notification names, in the order fixed by ADR 012: engine/initialize, engine/ping,
+ * engine/shutdown, python/classAnatomy, python/callGraph, python/controlFlow, python/moduleGraph,
+ * python/indexFiles and diff/compare, then the notifications engine/exit and engine/setLogLevel
+ * (requests first, as the engine's MethodTable.names() lists them). Each analysis request is added
+ * together with its engine handler.
+ */
 export const Methods = {
   initialize: 'engine/initialize',
   ping: 'engine/ping',

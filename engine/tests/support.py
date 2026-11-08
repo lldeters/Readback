@@ -17,6 +17,7 @@ from typing import Any, Final, cast
 
 from jsonschema import Draft202012Validator
 
+from hearback_engine import PROTOCOL_VERSION
 from hearback_engine.server import Engine
 
 ENGINE_DIR: Final = Path(__file__).resolve().parent.parent
@@ -113,7 +114,7 @@ def notification(method: str, params: object = _MISSING) -> JsonObject:
 
 def initialize_params(**overrides: object) -> JsonObject:
     params: JsonObject = {
-        "protocolVersion": 1,
+        "protocolVersion": PROTOCOL_VERSION,
         "client": {"name": "pytest", "version": "1.0"},
         "logLevel": "info",
         "workspaceTrusted": True,
@@ -121,6 +122,77 @@ def initialize_params(**overrides: object) -> JsonObject:
     }
     params.update(overrides)
     return params
+
+
+# --- Params of the analysis requests ----------------------------------------------------------
+
+_REVISION: Final = "3f2c1d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e"
+_POSITION: Final = {"line": 17, "character": 8}
+_SOURCE: Final = {"file": "/w/retrying_client.py", "text": "class A:\n    pass\n"}
+_BASE: Final = {"revision": _REVISION, "file": "/w/old_client.py", "text": "class A:\n    x = 1\n"}
+_OVERLAY: Final = {"file": "/w/b.py", "text": "import a\n"}
+_FILE_BASE: Final = {"file": "/w/b.py", "base": {"revision": _REVISION, "text": None}}
+_RULES: Final = {"path": "/w/hearback-rules.json", "text": '{"version": 1, "rules": []}'}
+_OPTIONS: Final = {"useJedi": False, "maxNodes": 300, "sideEffectRules": _RULES}
+_ROOT: Final = {"root": "/w"}
+_FILES: Final = {
+    "root": "/w",
+    "files": ["/w/a.py", "/w/b.py"],
+    "overlays": [_OVERLAY],
+    "bases": [_FILE_BASE],
+}
+_BATCH: Final = {"root": "/w", "files": ["/w/a.py", "/w/b.py"], "overlays": [_OVERLAY]}
+
+# One valid instance, with every optional key, of each params def of the analysis requests.
+PARAMS_EXAMPLES: Final[dict[str, JsonObject]] = {
+    "TextPosition": _POSITION,
+    "SourceFile": _SOURCE,
+    "BaseVersion": _BASE,
+    "FileOverlay": _OVERLAY,
+    "FileBase": _FILE_BASE,
+    "RulesSource": _RULES,
+    "AnalysisOptions": _OPTIONS,
+    "WorkspaceRoot": _ROOT,
+    "WorkspaceFiles": _FILES,
+    "WorkspaceBatch": _BATCH,
+    "ClassAnatomyParams": {
+        "source": _SOURCE,
+        "position": _POSITION,
+        "base": _BASE,
+        "workspace": _ROOT,
+        "options": _OPTIONS,
+    },
+    "CallGraphParams": {
+        "source": _SOURCE,
+        "position": _POSITION,
+        "hops": 2,
+        "direction": "both",
+        "workspace": _FILES,
+        "base": _BASE,
+        "options": _OPTIONS,
+    },
+    "ControlFlowParams": {
+        "source": _SOURCE,
+        "position": _POSITION,
+        "base": _BASE,
+        "workspace": _ROOT,
+        "options": _OPTIONS,
+    },
+    "ModuleGraphParams": {
+        "workspace": _FILES,
+        "scopes": ["/w/shop"],
+        "focusFile": "/w/a.py",
+        "options": _OPTIONS,
+    },
+    "IndexFilesParams": {"workspace": _BATCH, "options": _OPTIONS},
+    "DiffCompareParams": {
+        "language": "python",
+        "source": _SOURCE,
+        "base": _BASE,
+        "workspace": _ROOT,
+        "options": _OPTIONS,
+    },
+}
 
 
 # --- Processes --------------------------------------------------------------------------------

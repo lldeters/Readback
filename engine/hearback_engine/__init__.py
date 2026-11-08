@@ -22,7 +22,7 @@ __all__ = ["ENGINE_VERSION", "MIN_PYTHON", "PROTOCOL_VERSION", "SCHEMA_VERSION"]
 # Must equal "version" in package.json (checked by test/repo/versions.test.ts).
 ENGINE_VERSION = "0.0.1"
 # Must equal PROTOCOL_VERSION in src/engine/protocol.ts.
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 # Must equal schemaVersion in shared/graph-schema.json (GraphDocument, ChangeSummary, IndexResult).
 SCHEMA_VERSION = 2
 MIN_PYTHON = (3, 10)

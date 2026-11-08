@@ -34,7 +34,8 @@ describe('version consistency', () => {
     expect(Number(pythonConstant('SCHEMA_VERSION'))).toBe(schemaVersion);
   });
 
-  it('is at graph schema version 2 in every result', () => {
+  it('is at contract v2: protocol version 2 and graph schema version 2 (ADR 012)', () => {
+    expect(PROTOCOL_VERSION).toBe(2);
     const schema = asRecord(readJson('shared/graph-schema.json'));
     const defs = asRecord(schema.$defs);
     const versions = [
@@ -45,7 +46,7 @@ describe('version consistency', () => {
     ];
     expect(versions).toEqual([2, 2, 2]);
     const example = asRecord(readJson('shared/examples/initialize-result.json'));
-    expect(example.schemaVersion).toBe(2);
+    expect([example.protocolVersion, example.schemaVersion]).toEqual([2, 2]);
   });
 
   it('minimum Python matches', () => {

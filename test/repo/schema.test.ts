@@ -234,6 +234,41 @@ describe('engine protocol schema', () => {
     expect(validate(example)).toBe(false);
   });
 
+  it('accepts the params of the analysis requests and checks their bounds', () => {
+    const source = { file: '/w/retrying_client.py' };
+    const position = { line: 17, character: 8 };
+    const workspace = { root: '/w', files: ['/w/retrying_client.py'] };
+    const callGraph = definition('protocol', 'CallGraphParams');
+    const params = { source, position, hops: 2, direction: 'both', workspace };
+    expect(callGraph(params), JSON.stringify(callGraph.errors)).toBe(true);
+    expect(callGraph({ ...params, hops: 11 })).toBe(false);
+    expect(callGraph({ ...params, direction: 'up' })).toBe(false);
+    expect(callGraph({ ...params, options: { maxNodes: 49 } })).toBe(false);
+    expect(
+      callGraph({ ...params, base: { revision: 'abc', text: null, file: '/w/old.py' } }),
+      JSON.stringify(callGraph.errors),
+    ).toBe(true);
+    expect(callGraph({ ...params, base: { revision: 'abc' } })).toBe(false);
+    const batch = definition('protocol', 'IndexFilesParams');
+    const files = Array.from({ length: 500 }, (_, index) => `/w/m${String(index)}.py`);
+    expect(batch({ workspace: { root: '/w', files } })).toBe(true);
+    expect(batch({ workspace: { root: '/w', files: [...files, '/w/x.py'] } })).toBe(false);
+    const compare = definition('protocol', 'DiffCompareParams');
+    expect(compare({ language: 'python', source })).toBe(true);
+    expect(compare({ language: 'sql', source })).toBe(false);
+    const initialize = definition('protocol', 'InitializeParams');
+    expect(
+      initialize({
+        protocolVersion: 2,
+        client: { name: 'vscode', version: '1.105.1' },
+        logLevel: 'info',
+        workspaceTrusted: true,
+        storageDirectory: '/home/u/globalStorage/lldeters.hearback/engine',
+      }),
+      JSON.stringify(initialize.errors),
+    ).toBe(true);
+  });
+
   it('does not reference the graph schema', () => {
     expect(JSON.stringify(protocolSchema)).not.toContain('graph-schema.json#');
     const references = [...JSON.stringify(protocolSchema).matchAll(/"\$ref":"([^"]*)"/g)];
