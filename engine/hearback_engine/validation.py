@@ -54,6 +54,8 @@ MAX_HOPS: Final = 10
 _INITIALIZE_REQUIRED: Final = ("protocolVersion", "client", "logLevel", "workspaceTrusted")
 _INITIALIZE_OPTIONAL: Final = ("locale", "storageDirectory")
 _ANALYSIS_OPTIONAL: Final = ("base", "workspace", "options")
+# The target of a single-symbol request: a position in the working text or a symbol id.
+_TARGET: Final = ("position", "symbol")
 
 
 def invalid_params(detail: str) -> RpcError:
@@ -115,10 +117,12 @@ def log_level(value: object, where: str) -> LogLevel:
 
 
 def class_anatomy_params(params: object) -> ClassAnatomyParams:
-    request = _params(params, "python/classAnatomy", ("source",), ("position", *_ANALYSIS_OPTIONAL))
+    request = _params(params, "python/classAnatomy", ("source",), (*_TARGET, *_ANALYSIS_OPTIONAL))
     result: ClassAnatomyParams = {"source": source_file(request["source"], "params.source")}
     if "position" in request:
         result["position"] = text_position(request["position"], "params.position")
+    if "symbol" in request:
+        result["symbol"] = _string(request["symbol"], "params.symbol")
     if "base" in request:
         result["base"] = base_version(request["base"], "params.base")
     if "workspace" in request:
@@ -132,16 +136,20 @@ def call_graph_params(params: object) -> CallGraphParams:
     request = _params(
         params,
         "python/callGraph",
-        ("source", "position", "hops", "direction", "workspace"),
-        ("base", "options"),
+        ("source", "hops", "direction", "workspace"),
+        (*_TARGET, "base", "options"),
     )
+    _require_target(request)
     result: CallGraphParams = {
         "source": source_file(request["source"], "params.source"),
-        "position": text_position(request["position"], "params.position"),
         "hops": _integer(request["hops"], "params.hops", minimum=MIN_HOPS, maximum=MAX_HOPS),
         "direction": _choice(request["direction"], "params.direction", CALL_DIRECTIONS),
         "workspace": workspace_files(request["workspace"], "params.workspace"),
     }
+    if "position" in request:
+        result["position"] = text_position(request["position"], "params.position")
+    if "symbol" in request:
+        result["symbol"] = _string(request["symbol"], "params.symbol")
     if "base" in request:
         result["base"] = base_version(request["base"], "params.base")
     if "options" in request:
@@ -150,11 +158,13 @@ def call_graph_params(params: object) -> CallGraphParams:
 
 
 def control_flow_params(params: object) -> ControlFlowParams:
-    request = _params(params, "python/controlFlow", ("source", "position"), _ANALYSIS_OPTIONAL)
-    result: ControlFlowParams = {
-        "source": source_file(request["source"], "params.source"),
-        "position": text_position(request["position"], "params.position"),
-    }
+    request = _params(params, "python/controlFlow", ("source",), (*_TARGET, *_ANALYSIS_OPTIONAL))
+    _require_target(request)
+    result: ControlFlowParams = {"source": source_file(request["source"], "params.source")}
+    if "position" in request:
+        result["position"] = text_position(request["position"], "params.position")
+    if "symbol" in request:
+        result["symbol"] = _string(request["symbol"], "params.symbol")
     if "base" in request:
         result["base"] = base_version(request["base"], "params.base")
     if "workspace" in request:
@@ -222,7 +232,9 @@ def source_file(value: object, where: str) -> SourceFile:
     item = _object(value, where, ("file",), ("text",))
     result: SourceFile = {"file": _string(item["file"], f"{where}.file")}
     if "text" in item:
-        result["text"] = _string(item["text"], f"{where}.text", allow_empty=True)
+        # None: the file does not exist in the working tree (a deleted file).
+        text = item["text"]
+        result["text"] = None if text is None else _string(text, f"{where}.text", allow_empty=True)
     return result
 
 
@@ -314,6 +326,12 @@ def workspace_batch(value: object, where: str) -> WorkspaceBatch:
 
 
 # --- Helpers ----------------------------------------------------------------------------------
+
+
+def _require_target(request: dict[str, object]) -> None:
+    """python/callGraph and python/controlFlow need a position or a symbol (or both)."""
+    if not any(key in request for key in _TARGET):
+        raise invalid_params("params.position or params.symbol is required")
 
 
 def _params(

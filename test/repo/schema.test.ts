@@ -256,6 +256,11 @@ describe('engine protocol schema', () => {
     const compare = definition('protocol', 'DiffCompareParams');
     expect(compare({ language: 'python', source })).toBe(true);
     expect(compare({ language: 'sql', source })).toBe(false);
+    // A file deleted in the working tree has null text; its symbols come back as ghosts.
+    const deleted = { file: '/w/gone.py', text: null };
+    const base = { revision: 'abc', text: 'def f():\n    pass\n' };
+    expect(compare({ language: 'python', source: deleted, base })).toBe(true);
+    expect(compare({ language: 'python', source: { ...deleted, text: 1 }, base })).toBe(false);
     const initialize = definition('protocol', 'InitializeParams');
     expect(
       initialize({
@@ -267,6 +272,27 @@ describe('engine protocol schema', () => {
       }),
       JSON.stringify(initialize.errors),
     ).toBe(true);
+  });
+
+  it('targets call graphs and control flow by position or by symbol id', () => {
+    const source = { file: '/w/retrying_client.py' };
+    const position = { line: 17, character: 8 };
+    const symbol = 'py:retrying_client.RetryingClient.get';
+    const workspace = { root: '/w', files: ['/w/retrying_client.py'] };
+    const callGraph = definition('protocol', 'CallGraphParams');
+    const call = { source, hops: 2, direction: 'both', workspace };
+    expect(callGraph({ ...call, position })).toBe(true);
+    expect(callGraph({ ...call, symbol }), JSON.stringify(callGraph.errors)).toBe(true);
+    expect(callGraph({ ...call, position, symbol })).toBe(true);
+    expect(callGraph(call)).toBe(false);
+    expect(callGraph({ ...call, symbol: '' })).toBe(false);
+    const controlFlow = definition('protocol', 'ControlFlowParams');
+    expect(controlFlow({ source, symbol })).toBe(true);
+    expect(controlFlow({ source })).toBe(false);
+    // Class anatomy shows the whole file and may focus on nothing.
+    const anatomy = definition('protocol', 'ClassAnatomyParams');
+    expect(anatomy({ source })).toBe(true);
+    expect(anatomy({ source, symbol })).toBe(true);
   });
 
   it('does not reference the graph schema', () => {

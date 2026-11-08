@@ -265,25 +265,64 @@ def test_values_that_are_no_objects_are_rejected(protocol_schema: JsonObject, na
 def test_minimal_params_are_accepted(protocol_schema: JsonObject) -> None:
     source = {"file": "/w/a.py"}
     position = {"line": 0, "character": 0}
-    cases: dict[str, JsonObject] = {
-        "ClassAnatomyParams": {"source": source},
-        "CallGraphParams": {
-            "source": source,
-            "position": position,
-            "hops": 1,
-            "direction": "outgoing",
-            "workspace": {"root": "/w", "files": []},
-        },
-        "ControlFlowParams": {"source": source, "position": position},
-        "ModuleGraphParams": {"workspace": {"root": "/w", "files": []}},
-        "IndexFilesParams": {"workspace": {"root": "/w", "files": []}},
-        "DiffCompareParams": {"language": "python", "source": source},
-        "BaseVersion": {"revision": "abc", "text": None},
-        "AnalysisOptions": {},
+    call_graph = {
+        "source": source,
+        "hops": 1,
+        "direction": "outgoing",
+        "workspace": {"root": "/w", "files": []},
     }
-    for name, params in cases.items():
+    cases: list[tuple[str, JsonObject]] = [
+        ("ClassAnatomyParams", {"source": source}),
+        ("CallGraphParams", {**call_graph, "position": position}),
+        ("CallGraphParams", {**call_graph, "symbol": "py:a.f"}),
+        ("ControlFlowParams", {"source": source, "position": position}),
+        ("ControlFlowParams", {"source": source, "symbol": "py:a.f"}),
+        ("ModuleGraphParams", {"workspace": {"root": "/w", "files": []}}),
+        ("IndexFilesParams", {"workspace": {"root": "/w", "files": []}}),
+        ("DiffCompareParams", {"language": "python", "source": source}),
+        ("BaseVersion", {"revision": "abc", "text": None}),
+        ("AnalysisOptions", {}),
+    ]
+    for name, params in cases:
         assert support.validator(protocol_schema, name).is_valid(params), name
         assert CHECKS[name](params) == params, name
+
+
+def test_a_deleted_file_has_null_text(protocol_schema: JsonObject) -> None:
+    deleted = {"file": "/w/gone.py", "text": None}
+    base = {"revision": "abc", "text": "def f():\n    pass\n"}
+    cases: list[tuple[str, JsonObject]] = [
+        ("SourceFile", deleted),
+        ("DiffCompareParams", {"language": "python", "source": deleted, "base": base}),
+        ("ControlFlowParams", {"source": deleted, "symbol": "py:gone.f", "base": base}),
+    ]
+    for name, params in cases:
+        assert support.validator(protocol_schema, name).is_valid(params), name
+        assert CHECKS[name](params) == params, name
+
+
+@pytest.mark.parametrize("name", ["CallGraphParams", "ControlFlowParams"])
+def test_single_symbol_requests_need_a_position_or_a_symbol(
+    protocol_schema: JsonObject, name: str
+) -> None:
+    example = support.PARAMS_EXAMPLES[name]
+    neither = {key: value for key, value in example.items() if key not in ("position", "symbol")}
+    cases = [
+        neither,
+        {**neither, "position": example["position"]},
+        {**neither, "symbol": example["symbol"]},
+    ]
+    assert disagreements(protocol_schema, name, iter(cases)) == []
+    assert not accepted(CHECKS[name], neither)
+    assert accepted(CHECKS[name], cases[1])
+    assert accepted(CHECKS[name], cases[2])
+
+
+def test_class_anatomy_needs_no_target(protocol_schema: JsonObject) -> None:
+    example = support.PARAMS_EXAMPLES["ClassAnatomyParams"]
+    unfocused = {key: value for key, value in example.items() if key not in ("position", "symbol")}
+    assert disagreements(protocol_schema, "ClassAnatomyParams", iter([unfocused])) == []
+    assert accepted(CHECKS["ClassAnatomyParams"], unfocused)
 
 
 @pytest.mark.parametrize(
@@ -320,6 +359,18 @@ def test_scopes_have_the_workspace_limit(protocol_schema: JsonObject) -> None:
     [
         (None, "python/callGraph expects an object"),
         ({}, "params.source is required"),
+        (
+            {
+                key: value
+                for key, value in support.PARAMS_EXAMPLES["CallGraphParams"].items()
+                if key not in ("position", "symbol")
+            },
+            "params.position or params.symbol is required",
+        ),
+        (
+            {**support.PARAMS_EXAMPLES["CallGraphParams"], "symbol": ""},
+            "params.symbol must be a non-empty string",
+        ),
         (
             {**support.PARAMS_EXAMPLES["CallGraphParams"], "hops": 11},
             "params.hops must be an integer from 1 to 10",

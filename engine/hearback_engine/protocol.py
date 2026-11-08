@@ -99,8 +99,9 @@ class _SourceFileRequired(TypedDict):
 
 
 class SourceFile(_SourceFileRequired, total=False):
-    # The text of a dirty document; without it the engine reads the file itself.
-    text: str
+    # The text of a dirty document, or None for a file deleted in the working tree; without it the
+    # engine reads the file itself.
+    text: str | None
 
 
 class _BaseVersionRequired(TypedDict):
@@ -164,6 +165,8 @@ class _ClassAnatomyParamsRequired(TypedDict):
 
 class ClassAnatomyParams(_ClassAnatomyParamsRequired, total=False):
     position: TextPosition
+    # The id of the symbol to focus on; it takes precedence over position.
+    symbol: str
     base: BaseVersion
     workspace: WorkspaceRoot
     options: AnalysisOptions
@@ -171,23 +174,27 @@ class ClassAnatomyParams(_ClassAnatomyParamsRequired, total=False):
 
 class _CallGraphParamsRequired(TypedDict):
     source: SourceFile
-    position: TextPosition
     hops: int
     direction: CallDirection
     workspace: WorkspaceFiles
 
 
 class CallGraphParams(_CallGraphParamsRequired, total=False):
+    # The schema requires position or symbol; symbol takes precedence.
+    position: TextPosition
+    symbol: str
     base: BaseVersion
     options: AnalysisOptions
 
 
 class _ControlFlowParamsRequired(TypedDict):
     source: SourceFile
-    position: TextPosition
 
 
 class ControlFlowParams(_ControlFlowParamsRequired, total=False):
+    # The schema requires position or symbol; symbol takes precedence.
+    position: TextPosition
+    symbol: str
     base: BaseVersion
     workspace: WorkspaceRoot
     options: AnalysisOptions

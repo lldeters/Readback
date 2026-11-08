@@ -152,13 +152,13 @@ export interface TextPosition {
  */
 export interface SourceFile {
   /**
-   * Absolute path of the file; every Range.file of the result repeats it exactly.
+   * Absolute path of the file. The ranges in this file repeat it exactly; ranges in other workspace files repeat their paths, and ranges with a revision of a renamed file the base version's path (BaseVersion.file).
    */
   file: string;
   /**
-   * The editor's current text of a dirty document. Without it the engine reads the file itself with its safe reader.
+   * The editor's current text of a dirty document, or null when the file does not exist in the working tree (a deleted file). With null and a base, the file's own nodes, the module included, come from the base version and are deleted: ghosts whose ranges carry the base revision. Without a base it has no nodes. Without text the engine reads the file itself with its safe reader.
    */
-  text?: string;
+  text?: string | null;
 }
 /**
  * The diff base of a file, read by the host from Git.
@@ -302,7 +302,7 @@ export interface WorkspaceBatch {
   overlays?: FileOverlay[];
 }
 /**
- * python/classAnatomy -> GraphDocument (view classAnatomy) of the whole file, state-matrix data included, focused on the class or method at position.
+ * python/classAnatomy -> GraphDocument (view classAnatomy) of the whole file, state-matrix data included. It focuses on the class or method named by symbol, else on the one at position, else on none.
  *
  * This interface was referenced by `EngineProtocol`'s JSON-Schema
  * via the `definition` "ClassAnatomyParams".
@@ -310,19 +310,27 @@ export interface WorkspaceBatch {
 export interface ClassAnatomyParams {
   source: SourceFile;
   position?: TextPosition;
+  /**
+   * Id of the class or method to focus on, e.g. of a Changes tree item or a graph node; it takes precedence over position. The engine looks it up in the working text, then in the base version: a symbol that only the base has (a ghost) is analyzed in the base version, and its nodes come back deleted, with ranges that carry the base revision.
+   */
+  symbol?: string;
   base?: BaseVersion;
   workspace?: WorkspaceRoot;
   options?: AnalysisOptions;
 }
 /**
- * python/callGraph -> GraphDocument (view callGraph): callers and callees of the function at position over hops levels, across the workspace files.
+ * python/callGraph -> GraphDocument (view callGraph): callers and callees of the function or method named by symbol, else of the innermost one at position, over hops levels, across the workspace files. It needs position or symbol.
  *
  * This interface was referenced by `EngineProtocol`'s JSON-Schema
  * via the `definition` "CallGraphParams".
  */
 export interface CallGraphParams {
   source: SourceFile;
-  position: TextPosition;
+  position?: TextPosition;
+  /**
+   * Id of the function or method, e.g. of a Changes tree item or a graph node; it takes precedence over position. The engine looks it up in the working text, then in the base version: a symbol that only the base has (a ghost) is analyzed in the base version, and its nodes come back deleted, with ranges that carry the base revision.
+   */
+  symbol?: string;
   /**
    * How many call levels to follow (hearback.graph.defaultHops, default 2).
    */
@@ -333,14 +341,18 @@ export interface CallGraphParams {
   options?: AnalysisOptions;
 }
 /**
- * python/controlFlow -> GraphDocument (view controlFlow) of the innermost function at position.
+ * python/controlFlow -> GraphDocument (view controlFlow) of the function or method named by symbol, else of the innermost one at position. It needs position or symbol.
  *
  * This interface was referenced by `EngineProtocol`'s JSON-Schema
  * via the `definition` "ControlFlowParams".
  */
 export interface ControlFlowParams {
   source: SourceFile;
-  position: TextPosition;
+  position?: TextPosition;
+  /**
+   * Id of the function or method, e.g. of a Changes tree item or a graph node; it takes precedence over position. The engine looks it up in the working text, then in the base version: a symbol that only the base has (a ghost) is analyzed in the base version, and its nodes come back deleted, with ranges that carry the base revision.
+   */
+  symbol?: string;
   base?: BaseVersion;
   workspace?: WorkspaceRoot;
   options?: AnalysisOptions;

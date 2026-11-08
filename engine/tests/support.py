@@ -128,6 +128,7 @@ def initialize_params(**overrides: object) -> JsonObject:
 
 _REVISION: Final = "3f2c1d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e"
 _POSITION: Final = {"line": 17, "character": 8}
+_SYMBOL: Final = "py:retrying_client.RetryingClient.get"
 _SOURCE: Final = {"file": "/w/retrying_client.py", "text": "class A:\n    pass\n"}
 _BASE: Final = {"revision": _REVISION, "file": "/w/old_client.py", "text": "class A:\n    x = 1\n"}
 _OVERLAY: Final = {"file": "/w/b.py", "text": "import a\n"}
@@ -158,6 +159,7 @@ PARAMS_EXAMPLES: Final[dict[str, JsonObject]] = {
     "ClassAnatomyParams": {
         "source": _SOURCE,
         "position": _POSITION,
+        "symbol": _SYMBOL,
         "base": _BASE,
         "workspace": _ROOT,
         "options": _OPTIONS,
@@ -165,6 +167,7 @@ PARAMS_EXAMPLES: Final[dict[str, JsonObject]] = {
     "CallGraphParams": {
         "source": _SOURCE,
         "position": _POSITION,
+        "symbol": _SYMBOL,
         "hops": 2,
         "direction": "both",
         "workspace": _FILES,
@@ -174,6 +177,7 @@ PARAMS_EXAMPLES: Final[dict[str, JsonObject]] = {
     "ControlFlowParams": {
         "source": _SOURCE,
         "position": _POSITION,
+        "symbol": _SYMBOL,
         "base": _BASE,
         "workspace": _ROOT,
         "options": _OPTIONS,

@@ -155,13 +155,13 @@
       "required": ["file"],
       "properties": {
         "file": {
-          "description": "Absolute path of the file; every Range.file of the result repeats it exactly.",
+          "description": "Absolute path of the file. The ranges in this file repeat it exactly; ranges in other workspace files repeat their paths, and ranges with a revision of a renamed file the base version's path (BaseVersion.file).",
           "type": "string",
           "minLength": 1
         },
         "text": {
-          "description": "The editor's current text of a dirty document. Without it the engine reads the file itself with its safe reader.",
-          "type": "string"
+          "description": "The editor's current text of a dirty document, or null when the file does not exist in the working tree (a deleted file). With null and a base, the file's own nodes, the module included, come from the base version and are deleted: ghosts whose ranges carry the base revision. Without a base it has no nodes. Without text the engine reads the file itself with its safe reader.",
+          "type": ["string", "null"]
         }
       }
     },
@@ -334,13 +334,18 @@
     },
     "ClassAnatomyParams": {
       "title": "ClassAnatomyParams",
-      "description": "python/classAnatomy -> GraphDocument (view classAnatomy) of the whole file, state-matrix data included, focused on the class or method at position.",
+      "description": "python/classAnatomy -> GraphDocument (view classAnatomy) of the whole file, state-matrix data included. It focuses on the class or method named by symbol, else on the one at position, else on none.",
       "type": "object",
       "additionalProperties": false,
       "required": ["source"],
       "properties": {
         "source": { "$ref": "#/$defs/SourceFile" },
         "position": { "$ref": "#/$defs/TextPosition" },
+        "symbol": {
+          "description": "Id of the class or method to focus on, e.g. of a Changes tree item or a graph node; it takes precedence over position. The engine looks it up in the working text, then in the base version: a symbol that only the base has (a ghost) is analyzed in the base version, and its nodes come back deleted, with ranges that carry the base revision.",
+          "type": "string",
+          "minLength": 1
+        },
         "base": { "$ref": "#/$defs/BaseVersion" },
         "workspace": { "$ref": "#/$defs/WorkspaceRoot" },
         "options": { "$ref": "#/$defs/AnalysisOptions" }
@@ -348,13 +353,18 @@
     },
     "CallGraphParams": {
       "title": "CallGraphParams",
-      "description": "python/callGraph -> GraphDocument (view callGraph): callers and callees of the function at position over hops levels, across the workspace files.",
+      "description": "python/callGraph -> GraphDocument (view callGraph): callers and callees of the function or method named by symbol, else of the innermost one at position, over hops levels, across the workspace files. It needs position or symbol.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["source", "position", "hops", "direction", "workspace"],
+      "required": ["source", "hops", "direction", "workspace"],
       "properties": {
         "source": { "$ref": "#/$defs/SourceFile" },
         "position": { "$ref": "#/$defs/TextPosition" },
+        "symbol": {
+          "description": "Id of the function or method, e.g. of a Changes tree item or a graph node; it takes precedence over position. The engine looks it up in the working text, then in the base version: a symbol that only the base has (a ghost) is analyzed in the base version, and its nodes come back deleted, with ranges that carry the base revision.",
+          "type": "string",
+          "minLength": 1
+        },
         "hops": {
           "description": "How many call levels to follow (hearback.graph.defaultHops, default 2).",
           "type": "integer",
@@ -365,20 +375,43 @@
         "workspace": { "$ref": "#/$defs/WorkspaceFiles" },
         "base": { "$ref": "#/$defs/BaseVersion" },
         "options": { "$ref": "#/$defs/AnalysisOptions" }
+      },
+      "dependentSchemas": {
+        "source": {
+          "description": "Requires position or symbol. Applies to every request, because source is required.",
+          "anyOf": [
+            { "required": ["position"], "properties": { "position": true } },
+            { "required": ["symbol"], "properties": { "symbol": true } }
+          ]
+        }
       }
     },
     "ControlFlowParams": {
       "title": "ControlFlowParams",
-      "description": "python/controlFlow -> GraphDocument (view controlFlow) of the innermost function at position.",
+      "description": "python/controlFlow -> GraphDocument (view controlFlow) of the function or method named by symbol, else of the innermost one at position. It needs position or symbol.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["source", "position"],
+      "required": ["source"],
       "properties": {
         "source": { "$ref": "#/$defs/SourceFile" },
         "position": { "$ref": "#/$defs/TextPosition" },
+        "symbol": {
+          "description": "Id of the function or method, e.g. of a Changes tree item or a graph node; it takes precedence over position. The engine looks it up in the working text, then in the base version: a symbol that only the base has (a ghost) is analyzed in the base version, and its nodes come back deleted, with ranges that carry the base revision.",
+          "type": "string",
+          "minLength": 1
+        },
         "base": { "$ref": "#/$defs/BaseVersion" },
         "workspace": { "$ref": "#/$defs/WorkspaceRoot" },
         "options": { "$ref": "#/$defs/AnalysisOptions" }
+      },
+      "dependentSchemas": {
+        "source": {
+          "description": "Requires position or symbol. Applies to every request, because source is required.",
+          "anyOf": [
+            { "required": ["position"], "properties": { "position": true } },
+            { "required": ["symbol"], "properties": { "symbol": true } }
+          ]
+        }
       }
     },
     "ModuleGraphParams": {
