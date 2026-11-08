@@ -12,13 +12,14 @@ the only exception. [`docs/architecture.md`](../architecture.md) describes the r
 | [002](002-toolchain.md)                          | TypeScript 6, ESLint 10, esbuild targets, Vitest, Node 24   | Accepted                                                              |
 | [003](003-engine-sandbox.md)                     | Engine process isolation and sandbox                        | Accepted                                                              |
 | [004](004-interpreter-discovery.md)              | Interpreter discovery and Restricted Mode                   | Accepted, amended by [011](011-workspace-interpreter-confirmation.md) |
-| [005](005-engine-protocol.md)                    | JSON-RPC 2.0 over stdio between extension and engine        | Accepted                                                              |
-| [006](006-graph-schema.md)                       | Graph schema, positions and types on both sides             | Accepted                                                              |
+| [005](005-engine-protocol.md)                    | JSON-RPC 2.0 over stdio between extension and engine        | Accepted, amended by [012](012-contract-v2-and-analysis-requests.md)  |
+| [006](006-graph-schema.md)                       | Graph schema, positions and types on both sides             | Accepted, amended by [012](012-contract-v2-and-analysis-requests.md)  |
 | [007](007-vendoring.md)                          | Vendoring the engine's Python dependencies                  | Accepted                                                              |
 | [008](008-webview.md)                            | Webview: CSP, workers, theme and localization               | Accepted                                                              |
 | [009](009-license-policy.md)                     | License policy and the license gate                         | Accepted                                                              |
 | [010](010-product-name.md)                       | Product name Hearback                                       | Accepted                                                              |
 | [011](011-workspace-interpreter-confirmation.md) | Confirming workspace interpreters from the Python extension | Accepted                                                              |
+| [012](012-contract-v2-and-analysis-requests.md)  | Contract v2: graph schema, protocol, analysis requests      | Accepted                                                              |
 
 New records use the next number and this outline:
 

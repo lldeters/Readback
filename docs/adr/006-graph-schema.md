@@ -1,6 +1,6 @@
 # ADR 006: Graph schema, positions and types on both sides
 
-- Status: Accepted
+- Status: Accepted, amended by [ADR 012](012-contract-v2-and-analysis-requests.md)
 - Date: 2026-10-31
 
 ## Context

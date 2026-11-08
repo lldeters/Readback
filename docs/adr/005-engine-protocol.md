@@ -1,6 +1,6 @@
 # ADR 005: JSON-RPC 2.0 over stdio between extension and engine
 
-- Status: Accepted
+- Status: Accepted, amended by [ADR 012](012-contract-v2-and-analysis-requests.md)
 - Date: 2026-10-31
 
 ## Context
