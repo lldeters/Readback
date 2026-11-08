@@ -233,6 +233,49 @@ describe('graph schema', () => {
     expect(validateGraph(document), JSON.stringify(validateGraph.errors)).toBe(true);
   });
 
+  it('carries change status in matrix cells, rule texts and language-server checks', () => {
+    const cell = (row: string, access: string, change: string) => ({
+      row,
+      column: 'py:m.C._cache',
+      access,
+      change,
+    });
+    const matrix = {
+      rows: ['py:m.C.get', 'py:m.C.timeout', 'py:m.C.old'],
+      columns: ['py:m.C._cache'],
+      cells: [
+        cell('py:m.C.get', 'RW', 'modified'),
+        cell('py:m.C.timeout', 'R', 'unchanged'),
+        cell('py:m.C.old', 'W', 'deleted'),
+      ],
+    };
+    expect(validateGraph(documentWith(nodeOf('class', { matrix })))).toBe(true);
+    const effect = {
+      category: 'network',
+      rule: 'team.http-client',
+      description: 'Calls our HTTP client.',
+      confidence: 'inferred',
+      evidence: [
+        { file: '/w/m.py', start: { line: 3, character: 8 }, end: { line: 3, character: 20 } },
+      ],
+    };
+    expect(validateGraph(documentWith(nodeOf('method', { sideEffects: [effect] })))).toBe(true);
+    const { description, ...withoutText } = effect;
+    expect(description).toBeTruthy();
+    expect(validateGraph(documentWith(nodeOf('method', { sideEffects: [withoutText] })))).toBe(
+      false,
+    );
+    const document = clone(anatomy);
+    const call = document.edges.find((edge) => edge.kind === 'calls');
+    expect(call).toBeDefined();
+    if (call) {
+      call.props = { languageServer: 'resolved' };
+      expect(validateGraph(document), JSON.stringify(validateGraph.errors)).toBe(true);
+      call.props = { languageServer: 'maybe' };
+      expect(validateGraph(document)).toBe(false);
+    }
+  });
+
   it('accepts ranges with a revision and rejects an empty revision', () => {
     const ghost = {
       file: '/workspace/retrying_client.py',

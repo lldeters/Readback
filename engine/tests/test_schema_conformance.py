@@ -344,6 +344,48 @@ def test_args_are_rejected_unless_they_match_the_def_of_their_code(
     assert unresolved({"props": {"reasonCode": "undefined-name", "args": {"name": "x"}}})
 
 
+def test_matrix_cells_side_effects_and_checked_calls(graph_schema: JsonObject) -> None:
+    def valid(nodes: list[JsonObject], edges: list[JsonObject] | None = None) -> bool:
+        document = {**graph.empty_document("classAnatomy"), "nodes": nodes, "edges": edges or []}
+        return bool(support.validator(graph_schema).is_valid(document))
+
+    def cell(row: str, access: str, **extra: object) -> JsonObject:
+        return {"row": row, "column": "py:m.C._cache", "access": access, **extra}
+
+    # Rows are methods and properties; a cell that only the base fills comes back deleted.
+    matrix: JsonObject = {
+        "rows": ["py:m.C.get", "py:m.C.timeout", "py:m.C.old"],
+        "columns": ["py:m.C._cache"],
+        "cells": [
+            cell("py:m.C.get", "RW", change="modified"),
+            cell("py:m.C.timeout", "R", change="unchanged"),
+            cell("py:m.C.old", "W", change="deleted"),
+        ],
+    }
+    card = {"id": "py:m.C", "kind": "class", "label": "C", "props": {"matrix": matrix}}
+    assert valid([card])
+    matrix["cells"].append(cell("py:m.C.get", "R", change="moved"))
+    assert not valid([card])
+
+    span = graph.text_range("/w/m.py", graph.position(3, 8), graph.position(3, 20))
+    effect = {
+        "category": "output",
+        "rule": "output.print",
+        "description": "Writes to standard output with print().",
+        "confidence": "certain",
+        "evidence": [span],
+    }
+    method = {"id": "py:m.C.f", "kind": "method", "label": "f", "props": {"sideEffects": [effect]}}
+    assert valid([method])
+    del effect["description"]  # every side effect carries its rule's fallback text
+    assert not valid([method])
+
+    call = {"id": "e:calls:a->b", "kind": "calls", "source": "a", "target": "b"}
+    for check, ok in [("confirmed", True), ("notReported", True), ("resolved", True), ("x", False)]:
+        edge = {**call, "confidence": "certain", "props": {"languageServer": check}}
+        assert valid([], [edge]) is ok, check
+
+
 def test_external_nodes_need_props(graph_schema: JsonObject) -> None:
     def valid(node: JsonObject) -> bool:
         document = {**graph.empty_document("callGraph"), "nodes": [node]}

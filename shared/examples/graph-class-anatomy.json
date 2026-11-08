@@ -139,6 +139,7 @@
           {
             "category": "output",
             "rule": "output.print",
+            "description": "Writes to standard output with print().",
             "confidence": "certain",
             "detail": "print",
             "evidence": [

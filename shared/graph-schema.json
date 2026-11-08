@@ -1379,23 +1379,23 @@
     },
     "StateMatrix": {
       "title": "StateMatrix",
-      "description": "The state matrix of a class: methods × attributes with R, W or RW (mutates counts as W).",
+      "description": "The state matrix of a class: methods and properties × attributes with R, W or RW (mutates counts as W).",
       "type": "object",
       "additionalProperties": false,
       "required": ["rows", "columns", "cells"],
       "properties": {
         "rows": {
-          "description": "Method ids, in display order.",
+          "description": "Ids of the class's methods and properties, in display order; when compared, deleted ones (ghosts) included.",
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
         },
         "columns": {
-          "description": "Attribute ids, in display order, inherited attributes included.",
+          "description": "Attribute ids, in display order, inherited attributes included; when compared, deleted ones (ghosts) included.",
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
         },
         "cells": {
-          "description": "The non-empty cells.",
+          "description": "The non-empty cells; when compared, also the cells that only the base version fills (change deleted).",
           "type": "array",
           "items": { "$ref": "#/$defs/StateCell" }
         }
@@ -1403,12 +1403,13 @@
     },
     "StateCell": {
       "title": "StateCell",
+      "description": "One cell of the state matrix. When compared, change is added (the base version has no access), modified (the access differs, e.g. R instead of RW), deleted (only the base version has an access, and access gives it) or unchanged.",
       "type": "object",
       "additionalProperties": false,
       "required": ["row", "column", "access"],
       "properties": {
         "row": {
-          "description": "Method id, one of StateMatrix.rows.",
+          "description": "Id of a method or property, one of StateMatrix.rows.",
           "type": "string",
           "minLength": 1
         },
@@ -1419,6 +1420,9 @@
         },
         "access": {
           "$ref": "#/$defs/StateAccess"
+        },
+        "change": {
+          "$ref": "#/$defs/ChangeStatus"
         }
       }
     },
@@ -1597,13 +1601,18 @@
       "description": "A side effect found by a rule of the side-effect rules (built-in or from hearback.sideEffects.rulesFile). confidence is certain when import resolution or the builtins prove the matched name, inferred for a method name on an unknown receiver.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["category", "rule", "confidence", "evidence"],
+      "required": ["category", "rule", "description", "confidence", "evidence"],
       "properties": {
         "category": {
           "$ref": "#/$defs/SideEffectCategory"
         },
         "rule": {
           "description": "Id of the rule that matched, e.g. output.print. The UI localizes built-in rule ids.",
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "description": "The fallback text: the description of the rule that matched, as its rules file gives it (English for the built-in rules). The UI shows it for rules from hearback.sideEffects.rulesFile.",
           "type": "string",
           "minLength": 1
         },
@@ -1919,19 +1928,29 @@
     },
     "CallEdgeProps": {
       "title": "CallEdgeProps",
+      "description": "Props of calls edges: which optional resolution step found the call, and how the language-server comparison judged it.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "resolvedBy": {
           "$ref": "#/$defs/ResolvedBy"
+        },
+        "languageServer": {
+          "$ref": "#/$defs/LanguageServerCheck"
         }
       }
     },
     "ResolvedBy": {
       "title": "ResolvedBy",
-      "description": "Which optional resolution step found the call (spec 6.1.3): jedi (step 3) or languageServer (step 4); both are inferred. Absent for steps 1 and 2 (local scopes, self, cls, super() and workspace imports).",
+      "description": "Which optional resolution step found the call (spec 6.1.3): jedi (step 3) or languageServer (step 4, a call that only the language server reports); both are inferred. Absent for steps 1 and 2 (local scopes, self, cls, super() and workspace imports).",
       "type": "string",
       "enum": ["jedi", "languageServer"]
+    },
+    "LanguageServerCheck": {
+      "title": "LanguageServerCheck",
+      "description": "Set by the language-server comparison (resolution step 4, an explicit action) on a calls edge that the engine found. confirmed: the language server reports the call too. notReported: it does not, a disagreement. resolved: the edge ends in an unresolved node, and the language server resolved the call; the edge from the same call site with resolvedBy languageServer shows its target. Absent until the comparison runs.",
+      "type": "string",
+      "enum": ["confirmed", "notReported", "resolved"]
     },
     "AccessEdgeProps": {
       "title": "AccessEdgeProps",

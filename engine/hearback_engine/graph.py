@@ -162,6 +162,7 @@ AttributeScope = Literal["class", "instance"]
 AccessorKind = Literal["get", "set", "delete"]
 ExternalGroup = Literal["stdlib", "thirdParty"]
 ResolvedBy = Literal["jedi", "languageServer"]
+LanguageServerCheck = Literal["confirmed", "notReported", "resolved"]
 MutationKind = Literal["subscript", "attribute", "delete", "method"]
 FlowBranch = Literal[
     "true",
@@ -404,10 +405,15 @@ class ModuleProps(TypedDict, total=False):
     packageInit: bool
 
 
-class StateCell(TypedDict):
+class _StateCellRequired(TypedDict):
     row: str
     column: str
     access: StateAccess
+
+
+class StateCell(_StateCellRequired, total=False):
+    # When compared; a cell only the base version fills is deleted and keeps the base's access.
+    change: ChangeStatus
 
 
 class StateMatrix(TypedDict):
@@ -447,6 +453,8 @@ class Metrics(TypedDict):
 class _SideEffectRequired(TypedDict):
     category: SideEffectCategory
     rule: str
+    # The matching rule's description: the fallback text, shown for rules from the rules file.
+    description: str
     confidence: FactConfidence
     evidence: list[Range]
 
@@ -616,6 +624,8 @@ NodeProps = (
 class CallEdgeProps(TypedDict, total=False):
     # Absent for resolution steps 1 and 2 (local scopes, self/cls/super(), workspace imports).
     resolvedBy: ResolvedBy
+    # Set by the language-server comparison on edges the engine found.
+    languageServer: LanguageServerCheck
 
 
 class AccessEdgeProps(TypedDict, total=False):

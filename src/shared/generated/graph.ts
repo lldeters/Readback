@@ -87,6 +87,13 @@ export type NodeProps =
  */
 export type StateAccess = 'R' | 'W' | 'RW';
 /**
+ * Change relative to the diff base. Absent when no base was compared. A node is modified if and only if the position-free AST of its own part differs; formatting and comments never count.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "ChangeStatus".
+ */
+export type ChangeStatus = 'added' | 'modified' | 'deleted' | 'unchanged';
+/**
  * As in inspect.Parameter: before '/', regular, *args, after '*' or *args, **kwargs.
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
@@ -193,13 +200,6 @@ export type UnresolvedArgs =
   | UndefinedNameArgs
   | ModuleNotFoundArgs;
 /**
- * Change relative to the diff base. Absent when no base was compared. A node is modified if and only if the position-free AST of its own part differs; formatting and comments never count.
- *
- * This interface was referenced by `GraphDocument`'s JSON-Schema
- * via the `definition` "ChangeStatus".
- */
-export type ChangeStatus = 'added' | 'modified' | 'deleted' | 'unchanged';
-/**
  * Who wrote the change (filled from agent hooks, phase 4).
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
@@ -240,12 +240,19 @@ export type Confidence = 'certain' | 'inferred' | 'unresolved';
 export type EdgeProps =
   CallEdgeProps | AccessEdgeProps | NoProps | ImportEdgeProps | ExceptionEdgeProps | FlowEdgeProps;
 /**
- * Which optional resolution step found the call (spec 6.1.3): jedi (step 3) or languageServer (step 4); both are inferred. Absent for steps 1 and 2 (local scopes, self, cls, super() and workspace imports).
+ * Which optional resolution step found the call (spec 6.1.3): jedi (step 3) or languageServer (step 4, a call that only the language server reports); both are inferred. Absent for steps 1 and 2 (local scopes, self, cls, super() and workspace imports).
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "ResolvedBy".
  */
 export type ResolvedBy = 'jedi' | 'languageServer';
+/**
+ * Set by the language-server comparison (resolution step 4, an explicit action) on a calls edge that the engine found. confirmed: the language server reports the call too. notReported: it does not, a disagreement. resolved: the edge ends in an unresolved node, and the language server resolved the call; the edge from the same call site with resolvedBy languageServer shows its target. Absent until the comparison runs.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "LanguageServerCheck".
+ */
+export type LanguageServerCheck = 'confirmed' | 'notReported' | 'resolved';
 /**
  * How a mutates edge changes the attribute's value: subscript (self.x[k] = v), attribute (self.x.y = v), delete (del self.x[k]) or method (a known mutating method such as self.x.append(v)).
  *
@@ -476,32 +483,34 @@ export interface ClassProps {
   matrix?: StateMatrix;
 }
 /**
- * The state matrix of a class: methods × attributes with R, W or RW (mutates counts as W).
+ * The state matrix of a class: methods and properties × attributes with R, W or RW (mutates counts as W).
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "StateMatrix".
  */
 export interface StateMatrix {
   /**
-   * Method ids, in display order.
+   * Ids of the class's methods and properties, in display order; when compared, deleted ones (ghosts) included.
    */
   rows: string[];
   /**
-   * Attribute ids, in display order, inherited attributes included.
+   * Attribute ids, in display order, inherited attributes included; when compared, deleted ones (ghosts) included.
    */
   columns: string[];
   /**
-   * The non-empty cells.
+   * The non-empty cells; when compared, also the cells that only the base version fills (change deleted).
    */
   cells: StateCell[];
 }
 /**
+ * One cell of the state matrix. When compared, change is added (the base version has no access), modified (the access differs, e.g. R instead of RW), deleted (only the base version has an access, and access gives it) or unchanged.
+ *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "StateCell".
  */
 export interface StateCell {
   /**
-   * Method id, one of StateMatrix.rows.
+   * Id of a method or property, one of StateMatrix.rows.
    */
   row: string;
   /**
@@ -509,6 +518,7 @@ export interface StateCell {
    */
   column: string;
   access: StateAccess;
+  change?: ChangeStatus;
 }
 /**
  * Props of functions and methods.
@@ -624,6 +634,10 @@ export interface SideEffect {
    * Id of the rule that matched, e.g. output.print. The UI localizes built-in rule ids.
    */
   rule: string;
+  /**
+   * The fallback text: the description of the rule that matched, as its rules file gives it (English for the built-in rules). The UI shows it for rules from hearback.sideEffects.rulesFile.
+   */
+  description: string;
   confidence: FactConfidence;
   /**
    * What matched, as written, e.g. self.session.request.
@@ -951,11 +965,14 @@ export interface Edge {
   change?: ChangeStatus;
 }
 /**
+ * Props of calls edges: which optional resolution step found the call, and how the language-server comparison judged it.
+ *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "CallEdgeProps".
  */
 export interface CallEdgeProps {
   resolvedBy?: ResolvedBy;
+  languageServer?: LanguageServerCheck;
 }
 /**
  * Props of reads, writes and mutates edges.
