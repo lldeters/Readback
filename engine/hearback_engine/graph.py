@@ -128,9 +128,13 @@ UnresolvedReasonCode = Literal[
     "local-value",
     "unknown-receiver-type",
     "type-resolution-off",
+    "type-resolution-skipped",
     "external-base",
     "never-assigned",
+    "undefined-name",
     "computed-import",
+    "module-not-found",
+    "computed-class",
 ]
 
 StateAccess = Literal["R", "W", "RW"]
@@ -328,9 +332,16 @@ class PropertyProps(TypedDict, total=False):
     accessors: list[PropertyAccessor]
 
 
-class ExternalProps(TypedDict, total=False):
+class _ExternalPropsRequired(TypedDict):
     group: ExternalGroup
     package: str
+
+
+class ExternalProps(_ExternalPropsRequired, total=False):
+    # A package node (id py:<package>) for calls and imports: the dotted names behind its edges.
+    names: list[str]
+    # An exception node (id py:<symbol>) for raises and catches edges: the class's dotted name.
+    symbol: str
 
 
 class _UnresolvedPropsRequired(TypedDict):

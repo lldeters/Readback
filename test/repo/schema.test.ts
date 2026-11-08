@@ -165,6 +165,42 @@ describe('graph schema', () => {
     expect(validateGraph(document), JSON.stringify(validateGraph.errors)).toBe(true);
   });
 
+  it('gives external packages and exception classes nodes of their own', () => {
+    const external = (props?: JsonObject): JsonObject => ({
+      id: 'py:os',
+      kind: 'external',
+      label: 'os',
+      ...(props ? { props } : {}),
+    });
+    const stdlib = { group: 'stdlib', package: 'os' };
+    // One collapsed node per top-level package lists the names behind its edges.
+    expect(validateGraph(documentWith(external({ ...stdlib, names: ['os', 'os.path'] })))).toBe(
+      true,
+    );
+    expect(validateGraph(documentWith(external({ ...stdlib, names: ['os', 'os'] })))).toBe(false);
+    // Every external node needs its group and package.
+    expect(validateGraph(documentWith(external()))).toBe(false);
+    expect(validateGraph(documentWith(external({ group: 'stdlib' })))).toBe(false);
+    // An exception class outside the workspace is a node of its own, the target of raises and
+    // catches edges (spec 11.1: _request_with_retry catches TimeoutError).
+    const timeout = {
+      id: 'py:builtins.TimeoutError',
+      kind: 'external',
+      label: 'TimeoutError',
+      props: { group: 'stdlib', package: 'builtins', symbol: 'builtins.TimeoutError' },
+    };
+    const method = { id: 'py:m.C.f', kind: 'method', label: 'f' };
+    const catches = {
+      id: 'e:catches:py:m.C.f->py:builtins.TimeoutError',
+      kind: 'catches',
+      source: method.id,
+      target: timeout.id,
+      confidence: 'certain',
+    };
+    const document = { ...documentWith(method), nodes: [method, timeout], edges: [catches] };
+    expect(validateGraph(document), JSON.stringify(validateGraph.errors)).toBe(true);
+  });
+
   it('accepts ranges with a revision and rejects an empty revision', () => {
     const ghost = {
       file: '/workspace/retrying_client.py',

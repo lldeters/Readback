@@ -159,7 +159,7 @@ export type AccessorKind = 'get' | 'set' | 'delete';
  */
 export type ExternalGroup = 'stdlib' | 'thirdParty';
 /**
- * Why a target could not be resolved; the UI localizes by code and falls back to Node.reason. dynamic-call: a call through getattr or a similar dynamic lookup. subscript-call: a call of a subscript result, such as handlers[kind](). local-value: a call of a local variable or parameter of unknown value. unknown-receiver-type: the type of the receiver of obj.method() is unknown. type-resolution-off: obj.method() needs type-aware resolution (hearback.engine.useJedi), which is off. external-base: the lookup reached a base class outside the workspace. never-assigned: the attribute is never assigned in the class hierarchy. computed-import: the imported module name is computed at run time.
+ * Why a target could not be resolved; the UI localizes by code and falls back to Node.reason. dynamic-call: a call through getattr or a similar dynamic lookup. subscript-call: a call of a subscript result, such as handlers[kind](). local-value: a call of a local variable or parameter of unknown value. unknown-receiver-type: the type of the receiver of obj.method() is unknown. type-resolution-off: obj.method() needs type-aware resolution (hearback.engine.useJedi), which is off. type-resolution-skipped: type-aware resolution is on but did not examine the call, because Jedi's time budget ran out (jedi-budget-exceeded) or Jedi failed (jedi-unavailable). external-base: the lookup reached a base class outside the workspace. never-assigned: the attribute is never assigned in the class hierarchy. undefined-name: no scope, import or builtin defines the name, or the workspace module it is imported from does not define it. computed-import: the imported module name is computed at run time. module-not-found: no workspace file provides the imported module, e.g. a relative import of a missing file. computed-class: a base class or an exception class depends on a run-time value, e.g. class A(make_base()), raise make_error() or except self.retryable.
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "UnresolvedReasonCode".
@@ -170,9 +170,13 @@ export type UnresolvedReasonCode =
   | 'local-value'
   | 'unknown-receiver-type'
   | 'type-resolution-off'
+  | 'type-resolution-skipped'
   | 'external-base'
   | 'never-assigned'
-  | 'computed-import';
+  | 'undefined-name'
+  | 'computed-import'
+  | 'module-not-found'
+  | 'computed-class';
 /**
  * Change relative to the diff base. Absent when no base was compared. A node is modified if and only if the position-free AST of its own part differs; formatting and comments never count.
  *
@@ -401,7 +405,7 @@ export interface ClassProps {
    */
   decorators?: string[];
   /**
-   * The method resolution order (C3) as node ids, starting with the class itself. It ends at the first base outside the workspace, or where mroError stopped it.
+   * The method resolution order (C3) as ids, starting with the class itself: workspace classes by their node ids, classes outside the workspace by their symbol ids (py:<dotted name>, e.g. py:builtins.object), and a base that cannot be resolved by the id of its unresolved node (unresolved:<class id>/<expression>), which the class's inherits edge targets. Classes outside the workspace and unresolved bases enter C3 with object as their only base; the side panel marks both. The list ends where mroError stops it.
    */
   mro?: string[];
   /**
@@ -495,11 +499,11 @@ export interface FunctionProps {
    */
   sideEffectsComplete?: boolean;
   /**
-   * Exceptions the function may raise: its own raises that are not surely caught (certain) and exceptions propagated from its callees (inferred, with via).
+   * Exceptions that may leave the function: its own raises that no handler of it surely catches (certain) and exceptions propagated from its callees (inferred, with via). python/callGraph draws them as raises edges, together with the raises that a handler surely catches (ExceptionEdgeProps.handled).
    */
   raises?: ExceptionInfo[];
   /**
-   * Exceptions its handlers catch.
+   * Exceptions its handlers catch; python/callGraph draws them as catches edges.
    */
   catches?: ExceptionInfo[];
   /**
@@ -589,7 +593,7 @@ export interface ExceptionInfo {
    */
   type: string;
   /**
-   * Node id of the exception class, when it is resolved, e.g. py:builtins.RuntimeError.
+   * Symbol id of the exception class, when it is resolved: the class node's id for a workspace class, py:<dotted name> otherwise, e.g. py:builtins.RuntimeError. In python/callGraph the raises or catches edge targets the node with this id; other views have that node only when the class itself belongs to them.
    */
   target?: string;
   confidence: FactConfidence;
@@ -699,17 +703,25 @@ export interface FlowNodeProps {
   removedLines?: number;
 }
 /**
- * A target outside the workspace: one node per top-level package.
+ * A target outside the workspace. Calls and imports collapse into one node per top-level package, with the id py:<package> (py:os for os.path); the views show it collapsed and list its names when it is expanded (spec 6.1.5). An exception class outside the workspace gets a node of its own, with the id py:<symbol>, for raises and catches edges.
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "ExternalProps".
  */
 export interface ExternalProps {
-  group?: ExternalGroup;
+  group: ExternalGroup;
   /**
    * The top-level package name, e.g. json, os or builtins.
    */
-  package?: string;
+  package: string;
+  /**
+   * On a package node: the dotted names behind its edges, sorted, e.g. os and os.path for import os and import os.path, or json.dumps for a call of json.dumps.
+   */
+  names?: string[];
+  /**
+   * On an exception node: the exception class as a dotted name, as the imports resolve it, e.g. builtins.TimeoutError or requests.HTTPError.
+   */
+  symbol?: string;
 }
 /**
  * This interface was referenced by `GraphDocument`'s JSON-Schema
@@ -834,7 +846,7 @@ export interface ImportCycle {
   kind: CycleKind;
 }
 /**
- * Props of raises and catches edges.
+ * Props of raises and catches edges. python/callGraph draws them from a function or method to the exception class: its class node for a workspace class, an external node with symbol otherwise, or an unresolved node (computed-class, undefined-name) when the class cannot be determined. FunctionProps.raises, without the handled raises, and FunctionProps.catches carry the same facts in every view that has the function.
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "ExceptionEdgeProps".

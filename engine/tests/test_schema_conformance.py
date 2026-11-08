@@ -242,9 +242,13 @@ def test_the_schema_binds_each_kind_to_its_props_def(
         assert set(rule) == {"if", "then"}
         assert set(rule["if"]) == {"properties"}
         assert set(rule["if"]["properties"]) == {"kind"}
+        target = ref_name(rule["then"]["properties"]["props"])
+        # Props are required exactly where their def has required keys.
+        required = "props" in rule["then"].get("required", [])
+        assert required is bool(defs[target].get("required")), target
         for kind in rule["if"]["properties"]["kind"]["enum"]:
             assert kind not in bound, f"{kind} is bound twice"
-            bound[kind] = ref_name(rule["then"]["properties"]["props"])
+            bound[kind] = target
     expected = {kind: ref_name(node) for kind, node in defs[mapping]["properties"].items()}
     assert bound == expected
     assert defs[owner]["properties"]["props"] == {"$ref": f"#/$defs/{union}"}
@@ -278,6 +282,76 @@ def test_props_are_rejected_unless_they_match_the_def_of_their_kind(
     assert valid("unresolved", {"reasonCode": "dynamic-call"}, reason="dynamic call")
     assert not valid("unresolved", {}, reason="dynamic call")  # no reasonCode
     assert not valid("unresolved", {"reasonCode": "maybe"}, reason="dynamic call")
+    assert valid("external", {"group": "stdlib", "package": "json"})
+    assert not valid("external", {"group": "stdlib"})  # no package
+    duplicates = ["json.dumps", "json.dumps"]
+    assert not valid("external", {"group": "stdlib", "package": "json", "names": duplicates})
+
+
+def test_external_nodes_need_props(graph_schema: JsonObject) -> None:
+    def valid(node: JsonObject) -> bool:
+        document = {**graph.empty_document("callGraph"), "nodes": [node]}
+        return bool(support.validator(graph_schema).is_valid(document))
+
+    assert not valid({"id": "py:json", "kind": "external", "label": "json"})
+    assert valid({"id": "py:m.f", "kind": "function", "label": "f"})
+
+
+def test_exceptions_and_external_targets_have_nodes(graph_schema: JsonObject) -> None:
+    """A call graph draws calls into packages and the exceptions of its functions (spec 11.1)."""
+    document = graph.empty_document("callGraph")
+    function = "py:retrying_client.RetryingClient._request_with_retry"
+    timeout = "py:builtins.TimeoutError"
+    computed = f"unresolved:{function}/make_error()"
+    span = graph.text_range("/w/retrying_client.py", graph.position(28, 12), graph.position(28, 31))
+    document["nodes"] = [
+        {"id": function, "kind": "method", "label": "_request_with_retry"},
+        {
+            "id": "py:json",
+            "kind": "external",
+            "label": "json",
+            "props": {"group": "stdlib", "package": "json", "names": ["json.dumps", "json.loads"]},
+        },
+        {
+            "id": timeout,
+            "kind": "external",
+            "label": "TimeoutError",
+            "props": {"group": "stdlib", "package": "builtins", "symbol": "builtins.TimeoutError"},
+        },
+        graph.unresolved_node(
+            computed,
+            "make_error()",
+            "the exception class is computed",
+            {"reasonCode": "computed-class"},
+        ),
+    ]
+    document["edges"] = [
+        {
+            "id": f"e:calls:{function}->py:json",
+            "kind": "calls",
+            "source": function,
+            "target": "py:json",
+            "confidence": "certain",
+            "evidence": [span],
+        },
+        {
+            "id": f"e:catches:{function}->{timeout}",
+            "kind": "catches",
+            "source": function,
+            "target": timeout,
+            "confidence": "certain",
+            "evidence": [span],
+        },
+        {
+            "id": f"e:raises:{function}->{computed}",
+            "kind": "raises",
+            "source": function,
+            "target": computed,
+            "confidence": "unresolved",
+            "evidence": [span],
+        },
+    ]
+    support.assert_valid(graph_schema, None, document)
 
 
 # --- the schemas, the examples and real outputs ---
