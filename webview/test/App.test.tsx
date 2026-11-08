@@ -2,6 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import * as l10n from '@vscode/l10n';
 import { StrictMode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { GraphDocument } from '../../src/shared/generated/graph';
 import { isWebviewToHostMessage } from '../../src/shared/webviewProtocol';
 import { App } from '../src/App';
 import { MAX_REPORTED_LENGTH } from '../src/text';
@@ -16,6 +17,15 @@ import {
 } from './fakes';
 
 const EMPTY_TITLE = 'No graph to show yet.';
+/** A complete document without nodes, typed so that it follows the current graph schema. */
+const EMPTY_DOCUMENT: GraphDocument = {
+  schemaVersion: 2,
+  view: 'classAnatomy',
+  nodes: [],
+  edges: [],
+  diagnostics: [],
+  meta: { engineVersion: '0.0.1', durationMs: 0 },
+};
 const EMPTY_DETAIL = 'Hearback visualizations will appear here.';
 
 function renderApp(checkWorker: WorkerCheck = pendingWorkerCheck, host = new FakeHost()) {
@@ -127,10 +137,7 @@ describe('App', () => {
   it('hides the empty state while a graph is set and shows it again for null', () => {
     renderApp();
     act(() => {
-      postFromHost({
-        type: 'setGraph',
-        document: { schemaVersion: 1, view: 'classAnatomy', nodes: [], edges: [] },
-      });
+      postFromHost({ type: 'setGraph', document: EMPTY_DOCUMENT });
     });
     expect(screen.queryByRole('status')).toBeNull();
     act(() => {

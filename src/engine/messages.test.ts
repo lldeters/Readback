@@ -49,8 +49,8 @@ const running: EngineStatus = {
   automaticRestarts: 0,
   engine: {
     engineVersion: '0.0.1',
-    protocolVersion: 1,
-    schemaVersion: 1,
+    protocolVersion: 2,
+    schemaVersion: 2,
     python: {
       version: '3.12.3',
       versionInfo: { major: 3, minor: 12, micro: 3, releaseLevel: 'final', serial: 0 },
@@ -74,7 +74,7 @@ describe('formatStatus', () => {
       'State: running (process 4242)',
       'Interpreter: /usr/bin/python3.12 (from PATH)',
       'Python: 3.12.3 (cpython, linux)',
-      'Engine: 0.0.1 · protocol 1 · graph schema 1',
+      'Engine: 0.0.1 · protocol 2 · graph schema 2',
       'Bundled packages: jedi 0.20.1, sqlglot 30.27.0',
       'Sandbox: active (no processes, no network)',
       'Workspace: trusted',
