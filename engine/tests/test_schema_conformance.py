@@ -386,13 +386,25 @@ def test_matrix_cells_side_effects_and_checked_calls(graph_schema: JsonObject) -
         assert valid([], [edge]) is ok, check
 
 
-def test_external_nodes_need_props(graph_schema: JsonObject) -> None:
+def test_attribute_and_external_nodes_need_props(graph_schema: JsonObject) -> None:
     def valid(node: JsonObject) -> bool:
         document = {**graph.empty_document("callGraph"), "nodes": [node]}
         return bool(support.validator(graph_schema).is_valid(document))
 
     assert not valid({"id": "py:json", "kind": "external", "label": "json"})
+    attribute = {"id": "py:m.C._cache", "kind": "attribute", "label": "_cache"}
+    assert not valid(attribute)
+    assert not valid({**attribute, "props": {"annotation": "dict[str, bytes]"}})  # no scope
+    assert valid({**attribute, "props": {"scope": "instance"}})
     assert valid({"id": "py:m.f", "kind": "function", "label": "f"})
+
+
+def test_a_compared_result_names_a_non_empty_base_revision(graph_schema: JsonObject) -> None:
+    document = graph.empty_document("moduleGraph")
+    document["meta"] = graph.meta(base_revision="3f2c1d9e")
+    support.assert_valid(graph_schema, None, document)
+    document["meta"]["baseRevision"] = ""
+    assert not support.validator(graph_schema).is_valid(document)
 
 
 def test_exceptions_and_external_targets_have_nodes(graph_schema: JsonObject) -> None:

@@ -87,7 +87,7 @@ export type NodeProps =
  */
 export type StateAccess = 'R' | 'W' | 'RW';
 /**
- * Change relative to the diff base. Absent when no base was compared. A node is modified if and only if the position-free AST of its own part differs; formatting and comments never count.
+ * Change relative to the diff base. Absent when no base was compared. A node is modified if and only if the position-free AST of its own part differs; formatting and comments never count. Edges are matched by id: an edge of both versions is modified when its confidence, its props or the number of its evidence ranges differ, never because positions moved.
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "ChangeStatus".
@@ -116,7 +116,7 @@ export type Visibility = 'public' | 'private' | 'dunder';
  */
 export type MethodKind = 'instance' | 'class' | 'static';
 /**
- * The section of the class card: a @staticmethod, @classmethod or @abstractmethod decorator beats the visibility.
+ * The section of the class card. When several apply, abstract (@abstractmethod) beats static and class (@staticmethod, @classmethod; the outer decorator wins if both appear), and those beat the visibility groups dunder, private and public. methodKind and abstract keep what the group does not show.
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "MethodGroup".
@@ -275,7 +275,7 @@ export type ImportFlag = 'typeOnly' | 'deferred' | 'conditional' | 'lazy' | 'sta
  */
 export type CycleKind = 'hard' | 'soft';
 /**
- * Why the edge is taken; the UI localizes it. true and false: a condition; loopNext: the next iteration; loopDone: the loop is exhausted; loopElse: exhausted, into the else block; case: a case matched; noMatch: no case matched; exception: to a handler or out of the function; finallyThen: on from a finally block with the jump that entered it; back: back to the loop header.
+ * Why the edge is taken; the UI localizes it. true and false: a condition; loopNext: the next iteration; loopDone: the loop is exhausted; loopElse: exhausted, into the else block; case: a case matched; noMatch: no case matched; exception: to a handler or out of the function; finallyThen: on from a finally block with the jump that entered it; back: back to the loop header, at the end of the loop body or from a continue.
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "FlowBranch".
@@ -369,7 +369,7 @@ export interface GraphDocument {
   schemaVersion: 2;
   view: ViewKind;
   /**
-   * Id of the node the request focused on: the symbol at the requested position, when there is one.
+   * Id of the node the request focused on, one of nodes: the symbol that the request named, or else the one at its position, when there is one.
    */
   focus?: string;
   nodes: Node[];
@@ -391,7 +391,7 @@ export interface Node {
   kind: NodeKind;
   label: string;
   /**
-   * Id of the containing node (the class of a method, the CTE of a column, ...).
+   * Id of the containing node (the class of a method, the CTE of a column, ...), always a node of the same result: set whenever the result contains the container, absent when it leaves the container out, e.g. the module of a top-level class in the class anatomy.
    */
   parent?: string;
   range?: Range;
@@ -532,7 +532,7 @@ export interface FunctionProps {
    */
   signature?: string;
   /**
-   * All parameters in order, the receiver (self, cls) included.
+   * All parameters in order, the receiver of an instance or class method included.
    */
   parameters?: Parameter[];
   async?: boolean;
@@ -618,7 +618,7 @@ export interface Metrics {
    */
   sloc: number;
   /**
-   * Number of parameters without self and cls.
+   * Number of parameters without the receiver: the first parameter of an instance or class method, whatever its name.
    */
   parameters: number;
 }
@@ -678,7 +678,7 @@ export interface ExceptionInfo {
  * via the `definition` "AttributeProps".
  */
 export interface AttributeProps {
-  scope?: AttributeScope;
+  scope: AttributeScope;
   /**
    * The annotation as written.
    */
@@ -949,11 +949,11 @@ export interface Edge {
   id: string;
   kind: EdgeKind;
   /**
-   * Node id.
+   * Id of a node of the same document.
    */
   source: string;
   /**
-   * Node id.
+   * Id of a node of the same document.
    */
   target: string;
   confidence: Confidence;
@@ -1028,6 +1028,8 @@ export interface ExceptionEdgeProps {
   handled?: boolean;
 }
 /**
+ * Props of flow edges. branch gives the label; exceptional and back decide how the edge is drawn and laid out. Every edge with branch exception is exceptional, every edge with branch back is back, and a finallyThen edge is either when the jump that entered the finally block was one.
+ *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "FlowEdgeProps".
  */
@@ -1038,11 +1040,11 @@ export interface FlowEdgeProps {
    */
   text?: string;
   /**
-   * An exception edge: inferred and drawn dashed.
+   * The edge is taken when an exception is raised: an exception edge, or an edge that carries an exception on, such as finallyThen after an exception. Inferred and drawn dashed.
    */
   exceptional?: boolean;
   /**
-   * The edge leads back to a loop header, from the end of the loop body or from a continue.
+   * The edge leads back to a loop header: a back edge, or an edge that ends an iteration on the way, such as finallyThen after a continue. The layout reverses it.
    */
   back?: boolean;
 }
@@ -1065,6 +1067,9 @@ export interface Diagnostic {
    */
   file?: string;
   range?: Range;
+  /**
+   * Id of the node the diagnostic belongs to, a node of the same result.
+   */
   nodeId?: string;
 }
 /**
@@ -1282,7 +1287,7 @@ export interface Meta {
   engineVersion: string;
   durationMs: number;
   /**
-   * Git revision (commit SHA) of the diff base the result was compared with. Absent without a base.
+   * Git revision (commit SHA) of the diff base the result was compared with, also when nothing changed. Absent when the request did not compare.
    */
   baseRevision?: string;
   /**

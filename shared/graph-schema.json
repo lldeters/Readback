@@ -15,7 +15,7 @@
       "$ref": "#/$defs/ViewKind"
     },
     "focus": {
-      "description": "Id of the node the request focused on: the symbol at the requested position, when there is one.",
+      "description": "Id of the node the request focused on, one of nodes: the symbol that the request named, or else the one at its position, when there is one.",
       "type": "string",
       "minLength": 1
     },
@@ -136,7 +136,7 @@
     },
     "ChangeStatus": {
       "title": "ChangeStatus",
-      "description": "Change relative to the diff base. Absent when no base was compared. A node is modified if and only if the position-free AST of its own part differs; formatting and comments never count.",
+      "description": "Change relative to the diff base. Absent when no base was compared. A node is modified if and only if the position-free AST of its own part differs; formatting and comments never count. Edges are matched by id: an edge of both versions is modified when its confidence, its props or the number of its evidence ranges differ, never because positions moved.",
       "type": "string",
       "enum": ["added", "modified", "deleted", "unchanged"]
     },
@@ -254,7 +254,7 @@
           "type": "string"
         },
         "parent": {
-          "description": "Id of the containing node (the class of a method, the CTE of a column, ...).",
+          "description": "Id of the containing node (the class of a method, the CTE of a column, ...), always a node of the same result: set whenever the result contains the container, absent when it leaves the container out, e.g. the module of a top-level class in the class anatomy.",
           "type": "string",
           "minLength": 1
         },
@@ -284,7 +284,7 @@
       },
       "dependentSchemas": {
         "kind": {
-          "description": "Binds props to the def of the node's kind, exactly as NodePropsByKind maps them. Props are required where that def has required keys (external and unresolved nodes), and unresolved nodes also require a reason. Applies to every node, because kind is required.",
+          "description": "Binds props to the def of the node's kind, exactly as NodePropsByKind maps them. Props are required where that def has required keys (attribute, external and unresolved nodes), and unresolved nodes also require a reason. Applies to every node, because kind is required.",
           "allOf": [
             {
               "if": { "properties": { "kind": { "enum": ["package"] } } },
@@ -304,7 +304,10 @@
             },
             {
               "if": { "properties": { "kind": { "enum": ["attribute"] } } },
-              "then": { "properties": { "props": { "$ref": "#/$defs/AttributeProps" } } }
+              "then": {
+                "required": ["props"],
+                "properties": { "props": { "$ref": "#/$defs/AttributeProps" } }
+              }
             },
             {
               "if": { "properties": { "kind": { "enum": ["property"] } } },
@@ -430,12 +433,12 @@
           "$ref": "#/$defs/EdgeKind"
         },
         "source": {
-          "description": "Node id.",
+          "description": "Id of a node of the same document.",
           "type": "string",
           "minLength": 1
         },
         "target": {
-          "description": "Node id.",
+          "description": "Id of a node of the same document.",
           "type": "string",
           "minLength": 1
         },
@@ -521,6 +524,7 @@
           "$ref": "#/$defs/Range"
         },
         "nodeId": {
+          "description": "Id of the node the diagnostic belongs to, a node of the same result.",
           "type": "string",
           "minLength": 1
         }
@@ -1146,8 +1150,9 @@
           "minimum": 0
         },
         "baseRevision": {
-          "description": "Git revision (commit SHA) of the diff base the result was compared with. Absent without a base.",
-          "type": "string"
+          "description": "Git revision (commit SHA) of the diff base the result was compared with, also when nothing changed. Absent when the request did not compare.",
+          "type": "string",
+          "minLength": 1
         },
         "dialect": {
           "description": "SQL dialect used for parsing.",
@@ -1443,7 +1448,7 @@
           "type": "string"
         },
         "parameters": {
-          "description": "All parameters in order, the receiver (self, cls) included.",
+          "description": "All parameters in order, the receiver of an instance or class method included.",
           "type": "array",
           "items": { "$ref": "#/$defs/Parameter" }
         },
@@ -1558,7 +1563,7 @@
     },
     "MethodGroup": {
       "title": "MethodGroup",
-      "description": "The section of the class card: a @staticmethod, @classmethod or @abstractmethod decorator beats the visibility.",
+      "description": "The section of the class card. When several apply, abstract (@abstractmethod) beats static and class (@staticmethod, @classmethod; the outer decorator wins if both appear), and those beat the visibility groups dunder, private and public. methodKind and abstract keep what the group does not show.",
       "type": "string",
       "enum": ["public", "private", "dunder", "static", "class", "abstract"]
     },
@@ -1590,7 +1595,7 @@
           "minimum": 1
         },
         "parameters": {
-          "description": "Number of parameters without self and cls.",
+          "description": "Number of parameters without the receiver: the first parameter of an instance or class method, whatever its name.",
           "type": "integer",
           "minimum": 0
         }
@@ -1682,6 +1687,7 @@
       "title": "AttributeProps",
       "type": "object",
       "additionalProperties": false,
+      "required": ["scope"],
       "properties": {
         "scope": {
           "$ref": "#/$defs/AttributeScope"
@@ -1976,6 +1982,7 @@
     },
     "FlowEdgeProps": {
       "title": "FlowEdgeProps",
+      "description": "Props of flow edges. branch gives the label; exceptional and back decide how the edge is drawn and laid out. Every edge with branch exception is exceptional, every edge with branch back is back, and a finallyThen edge is either when the jump that entered the finally block was one.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1987,18 +1994,18 @@
           "type": "string"
         },
         "exceptional": {
-          "description": "An exception edge: inferred and drawn dashed.",
+          "description": "The edge is taken when an exception is raised: an exception edge, or an edge that carries an exception on, such as finallyThen after an exception. Inferred and drawn dashed.",
           "type": "boolean"
         },
         "back": {
-          "description": "The edge leads back to a loop header, from the end of the loop body or from a continue.",
+          "description": "The edge leads back to a loop header: a back edge, or an edge that ends an iteration on the way, such as finallyThen after a continue. The layout reverses it.",
           "type": "boolean"
         }
       }
     },
     "FlowBranch": {
       "title": "FlowBranch",
-      "description": "Why the edge is taken; the UI localizes it. true and false: a condition; loopNext: the next iteration; loopDone: the loop is exhausted; loopElse: exhausted, into the else block; case: a case matched; noMatch: no case matched; exception: to a handler or out of the function; finallyThen: on from a finally block with the jump that entered it; back: back to the loop header.",
+      "description": "Why the edge is taken; the UI localizes it. true and false: a condition; loopNext: the next iteration; loopDone: the loop is exhausted; loopElse: exhausted, into the else block; case: a case matched; noMatch: no case matched; exception: to a handler or out of the function; finallyThen: on from a finally block with the jump that entered it; back: back to the loop header, at the end of the loop body or from a continue.",
       "type": "string",
       "enum": [
         "true",

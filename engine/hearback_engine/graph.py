@@ -508,8 +508,11 @@ class AttributeAssignment(_AttributeAssignmentRequired, total=False):
     method: str
 
 
-class AttributeProps(TypedDict, total=False):
+class _AttributePropsRequired(TypedDict):
     scope: AttributeScope
+
+
+class AttributeProps(_AttributePropsRequired, total=False):
     annotation: str
     default: str
     assignments: list[AttributeAssignment]
@@ -855,9 +858,15 @@ def unresolved_node(
 
 
 def meta(*, duration_ms: float = 0.0, base_revision: str | None = None) -> Meta:
-    """The meta block of every result: engine version, duration and the compared base."""
+    """The meta block of every result: engine version, duration and the compared base.
+
+    ``base_revision`` is set whenever the request compared, also when nothing changed.
+    """
     result: Meta = {"engineVersion": ENGINE_VERSION, "durationMs": duration_ms}
     if base_revision is not None:
+        if not base_revision:
+            msg = "a base revision must not be empty"
+            raise ValueError(msg)
         result["baseRevision"] = base_revision
     return result
 

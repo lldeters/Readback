@@ -20,6 +20,7 @@
       "id": "py:retrying_client.BaseClient",
       "kind": "class",
       "label": "BaseClient",
+      "parent": "py:retrying_client",
       "range": {
         "file": "/workspace/retrying_client.py",
         "start": { "line": 0, "character": 0 },
@@ -53,6 +54,7 @@
       "id": "py:retrying_client.RetryingClient",
       "kind": "class",
       "label": "RetryingClient",
+      "parent": "py:retrying_client",
       "range": {
         "file": "/workspace/retrying_client.py",
         "start": { "line": 5, "character": 0 },

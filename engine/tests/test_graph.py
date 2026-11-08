@@ -70,6 +70,8 @@ def test_meta() -> None:
         "durationMs": 2.5,
         "baseRevision": "3f2c1d9e",
     }
+    with pytest.raises(ValueError, match="must not be empty"):
+        graph.meta(base_revision="")
 
 
 def test_empty_document() -> None:

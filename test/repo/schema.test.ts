@@ -102,6 +102,10 @@ describe('graph schema', () => {
         }
       }
     }
+    // The change summary contains the module, so every other symbol names its container.
+    for (const symbol of summary.symbols) {
+      expect(symbol.kind === 'module' || symbol.parent !== undefined, symbol.id).toBe(true);
+    }
     const ids = new Set(anatomy.nodes.map((node) => node.id));
     expect(anatomy.focus !== undefined && ids.has(anatomy.focus)).toBe(true);
     for (const edge of anatomy.edges) {
@@ -274,6 +278,18 @@ describe('graph schema', () => {
       call.props = { languageServer: 'maybe' };
       expect(validateGraph(document)).toBe(false);
     }
+  });
+
+  it('requires the scope of attributes and a non-empty base revision', () => {
+    const attribute = { id: 'py:m.C._cache', kind: 'attribute', label: '_cache' };
+    expect(validateGraph(documentWith({ ...attribute, props: { scope: 'instance' } }))).toBe(true);
+    expect(validateGraph(documentWith({ ...attribute, props: { annotation: 'int' } }))).toBe(false);
+    expect(validateGraph(documentWith(attribute))).toBe(false);
+    const compared = documentWith(nodeOf('class', {}));
+    compared.meta = { engineVersion: '0.0.1', durationMs: 0, baseRevision: 'abc' };
+    expect(validateGraph(compared)).toBe(true);
+    compared.meta = { engineVersion: '0.0.1', durationMs: 0, baseRevision: '' };
+    expect(validateGraph(compared)).toBe(false);
   });
 
   it('accepts ranges with a revision and rejects an empty revision', () => {
