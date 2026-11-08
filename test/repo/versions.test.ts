@@ -34,6 +34,20 @@ describe('version consistency', () => {
     expect(Number(pythonConstant('SCHEMA_VERSION'))).toBe(schemaVersion);
   });
 
+  it('is at graph schema version 2 in every result', () => {
+    const schema = asRecord(readJson('shared/graph-schema.json'));
+    const defs = asRecord(schema.$defs);
+    const versions = [
+      asRecord(asRecord(schema.properties).schemaVersion).const,
+      ...['ChangeSummary', 'IndexResult'].map(
+        (name) => asRecord(asRecord(asRecord(defs[name]).properties).schemaVersion).const,
+      ),
+    ];
+    expect(versions).toEqual([2, 2, 2]);
+    const example = asRecord(readJson('shared/examples/initialize-result.json'));
+    expect(example.schemaVersion).toBe(2);
+  });
+
   it('minimum Python matches', () => {
     expect(pythonConstant('MIN_PYTHON')).toBe(`(${MIN_PYTHON.major}, ${MIN_PYTHON.minor})`);
   });

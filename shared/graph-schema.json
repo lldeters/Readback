@@ -2,17 +2,22 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/lldeters/Readback/blob/main/shared/graph-schema.json",
   "title": "GraphDocument",
-  "description": "Hearback graph model. Single source of truth for the analysis engine (Python), the extension host and the webview (TypeScript). Positions are zero-based; 'character' counts UTF-16 code units (LSP semantics).",
+  "description": "Hearback graph model. Single source of truth for the analysis engine (Python), the extension host and the webview (TypeScript). The root is the GraphDocument; the other analysis results (ChangeSummary, IndexResult) and the typed props of every node and edge kind are $defs. Positions are zero-based; 'character' counts UTF-16 code units (LSP semantics).",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "view", "nodes", "edges", "diagnostics", "meta"],
   "properties": {
     "schemaVersion": {
-      "description": "Major version of this schema. Bumped on every incompatible change.",
-      "const": 1
+      "description": "Major version of this schema. Bumped on every incompatible change; ChangeSummary and IndexResult carry the same value.",
+      "const": 2
     },
     "view": {
       "$ref": "#/$defs/ViewKind"
+    },
+    "focus": {
+      "description": "Id of the node the request focused on: the symbol at the requested position, when there is one.",
+      "type": "string",
+      "minLength": 1
     },
     "nodes": {
       "type": "array",
@@ -123,9 +128,15 @@
       "type": "string",
       "enum": ["certain", "inferred", "unresolved"]
     },
+    "FactConfidence": {
+      "title": "FactConfidence",
+      "description": "Confidence of a fact the analysis found, such as a side effect or an exception: certain or inferred, never unresolved.",
+      "type": "string",
+      "enum": ["certain", "inferred"]
+    },
     "ChangeStatus": {
       "title": "ChangeStatus",
-      "description": "Change relative to the diff base. Absent when no base was compared.",
+      "description": "Change relative to the diff base. Absent when no base was compared. A node is modified if and only if the position-free AST of its own part differs; formatting and comments never count.",
       "type": "string",
       "enum": ["added", "modified", "deleted", "unchanged"]
     },
@@ -139,6 +150,45 @@
       "title": "Severity",
       "type": "string",
       "enum": ["error", "warning", "information", "hint"]
+    },
+    "DiagnosticCode": {
+      "title": "DiagnosticCode",
+      "description": "Stable diagnostic codes; the UI localizes by code and args and falls back to the English message. syntax-error: the file does not parse (the last valid graph stays visible). newer-syntax: the file uses syntax newer than the engine's interpreter. base-syntax-error: the base version does not parse, so its changes cannot be computed. self-unused: a method does not use self. attribute-outside-init: an instance attribute is first assigned outside the initializers. mro-conflict: the bases allow no consistent method resolution order. duplicate-definition: a name is defined more than once in one scope. import-cycle: modules import each other in a cycle. rules-file-invalid: the side-effect rules file is invalid; the built-in rules still apply. graph-truncated: the engine reached its safety cap (meta.truncated). file-too-large: a file exceeds the size limit and was skipped. file-unreadable: a file is not a regular file or could not be read. symbol-not-found: there is no suitable symbol at the requested position. jedi-unavailable: Jedi failed, the call graph continues without it. jedi-budget-exceeded: Jedi's time budget ran out, the remaining call sites stay unresolved. changes-partial: change information is incomplete. git-unavailable: Git is not available, so there is no diff base.",
+      "type": "string",
+      "enum": [
+        "syntax-error",
+        "newer-syntax",
+        "base-syntax-error",
+        "self-unused",
+        "attribute-outside-init",
+        "mro-conflict",
+        "duplicate-definition",
+        "import-cycle",
+        "rules-file-invalid",
+        "graph-truncated",
+        "file-too-large",
+        "file-unreadable",
+        "symbol-not-found",
+        "jedi-unavailable",
+        "jedi-budget-exceeded",
+        "changes-partial",
+        "git-unavailable"
+      ]
+    },
+    "UnresolvedReasonCode": {
+      "title": "UnresolvedReasonCode",
+      "description": "Why a target could not be resolved; the UI localizes by code and falls back to Node.reason. dynamic-call: a call through getattr or a similar dynamic lookup. subscript-call: a call of a subscript result, such as handlers[kind](). local-value: a call of a local variable or parameter of unknown value. unknown-receiver-type: the type of the receiver of obj.method() is unknown. type-resolution-off: obj.method() needs type-aware resolution (hearback.engine.useJedi), which is off. external-base: the lookup reached a base class outside the workspace. never-assigned: the attribute is never assigned in the class hierarchy. computed-import: the imported module name is computed at run time.",
+      "type": "string",
+      "enum": [
+        "dynamic-call",
+        "subscript-call",
+        "local-value",
+        "unknown-receiver-type",
+        "type-resolution-off",
+        "external-base",
+        "never-assigned",
+        "computed-import"
+      ]
     },
     "Position": {
       "title": "Position",
@@ -164,7 +214,7 @@
       "required": ["file", "start", "end"],
       "properties": {
         "file": {
-          "description": "Absolute file system path, exactly as the extension passed it to the engine.",
+          "description": "Absolute file system path, exactly as the extension passed it to the engine. For a range with a revision of a renamed file, the path the file had in that revision.",
           "type": "string",
           "minLength": 1
         },
@@ -173,17 +223,17 @@
         },
         "end": {
           "$ref": "#/$defs/Position"
+        },
+        "revision": {
+          "description": "Git revision (commit SHA) whose text the positions refer to, instead of the working text: set on the ranges of deleted nodes (ghosts) and of evidence that exists only in the base version. Such ranges never take part in cursor sync; navigation opens that revision.",
+          "type": "string",
+          "minLength": 1
         }
       }
     },
-    "Props": {
-      "title": "Props",
-      "description": "View-specific facts such as decorators, visibility, async, complexity, side effects or a lineage transformation.",
-      "type": "object",
-      "additionalProperties": true
-    },
     "Node": {
       "title": "Node",
+      "description": "range covers the whole node, a definition from its first decorator to its last statement (cursor sync uses it); selectionRange covers the name of a definition, inside range (the navigation target of a click). props are view-specific facts and must match the props def of the node's kind (NodePropsByKind).",
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "kind", "label"],
@@ -207,41 +257,160 @@
         "range": {
           "$ref": "#/$defs/Range"
         },
+        "selectionRange": {
+          "$ref": "#/$defs/Range"
+        },
         "props": {
-          "$ref": "#/$defs/Props"
+          "$ref": "#/$defs/NodeProps"
         },
         "change": {
           "$ref": "#/$defs/ChangeStatus"
+        },
+        "changeDetail": {
+          "$ref": "#/$defs/ChangeDetail"
         },
         "attribution": {
           "$ref": "#/$defs/Attribution"
         },
         "reason": {
-          "description": "Why the target could not be resolved. Required for kind 'unresolved'.",
+          "description": "English fallback text: why the target could not be resolved. Required for kind 'unresolved', which also requires props.reasonCode.",
           "type": "string",
           "minLength": 1
         }
       },
-      "if": {
-        "properties": {
-          "kind": {
-            "const": "unresolved"
-          }
+      "dependentSchemas": {
+        "kind": {
+          "description": "Binds props to the def of the node's kind, exactly as NodePropsByKind maps them, and requires a reason and a reasonCode for unresolved nodes. Applies to every node, because kind is required.",
+          "allOf": [
+            {
+              "if": { "properties": { "kind": { "enum": ["package"] } } },
+              "then": { "properties": { "props": { "$ref": "#/$defs/PackageProps" } } }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["module"] } } },
+              "then": { "properties": { "props": { "$ref": "#/$defs/ModuleProps" } } }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["class"] } } },
+              "then": { "properties": { "props": { "$ref": "#/$defs/ClassProps" } } }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["function", "method"] } } },
+              "then": { "properties": { "props": { "$ref": "#/$defs/FunctionProps" } } }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["attribute"] } } },
+              "then": { "properties": { "props": { "$ref": "#/$defs/AttributeProps" } } }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["property"] } } },
+              "then": { "properties": { "props": { "$ref": "#/$defs/PropertyProps" } } }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "parameter",
+                      "variable",
+                      "statement",
+                      "query",
+                      "subquery",
+                      "cte",
+                      "table",
+                      "view",
+                      "column",
+                      "model",
+                      "source",
+                      "seed",
+                      "snapshot"
+                    ]
+                  }
+                }
+              },
+              "then": { "properties": { "props": { "$ref": "#/$defs/NoProps" } } }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "entry",
+                      "exit",
+                      "block",
+                      "condition",
+                      "loop",
+                      "try",
+                      "handler",
+                      "finally",
+                      "with",
+                      "match",
+                      "case",
+                      "return",
+                      "raise",
+                      "break",
+                      "continue"
+                    ]
+                  }
+                }
+              },
+              "then": { "properties": { "props": { "$ref": "#/$defs/FlowNodeProps" } } }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["external"] } } },
+              "then": { "properties": { "props": { "$ref": "#/$defs/ExternalProps" } } }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["unresolved"] } } },
+              "then": {
+                "required": ["reason", "props"],
+                "properties": {
+                  "reason": { "type": "string", "minLength": 1 },
+                  "props": { "$ref": "#/$defs/UnresolvedProps" }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ChangeDetail": {
+      "title": "ChangeDetail",
+      "description": "What kind of change a node saw, next to its change status, so that later phases can treat some changes as understood without changing the rule for 'modified'.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "formattingOnly": {
+          "description": "Only formatting or comments changed; the node stays unchanged.",
+          "type": "boolean"
         },
-        "required": ["kind"]
-      },
-      "then": {
-        "required": ["reason"],
-        "properties": {
-          "reason": {
-            "type": "string",
-            "minLength": 1
-          }
+        "docstringOnly": {
+          "description": "Only the docstring changed; the node is modified.",
+          "type": "boolean"
+        },
+        "importsReorderedOnly": {
+          "description": "Only the order of the module's imports changed; the module is modified.",
+          "type": "boolean"
+        },
+        "membersReorderedOnly": {
+          "description": "Only the order of the members changed; the class or module is modified, the members are not.",
+          "type": "boolean"
+        },
+        "changedDescendants": {
+          "description": "Number of nested definitions, at any depth, that are added, modified or deleted. Containers count only their own statements for their own status.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "renamedFrom": {
+          "description": "Id of the base version's node that this added node was renamed from; that node gets no ghost.",
+          "type": "string",
+          "minLength": 1
         }
       }
     },
     "Edge": {
       "title": "Edge",
+      "description": "props are view-specific facts and must match the props def of the edge's kind (EdgePropsByKind).",
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "kind", "source", "target", "confidence"],
@@ -274,10 +443,45 @@
           }
         },
         "props": {
-          "$ref": "#/$defs/Props"
+          "$ref": "#/$defs/EdgeProps"
         },
         "change": {
           "$ref": "#/$defs/ChangeStatus"
+        }
+      },
+      "dependentSchemas": {
+        "kind": {
+          "description": "Binds props to the def of the edge's kind, exactly as EdgePropsByKind maps them. Applies to every edge, because kind is required.",
+          "allOf": [
+            {
+              "if": { "properties": { "kind": { "enum": ["calls"] } } },
+              "then": { "properties": { "props": { "$ref": "#/$defs/CallEdgeProps" } } }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["reads", "writes", "mutates"] } } },
+              "then": { "properties": { "props": { "$ref": "#/$defs/AccessEdgeProps" } } }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": { "enum": ["inherits", "overrides", "depends_on", "lineage", "joins"] }
+                }
+              },
+              "then": { "properties": { "props": { "$ref": "#/$defs/NoProps" } } }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["imports"] } } },
+              "then": { "properties": { "props": { "$ref": "#/$defs/ImportEdgeProps" } } }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["raises", "catches"] } } },
+              "then": { "properties": { "props": { "$ref": "#/$defs/ExceptionEdgeProps" } } }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["flow"] } } },
+              "then": { "properties": { "props": { "$ref": "#/$defs/FlowEdgeProps" } } }
+            }
+          ]
         }
       }
     },
@@ -291,19 +495,14 @@
           "$ref": "#/$defs/Severity"
         },
         "code": {
-          "description": "Stable machine-readable code, e.g. syntax-error, newer-syntax, unknown-macro. The UI localizes by code and args.",
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/DiagnosticCode"
         },
         "message": {
           "description": "English fallback text.",
           "type": "string"
         },
         "args": {
-          "type": "object",
-          "additionalProperties": {
-            "type": ["string", "number", "boolean"]
-          }
+          "$ref": "#/$defs/MessageArgs"
         },
         "range": {
           "$ref": "#/$defs/Range"
@@ -312,6 +511,14 @@
           "type": "string",
           "minLength": 1
         }
+      }
+    },
+    "MessageArgs": {
+      "title": "MessageArgs",
+      "description": "Named values that a localized message interpolates, for diagnostics and unresolved reasons.",
+      "type": "object",
+      "additionalProperties": {
+        "type": ["string", "number", "boolean"]
       }
     },
     "Meta": {
@@ -329,7 +536,7 @@
           "minimum": 0
         },
         "baseRevision": {
-          "description": "Git revision of the diff base.",
+          "description": "Git revision (commit SHA) of the diff base the result was compared with. Absent without a base.",
           "type": "string"
         },
         "dialect": {
@@ -337,8 +544,926 @@
           "type": "string"
         },
         "truncated": {
-          "description": "True when the graph was cut at hearback.graph.maxNodes.",
+          "description": "True when the engine reached its safety cap (10 × hearback.graph.maxNodes, at most 10,000 nodes) and cut the graph; a graph-truncated diagnostic explains it. The webview collapses graphs above maxNodes itself.",
           "type": "boolean"
+        }
+      }
+    },
+    "NodeProps": {
+      "title": "NodeProps",
+      "description": "The props of any node kind; the kind decides which one applies (NodePropsByKind).",
+      "anyOf": [
+        { "$ref": "#/$defs/PackageProps" },
+        { "$ref": "#/$defs/ModuleProps" },
+        { "$ref": "#/$defs/ClassProps" },
+        { "$ref": "#/$defs/FunctionProps" },
+        { "$ref": "#/$defs/AttributeProps" },
+        { "$ref": "#/$defs/PropertyProps" },
+        { "$ref": "#/$defs/NoProps" },
+        { "$ref": "#/$defs/FlowNodeProps" },
+        { "$ref": "#/$defs/ExternalProps" },
+        { "$ref": "#/$defs/UnresolvedProps" }
+      ]
+    },
+    "NodePropsByKind": {
+      "title": "NodePropsByKind",
+      "description": "The props def of every node kind, as a type-level mapping (never sent). Node.props must match the def of the node's kind.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package",
+        "module",
+        "class",
+        "function",
+        "method",
+        "attribute",
+        "property",
+        "parameter",
+        "variable",
+        "statement",
+        "query",
+        "subquery",
+        "cte",
+        "table",
+        "view",
+        "column",
+        "model",
+        "source",
+        "seed",
+        "snapshot",
+        "entry",
+        "exit",
+        "block",
+        "condition",
+        "loop",
+        "try",
+        "handler",
+        "finally",
+        "with",
+        "match",
+        "case",
+        "return",
+        "raise",
+        "break",
+        "continue",
+        "external",
+        "unresolved"
+      ],
+      "properties": {
+        "package": { "$ref": "#/$defs/PackageProps" },
+        "module": { "$ref": "#/$defs/ModuleProps" },
+        "class": { "$ref": "#/$defs/ClassProps" },
+        "function": { "$ref": "#/$defs/FunctionProps" },
+        "method": { "$ref": "#/$defs/FunctionProps" },
+        "attribute": { "$ref": "#/$defs/AttributeProps" },
+        "property": { "$ref": "#/$defs/PropertyProps" },
+        "parameter": { "$ref": "#/$defs/NoProps" },
+        "variable": { "$ref": "#/$defs/NoProps" },
+        "statement": { "$ref": "#/$defs/NoProps" },
+        "query": { "$ref": "#/$defs/NoProps" },
+        "subquery": { "$ref": "#/$defs/NoProps" },
+        "cte": { "$ref": "#/$defs/NoProps" },
+        "table": { "$ref": "#/$defs/NoProps" },
+        "view": { "$ref": "#/$defs/NoProps" },
+        "column": { "$ref": "#/$defs/NoProps" },
+        "model": { "$ref": "#/$defs/NoProps" },
+        "source": { "$ref": "#/$defs/NoProps" },
+        "seed": { "$ref": "#/$defs/NoProps" },
+        "snapshot": { "$ref": "#/$defs/NoProps" },
+        "entry": { "$ref": "#/$defs/FlowNodeProps" },
+        "exit": { "$ref": "#/$defs/FlowNodeProps" },
+        "block": { "$ref": "#/$defs/FlowNodeProps" },
+        "condition": { "$ref": "#/$defs/FlowNodeProps" },
+        "loop": { "$ref": "#/$defs/FlowNodeProps" },
+        "try": { "$ref": "#/$defs/FlowNodeProps" },
+        "handler": { "$ref": "#/$defs/FlowNodeProps" },
+        "finally": { "$ref": "#/$defs/FlowNodeProps" },
+        "with": { "$ref": "#/$defs/FlowNodeProps" },
+        "match": { "$ref": "#/$defs/FlowNodeProps" },
+        "case": { "$ref": "#/$defs/FlowNodeProps" },
+        "return": { "$ref": "#/$defs/FlowNodeProps" },
+        "raise": { "$ref": "#/$defs/FlowNodeProps" },
+        "break": { "$ref": "#/$defs/FlowNodeProps" },
+        "continue": { "$ref": "#/$defs/FlowNodeProps" },
+        "external": { "$ref": "#/$defs/ExternalProps" },
+        "unresolved": { "$ref": "#/$defs/UnresolvedProps" }
+      }
+    },
+    "EdgeProps": {
+      "title": "EdgeProps",
+      "description": "The props of any edge kind; the kind decides which one applies (EdgePropsByKind).",
+      "anyOf": [
+        { "$ref": "#/$defs/CallEdgeProps" },
+        { "$ref": "#/$defs/AccessEdgeProps" },
+        { "$ref": "#/$defs/NoProps" },
+        { "$ref": "#/$defs/ImportEdgeProps" },
+        { "$ref": "#/$defs/ExceptionEdgeProps" },
+        { "$ref": "#/$defs/FlowEdgeProps" }
+      ]
+    },
+    "EdgePropsByKind": {
+      "title": "EdgePropsByKind",
+      "description": "The props def of every edge kind, as a type-level mapping (never sent). Edge.props must match the def of the edge's kind.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "calls",
+        "reads",
+        "writes",
+        "mutates",
+        "inherits",
+        "overrides",
+        "imports",
+        "depends_on",
+        "lineage",
+        "joins",
+        "raises",
+        "catches",
+        "flow"
+      ],
+      "properties": {
+        "calls": { "$ref": "#/$defs/CallEdgeProps" },
+        "reads": { "$ref": "#/$defs/AccessEdgeProps" },
+        "writes": { "$ref": "#/$defs/AccessEdgeProps" },
+        "mutates": { "$ref": "#/$defs/AccessEdgeProps" },
+        "inherits": { "$ref": "#/$defs/NoProps" },
+        "overrides": { "$ref": "#/$defs/NoProps" },
+        "imports": { "$ref": "#/$defs/ImportEdgeProps" },
+        "depends_on": { "$ref": "#/$defs/NoProps" },
+        "lineage": { "$ref": "#/$defs/NoProps" },
+        "joins": { "$ref": "#/$defs/NoProps" },
+        "raises": { "$ref": "#/$defs/ExceptionEdgeProps" },
+        "catches": { "$ref": "#/$defs/ExceptionEdgeProps" },
+        "flow": { "$ref": "#/$defs/FlowEdgeProps" }
+      }
+    },
+    "NoProps": {
+      "title": "NoProps",
+      "description": "For kinds without props of their own in this schema version (parameter, variable, the SQL and dbt objects until phase 2, and edges such as inherits): props, if present, must be empty.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "PackageProps": {
+      "title": "PackageProps",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "namespace": {
+          "description": "An implicit namespace package (PEP 420): a directory without __init__.py.",
+          "type": "boolean"
+        }
+      }
+    },
+    "ModuleProps": {
+      "title": "ModuleProps",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "packageInit": {
+          "description": "The module is the __init__.py of a regular package, whose submodules have it as their parent.",
+          "type": "boolean"
+        }
+      }
+    },
+    "ClassProps": {
+      "title": "ClassProps",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bases": {
+          "description": "The base class expressions as written, e.g. BaseClient or Generic[T].",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "decorators": {
+          "description": "The decorator expressions as written, without '@', e.g. dataclass(frozen=True).",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "mro": {
+          "description": "The method resolution order (C3) as node ids, starting with the class itself. It ends at the first base outside the workspace, or where mroError stopped it.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "mroError": {
+          "description": "English text: why no consistent method resolution order exists (diagnostic mro-conflict).",
+          "type": "string"
+        },
+        "components": {
+          "description": "LCOM4-like groups: the ids of methods and attributes that belong together. More than one group means the class consists of independent parts. Constructors, static and class methods, methods that do not use self and methods with dynamic self access are left out.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        },
+        "context": {
+          "description": "The class is defined in another workspace file and appears only as a context card, for example a base class of a class in the analyzed file.",
+          "type": "boolean"
+        },
+        "matrix": {
+          "$ref": "#/$defs/StateMatrix"
+        }
+      }
+    },
+    "StateMatrix": {
+      "title": "StateMatrix",
+      "description": "The state matrix of a class: methods × attributes with R, W or RW (mutates counts as W).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "columns", "cells"],
+      "properties": {
+        "rows": {
+          "description": "Method ids, in display order.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "columns": {
+          "description": "Attribute ids, in display order, inherited attributes included.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "cells": {
+          "description": "The non-empty cells.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/StateCell" }
+        }
+      }
+    },
+    "StateCell": {
+      "title": "StateCell",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row", "column", "access"],
+      "properties": {
+        "row": {
+          "description": "Method id, one of StateMatrix.rows.",
+          "type": "string",
+          "minLength": 1
+        },
+        "column": {
+          "description": "Attribute id, one of StateMatrix.columns.",
+          "type": "string",
+          "minLength": 1
+        },
+        "access": {
+          "$ref": "#/$defs/StateAccess"
+        }
+      }
+    },
+    "StateAccess": {
+      "title": "StateAccess",
+      "description": "R: the method reads the attribute; W: it writes or mutates it; RW: both.",
+      "type": "string",
+      "enum": ["R", "W", "RW"]
+    },
+    "FunctionProps": {
+      "title": "FunctionProps",
+      "description": "Props of functions and methods.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "signature": {
+          "description": "The parameter list and return annotation as written, e.g. (self, url: str) -> bytes.",
+          "type": "string"
+        },
+        "parameters": {
+          "description": "All parameters in order, the receiver (self, cls) included.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Parameter" }
+        },
+        "async": {
+          "type": "boolean"
+        },
+        "decorators": {
+          "description": "The decorator expressions as written, without '@'.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "visibility": {
+          "$ref": "#/$defs/Visibility"
+        },
+        "methodKind": {
+          "$ref": "#/$defs/MethodKind"
+        },
+        "group": {
+          "$ref": "#/$defs/MethodGroup"
+        },
+        "abstract": {
+          "description": "Decorated with @abstractmethod.",
+          "type": "boolean"
+        },
+        "overloads": {
+          "description": "The signatures of the @overload stubs folded into this implementation.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "selfUnused": {
+          "description": "The method does not use its receiver (diagnostic self-unused).",
+          "type": "boolean"
+        },
+        "metrics": {
+          "$ref": "#/$defs/Metrics"
+        },
+        "sideEffects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SideEffect" }
+        },
+        "sideEffectsComplete": {
+          "description": "False when calls with unresolved targets may add side effects or exceptions the analysis cannot see ('may raise more').",
+          "type": "boolean"
+        },
+        "raises": {
+          "description": "Exceptions the function may raise: its own raises that are not surely caught (certain) and exceptions propagated from its callees (inferred, with via).",
+          "type": "array",
+          "items": { "$ref": "#/$defs/ExceptionInfo" }
+        },
+        "catches": {
+          "description": "Exceptions its handlers catch.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/ExceptionInfo" }
+        },
+        "builtinCalls": {
+          "description": "Names of the builtins it calls, e.g. print. Builtins are not call targets.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "dynamicSelfAccess": {
+          "description": "The method accesses its receiver dynamically, e.g. getattr(self, name) or vars(self).",
+          "type": "boolean"
+        }
+      }
+    },
+    "Parameter": {
+      "title": "Parameter",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "$ref": "#/$defs/ParameterKind"
+        },
+        "annotation": {
+          "description": "The annotation as written.",
+          "type": "string"
+        },
+        "default": {
+          "description": "The default value as written.",
+          "type": "string"
+        }
+      }
+    },
+    "ParameterKind": {
+      "title": "ParameterKind",
+      "description": "As in inspect.Parameter: before '/', regular, *args, after '*' or *args, **kwargs.",
+      "type": "string",
+      "enum": [
+        "positionalOnly",
+        "positionalOrKeyword",
+        "varPositional",
+        "keywordOnly",
+        "varKeyword"
+      ]
+    },
+    "Visibility": {
+      "title": "Visibility",
+      "description": "dunder: __name__; private: a leading underscore otherwise, name-mangled __name included; public: everything else.",
+      "type": "string",
+      "enum": ["public", "private", "dunder"]
+    },
+    "MethodKind": {
+      "title": "MethodKind",
+      "description": "How a method binds its first parameter: instance (self), class (@classmethod, cls) or static (@staticmethod, none). Absent for plain functions.",
+      "type": "string",
+      "enum": ["instance", "class", "static"]
+    },
+    "MethodGroup": {
+      "title": "MethodGroup",
+      "description": "The section of the class card: a @staticmethod, @classmethod or @abstractmethod decorator beats the visibility.",
+      "type": "string",
+      "enum": ["public", "private", "dunder", "static", "class", "abstract"]
+    },
+    "Metrics": {
+      "title": "Metrics",
+      "description": "Neutral metrics of a function.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["complexity", "nesting", "lines", "sloc", "parameters"],
+      "properties": {
+        "complexity": {
+          "description": "Cyclomatic complexity (McCabe, counted as radon does).",
+          "type": "integer",
+          "minimum": 1
+        },
+        "nesting": {
+          "description": "Deepest nesting of if, for, while, try, with and match blocks.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "lines": {
+          "description": "Lines from the first decorator to the end.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "sloc": {
+          "description": "Lines without blank and comment-only lines.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "parameters": {
+          "description": "Number of parameters without self and cls.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "SideEffect": {
+      "title": "SideEffect",
+      "description": "A side effect found by a rule of the side-effect rules (built-in or from hearback.sideEffects.rulesFile). confidence is certain when import resolution or the builtins prove the matched name, inferred for a method name on an unknown receiver.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "rule", "confidence", "evidence"],
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/SideEffectCategory"
+        },
+        "rule": {
+          "description": "Id of the rule that matched, e.g. output.print. The UI localizes built-in rule ids.",
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/FactConfidence"
+        },
+        "detail": {
+          "description": "What matched, as written, e.g. self.session.request.",
+          "type": "string"
+        },
+        "evidence": {
+          "description": "Every place where it happens; at least one.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Range" }
+        }
+      }
+    },
+    "SideEffectCategory": {
+      "title": "SideEffectCategory",
+      "type": "string",
+      "enum": [
+        "output",
+        "logging",
+        "file",
+        "network",
+        "subprocess",
+        "database",
+        "write",
+        "environment",
+        "global-state",
+        "argument-mutation"
+      ]
+    },
+    "ExceptionInfo": {
+      "title": "ExceptionInfo",
+      "description": "An exception a function raises or catches.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "confidence"],
+      "properties": {
+        "type": {
+          "description": "The exception as written, e.g. RuntimeError or requests.HTTPError.",
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "description": "Node id of the exception class, when it is resolved, e.g. py:builtins.RuntimeError.",
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/FactConfidence"
+        },
+        "via": {
+          "description": "For a propagated exception: the ids of the called functions it comes through.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence": {
+          "description": "Where it comes from in this function: raise statements, except clauses, or for a propagated exception the calls it comes through.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Range" }
+        }
+      }
+    },
+    "AttributeProps": {
+      "title": "AttributeProps",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/AttributeScope"
+        },
+        "annotation": {
+          "description": "The annotation as written.",
+          "type": "string"
+        },
+        "default": {
+          "description": "For class attributes: the value assigned in the class body, as written.",
+          "type": "string"
+        },
+        "assignments": {
+          "description": "Where the attribute is assigned (rebound, not mutated).",
+          "type": "array",
+          "items": { "$ref": "#/$defs/AttributeAssignment" }
+        },
+        "outsideInit": {
+          "description": "The attribute is first assigned outside the initializers (diagnostic attribute-outside-init).",
+          "type": "boolean"
+        },
+        "owner": {
+          "description": "Id of the class that defines the attribute: the first class along the MRO that assigns it. The attribute's id starts with it. A card lists an attribute whose owner is another class as inherited.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "AttributeScope": {
+      "title": "AttributeScope",
+      "description": "class: declared in the class body; instance: assigned through the receiver, e.g. self.x = ....",
+      "type": "string",
+      "enum": ["class", "instance"]
+    },
+    "AttributeAssignment": {
+      "title": "AttributeAssignment",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["range"],
+      "properties": {
+        "method": {
+          "description": "Id of the function or method that assigns it; absent for the class body.",
+          "type": "string",
+          "minLength": 1
+        },
+        "range": {
+          "$ref": "#/$defs/Range"
+        }
+      }
+    },
+    "PropertyProps": {
+      "title": "PropertyProps",
+      "description": "A property: its accessors fold into one node.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "accessors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/PropertyAccessor" }
+        }
+      }
+    },
+    "PropertyAccessor": {
+      "title": "PropertyAccessor",
+      "description": "One accessor of a property; range covers its definition from its first decorator.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/AccessorKind"
+        },
+        "signature": {
+          "description": "The accessor's parameter list and return annotation as written.",
+          "type": "string"
+        },
+        "range": {
+          "$ref": "#/$defs/Range"
+        }
+      }
+    },
+    "AccessorKind": {
+      "title": "AccessorKind",
+      "description": "get: the getter; set: the setter; delete: the deleter.",
+      "type": "string",
+      "enum": ["get", "set", "delete"]
+    },
+    "ExternalProps": {
+      "title": "ExternalProps",
+      "description": "A target outside the workspace: one node per top-level package.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "group": {
+          "$ref": "#/$defs/ExternalGroup"
+        },
+        "package": {
+          "description": "The top-level package name, e.g. json, os or builtins.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ExternalGroup": {
+      "title": "ExternalGroup",
+      "description": "stdlib: in sys.stdlib_module_names (builtins included); thirdParty: everything else outside the workspace.",
+      "type": "string",
+      "enum": ["stdlib", "thirdParty"]
+    },
+    "UnresolvedProps": {
+      "title": "UnresolvedProps",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reasonCode"],
+      "properties": {
+        "expression": {
+          "description": "The expression that could not be resolved, as written, e.g. getattr(self, name)().",
+          "type": "string"
+        },
+        "reasonCode": {
+          "$ref": "#/$defs/UnresolvedReasonCode"
+        },
+        "args": {
+          "$ref": "#/$defs/MessageArgs"
+        }
+      }
+    },
+    "FlowNodeProps": {
+      "title": "FlowNodeProps",
+      "description": "Props of the control-flow node kinds.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exceptional": {
+          "description": "On an exit: the exceptional exit that uncaught exceptions reach.",
+          "type": "boolean"
+        },
+        "statements": {
+          "description": "On a block: the number of simple statements merged into it; the label shows the first.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "unreachable": {
+          "description": "No path from the entry reaches the node, e.g. code after a return.",
+          "type": "boolean"
+        },
+        "earlyExit": {
+          "description": "A return, raise, break or continue that leaves before the end of its function or loop body.",
+          "type": "boolean"
+        },
+        "removedLines": {
+          "description": "When compared: the number of base lines deleted at this place.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "CallEdgeProps": {
+      "title": "CallEdgeProps",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "resolvedBy": {
+          "$ref": "#/$defs/ResolvedBy"
+        }
+      }
+    },
+    "ResolvedBy": {
+      "title": "ResolvedBy",
+      "description": "Which optional resolution step found the call (spec 6.1.3): jedi (step 3) or languageServer (step 4); both are inferred. Absent for steps 1 and 2 (local scopes, self, cls, super() and workspace imports).",
+      "type": "string",
+      "enum": ["jedi", "languageServer"]
+    },
+    "AccessEdgeProps": {
+      "title": "AccessEdgeProps",
+      "description": "Props of reads, writes and mutates edges.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mutation": {
+          "$ref": "#/$defs/MutationKind"
+        },
+        "method": {
+          "description": "For mutation 'method': the mutating method's name, e.g. append.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "MutationKind": {
+      "title": "MutationKind",
+      "description": "How a mutates edge changes the attribute's value: subscript (self.x[k] = v), attribute (self.x.y = v), delete (del self.x[k]) or method (a known mutating method such as self.x.append(v)).",
+      "type": "string",
+      "enum": ["subscript", "attribute", "delete", "method"]
+    },
+    "FlowEdgeProps": {
+      "title": "FlowEdgeProps",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "branch": {
+          "$ref": "#/$defs/FlowBranch"
+        },
+        "text": {
+          "description": "A source fragment shown with the branch label, e.g. the exception type of an exception edge or the pattern of a case.",
+          "type": "string"
+        },
+        "exceptional": {
+          "description": "An exception edge: inferred and drawn dashed.",
+          "type": "boolean"
+        },
+        "back": {
+          "description": "The edge leads back to a loop header, from the end of the loop body or from a continue.",
+          "type": "boolean"
+        }
+      }
+    },
+    "FlowBranch": {
+      "title": "FlowBranch",
+      "description": "Why the edge is taken; the UI localizes it. true and false: a condition; loopNext: the next iteration; loopDone: the loop is exhausted; loopElse: exhausted, into the else block; case: a case matched; noMatch: no case matched; exception: to a handler or out of the function; finallyThen: on from a finally block with the jump that entered it; back: back to the loop header.",
+      "type": "string",
+      "enum": [
+        "true",
+        "false",
+        "loopNext",
+        "loopDone",
+        "loopElse",
+        "case",
+        "noMatch",
+        "exception",
+        "finallyThen",
+        "back"
+      ]
+    },
+    "ImportEdgeProps": {
+      "title": "ImportEdgeProps",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "flags": {
+          "description": "Set only when every import statement behind the edge has the flag.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ImportFlag" }
+        },
+        "cycle": {
+          "$ref": "#/$defs/ImportCycle"
+        }
+      }
+    },
+    "ImportFlag": {
+      "title": "ImportFlag",
+      "description": "typeOnly: under if TYPE_CHECKING; deferred: inside a function; conditional: inside if or try at module level; lazy: a lazy import (PEP 810); star: from x import *; dynamic: importlib.import_module with a constant name (inferred).",
+      "type": "string",
+      "enum": ["typeOnly", "deferred", "conditional", "lazy", "star", "dynamic"]
+    },
+    "ImportCycle": {
+      "title": "ImportCycle",
+      "description": "Membership of the edge in an import cycle (diagnostic import-cycle).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "kind"],
+      "properties": {
+        "index": {
+          "description": "Number of the cycle (strongly connected component), equal for all its edges.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "kind": {
+          "$ref": "#/$defs/CycleKind"
+        }
+      }
+    },
+    "CycleKind": {
+      "title": "CycleKind",
+      "description": "hard: a cycle of import-time edges only; soft: the cycle needs TYPE_CHECKING, deferred or lazy edges.",
+      "type": "string",
+      "enum": ["hard", "soft"]
+    },
+    "ExceptionEdgeProps": {
+      "title": "ExceptionEdgeProps",
+      "description": "Props of raises and catches edges.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "via": {
+          "description": "For a propagated exception (inferred): the ids of the called functions it comes through.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "handled": {
+          "description": "On a raises edge: a handler of the same function surely catches the exception, so it does not propagate to callers.",
+          "type": "boolean"
+        }
+      }
+    },
+    "ChangeSummary": {
+      "title": "ChangeSummary",
+      "description": "Result of diff/compare: the outline of one file, with change status per symbol when compared with a base, and the line hunks.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "file", "module", "symbols", "hunks", "diagnostics", "meta"],
+      "properties": {
+        "schemaVersion": {
+          "description": "Equal to GraphDocument.schemaVersion.",
+          "const": 2
+        },
+        "file": {
+          "description": "The analyzed file, exactly as the extension passed it.",
+          "type": "string",
+          "minLength": 1
+        },
+        "module": {
+          "description": "The dotted module name derived from the file path and the source roots, e.g. shop.orders.",
+          "type": "string",
+          "minLength": 1
+        },
+        "baseRevision": {
+          "description": "The base revision the symbols were compared with; absent without a base. meta.baseRevision carries the same value.",
+          "type": "string",
+          "minLength": 1
+        },
+        "symbols": {
+          "description": "The module, its classes, functions, methods and properties, with change and changeDetail when compared; deleted symbols as ghosts whose ranges carry the base revision.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Node" }
+        },
+        "hunks": {
+          "description": "Line hunks between the base and the working text; empty without a base.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Hunk" }
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Diagnostic" }
+        },
+        "meta": {
+          "$ref": "#/$defs/Meta"
+        }
+      }
+    },
+    "Hunk": {
+      "title": "Hunk",
+      "description": "One changed run of lines: the base lines are replaced by the working lines.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base", "working"],
+      "properties": {
+        "base": { "$ref": "#/$defs/LineSpan" },
+        "working": { "$ref": "#/$defs/LineSpan" }
+      }
+    },
+    "LineSpan": {
+      "title": "LineSpan",
+      "description": "A run of count lines from the zero-based line start. With count 0 (an insertion or deletion), start is the line before which it happens.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "count"],
+      "properties": {
+        "start": { "type": "integer", "minimum": 0 },
+        "count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "IndexResult": {
+      "title": "IndexResult",
+      "description": "Result of python/indexFiles: the engine parsed one batch of workspace files into its per-file summaries.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "root", "files", "parsed", "reused", "diagnostics", "meta"],
+      "properties": {
+        "schemaVersion": {
+          "description": "Equal to GraphDocument.schemaVersion.",
+          "const": 2
+        },
+        "root": {
+          "description": "The workspace folder of the batch, exactly as the extension passed it.",
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "description": "Number of files in the batch.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "parsed": {
+          "description": "Files read and parsed for this request.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "reused": {
+          "description": "Files whose cached summary was still valid.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "diagnostics": {
+          "description": "Files that could not be read or parsed (file-too-large, file-unreadable, syntax-error, newer-syntax).",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Diagnostic" }
+        },
+        "meta": {
+          "$ref": "#/$defs/Meta"
         }
       }
     }

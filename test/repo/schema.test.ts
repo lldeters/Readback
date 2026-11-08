@@ -4,6 +4,12 @@ import { Ajv2020 } from 'ajv/dist/2020';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type {
+  EdgeKind,
+  EdgePropsByKind,
+  NodeKind,
+  NodePropsByKind,
+} from '../../src/shared/generated/graph';
 import { asRecord, readJson, repoRoot } from './helpers';
 
 const graphSchema = asRecord(readJson('shared/graph-schema.json'));
@@ -11,12 +17,15 @@ const protocolSchema = asRecord(readJson('shared/engine-protocol.schema.json'));
 
 const ajv = new Ajv2020({ allErrors: true, strict: true, allowUnionTypes: true });
 ajv.addSchema(protocolSchema);
-const validateGraph = ajv.compile(graphSchema);
+ajv.addSchema(graphSchema);
+const validateGraph = definition('graph', 'GraphDocument');
 
-function protocolValidator(definition: string) {
-  const validate = ajv.getSchema(`${String(protocolSchema.$id)}#/$defs/${definition}`);
+function definition(schema: 'graph' | 'protocol', name: string) {
+  const source = schema === 'graph' ? graphSchema : protocolSchema;
+  const pointer = name === 'GraphDocument' ? '' : `#/$defs/${name}`;
+  const validate = ajv.getSchema(`${String(source.$id)}${pointer}`);
   if (!validate) {
-    throw new Error(`no $defs/${definition} in the protocol schema`);
+    throw new Error(`no ${name} in the ${schema} schema`);
   }
   return validate;
 }
@@ -25,61 +34,213 @@ function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
-describe('graph schema', () => {
-  const example = readJson('shared/examples/graph-class-anatomy.json');
+type JsonObject = Record<string, unknown>;
 
+/** true when A and B are the same union of keys, false otherwise. */
+type SameKeys<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+interface ExampleNode extends JsonObject {
+  id: string;
+  kind: string;
+  parent?: string;
+  props?: JsonObject;
+  range?: { start: { line: number } };
+}
+
+interface ExampleDocument extends JsonObject {
+  focus?: string;
+  nodes: ExampleNode[];
+  edges: (JsonObject & { source: string; target: string })[];
+  diagnostics: (JsonObject & { nodeId?: string })[];
+}
+
+const anatomy = readJson('shared/examples/graph-class-anatomy.json') as ExampleDocument;
+
+/** A one-node document for checks of the node rules. */
+function documentWith(node: JsonObject): JsonObject {
+  return {
+    schemaVersion: 2,
+    view: 'classAnatomy',
+    nodes: [node],
+    edges: [],
+    diagnostics: [],
+    meta: { engineVersion: '0.0.1', durationMs: 0 },
+  };
+}
+
+function nodeOf(kind: string, props: JsonObject, extra: JsonObject = {}): JsonObject {
+  return { id: 'py:m.x', kind, label: 'x', props, ...extra };
+}
+
+function defsOf(schema: JsonObject): Record<string, JsonObject> {
+  return schema.$defs as Record<string, JsonObject>;
+}
+
+describe('graph schema', () => {
   it('accepts the example document', () => {
-    expect(validateGraph(example), JSON.stringify(validateGraph.errors)).toBe(true);
+    expect(validateGraph(anatomy), JSON.stringify(validateGraph.errors)).toBe(true);
   });
 
-  it('requires a reason for unresolved nodes', () => {
-    const document = clone(example) as { nodes: Record<string, unknown>[] };
+  it('accepts the example change summary', () => {
+    const validate = definition('graph', 'ChangeSummary');
+    const example = readJson('shared/examples/change-summary.json');
+    expect(validate(example), JSON.stringify(validate.errors)).toBe(true);
+  });
+
+  it('has examples whose ids refer to their own nodes', () => {
+    const summary = readJson('shared/examples/change-summary.json') as { symbols: ExampleNode[] };
+    for (const nodes of [anatomy.nodes, summary.symbols]) {
+      const ids = new Set(nodes.map((node) => node.id));
+      expect(ids.size).toBe(nodes.length);
+      for (const node of nodes) {
+        if (node.parent !== undefined) {
+          expect(ids.has(node.parent), node.parent).toBe(true);
+        }
+      }
+    }
+    const ids = new Set(anatomy.nodes.map((node) => node.id));
+    expect(anatomy.focus !== undefined && ids.has(anatomy.focus)).toBe(true);
+    for (const edge of anatomy.edges) {
+      expect(ids.has(edge.source) && ids.has(edge.target), JSON.stringify(edge)).toBe(true);
+    }
+    for (const diagnostic of anatomy.diagnostics) {
+      expect(diagnostic.nodeId === undefined || ids.has(diagnostic.nodeId)).toBe(true);
+    }
+  });
+
+  it('requires a reason and a reason code for unresolved nodes', () => {
+    const document = clone(anatomy);
     const unresolved = document.nodes.find((node) => node.kind === 'unresolved');
     expect(unresolved).toBeDefined();
     if (unresolved) {
       delete unresolved.reason;
     }
     expect(validateGraph(document)).toBe(false);
+
+    const withoutCode = clone(anatomy);
+    const node = withoutCode.nodes.find((entry) => entry.kind === 'unresolved');
+    if (node?.props) {
+      delete node.props.reasonCode;
+    }
+    expect(validateGraph(withoutCode)).toBe(false);
+    expect(validateGraph(documentWith(nodeOf('unresolved', {}, { reason: 'why' })))).toBe(false);
+    expect(validateGraph(documentWith(nodeOf('unresolved', { reasonCode: 'dynamic-call' })))).toBe(
+      false,
+    );
+    expect(
+      validateGraph(
+        documentWith(nodeOf('unresolved', { reasonCode: 'dynamic-call' }, { reason: 'why' })),
+      ),
+    ).toBe(true);
   });
 
-  it('rejects unknown properties and confidence values', () => {
-    const extra = clone(example) as { nodes: Record<string, unknown>[] };
+  it('rejects props keys that the def of the node kind lacks', () => {
+    // A v1 key that no props def has.
+    expect(validateGraph(documentWith(nodeOf('method', { complexity: 2 })))).toBe(false);
+    // A key of another kind's def: ClassProps has bases, FunctionProps does not.
+    expect(validateGraph(documentWith(nodeOf('method', { bases: [] })))).toBe(false);
+    expect(validateGraph(documentWith(nodeOf('class', { bases: [] })))).toBe(true);
+    // Kinds without props in this schema version take none.
+    expect(validateGraph(documentWith(nodeOf('table', { bases: [] })))).toBe(false);
+    expect(validateGraph(documentWith(nodeOf('table', {})))).toBe(true);
+    // Nested defs are closed too.
+    const metrics = { complexity: 1, nesting: 0, lines: 1, sloc: 1, parameters: 0 };
+    expect(validateGraph(documentWith(nodeOf('function', { metrics })))).toBe(true);
+    expect(
+      validateGraph(documentWith(nodeOf('function', { metrics: { ...metrics, cognitive: 1 } }))),
+    ).toBe(false);
+  });
+
+  it('rejects edge props that the def of the edge kind lacks', () => {
+    const document = clone(anatomy);
+    const edge = document.edges.find((entry) => entry.kind === 'mutates');
+    expect(edge).toBeDefined();
+    if (edge) {
+      edge.props = { resolvedBy: 'jedi' };
+    }
+    expect(validateGraph(document)).toBe(false);
+    if (edge) {
+      edge.props = { mutation: 'method', method: 'append' };
+    }
+    expect(validateGraph(document), JSON.stringify(validateGraph.errors)).toBe(true);
+  });
+
+  it('accepts ranges with a revision and rejects an empty revision', () => {
+    const ghost = {
+      file: '/workspace/retrying_client.py',
+      start: { line: 35, character: 4 },
+      end: { line: 36, character: 33 },
+      revision: '3f2c1d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e',
+    };
+    const node = { id: 'py:m.f', kind: 'function', label: 'f', range: ghost, change: 'deleted' };
+    expect(validateGraph(documentWith(node)), JSON.stringify(validateGraph.errors)).toBe(true);
+    expect(validateGraph(documentWith({ ...node, range: { ...ghost, revision: '' } }))).toBe(false);
+  });
+
+  it('rejects unknown properties, diagnostic codes and confidence values', () => {
+    const extra = clone(anatomy);
     if (extra.nodes[0]) {
       extra.nodes[0].colour = 'red';
     }
     expect(validateGraph(extra)).toBe(false);
 
-    const badConfidence = clone(example) as { edges: Record<string, unknown>[] };
+    const badConfidence = clone(anatomy);
     if (badConfidence.edges[0]) {
       badConfidence.edges[0].confidence = 'probably';
     }
     expect(validateGraph(badConfidence)).toBe(false);
+
+    const badCode = clone(anatomy);
+    if (badCode.diagnostics[0]) {
+      badCode.diagnostics[0].code = 'something-else';
+    }
+    expect(validateGraph(badCode)).toBe(false);
   });
 
   it('rejects negative positions', () => {
-    const document = clone(example) as {
-      nodes: { range?: { start: { line: number } } }[];
-    };
+    const document = clone(anatomy);
     const range = document.nodes[0]?.range;
     if (range) {
       range.start.line = -1;
     }
     expect(validateGraph(document)).toBe(false);
   });
+
+  it('maps every node and edge kind to a props def', () => {
+    const defs = defsOf(graphSchema);
+    const kinds = (name: string) => (defs[name] as { enum: string[] }).enum;
+    const mapped = (name: string) => Object.keys(defs[name]?.properties as JsonObject);
+    expect(mapped('NodePropsByKind')).toEqual(kinds('NodeKind'));
+    expect(mapped('EdgePropsByKind')).toEqual(kinds('EdgeKind'));
+    // The same holds for the generated types that propsOf() in the webview relies on: the
+    // assignments fail to typecheck when the key sets differ.
+    const nodeKindsMatch: SameKeys<keyof NodePropsByKind, NodeKind> = true;
+    const edgeKindsMatch: SameKeys<keyof EdgePropsByKind, EdgeKind> = true;
+    expect([nodeKindsMatch, edgeKindsMatch]).toEqual([true, true]);
+  });
 });
 
 describe('engine protocol schema', () => {
   it('accepts the example initialize result', () => {
-    const validate = protocolValidator('InitializeResult');
+    const validate = definition('protocol', 'InitializeResult');
     const example = readJson('shared/examples/initialize-result.json');
     expect(validate(example), JSON.stringify(validate.errors)).toBe(true);
   });
 
   it('rejects an initialize result without python info', () => {
-    const validate = protocolValidator('InitializeResult');
+    const validate = definition('protocol', 'InitializeResult');
     const example = asRecord(clone(readJson('shared/examples/initialize-result.json')));
     delete example.python;
     expect(validate(example)).toBe(false);
+  });
+
+  it('does not reference the graph schema', () => {
+    expect(JSON.stringify(protocolSchema)).not.toContain('graph-schema.json#');
+    const references = [...JSON.stringify(protocolSchema).matchAll(/"\$ref":"([^"]*)"/g)];
+    expect(references.length).toBeGreaterThan(0);
+    for (const [, reference] of references) {
+      expect(reference?.startsWith('#/$defs/'), reference).toBe(true);
+    }
   });
 });
 

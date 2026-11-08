@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 2,
+  "file": "/workspace/retrying_client.py",
+  "module": "retrying_client",
+  "baseRevision": "3f2c1d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e",
+  "symbols": [
+    {
+      "id": "py:retrying_client",
+      "kind": "module",
+      "label": "retrying_client",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 0, "character": 0 },
+        "end": { "line": 42, "character": 36 }
+      },
+      "change": "unchanged",
+      "changeDetail": { "changedDescendants": 4 }
+    },
+    {
+      "id": "py:retrying_client.BaseClient",
+      "kind": "class",
+      "label": "BaseClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 0, "character": 0 },
+        "end": { "line": 2, "character": 30 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 0, "character": 6 },
+        "end": { "line": 0, "character": 16 }
+      },
+      "change": "unchanged"
+    },
+    {
+      "id": "py:retrying_client.BaseClient.__init__",
+      "kind": "method",
+      "label": "__init__",
+      "parent": "py:retrying_client.BaseClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 1, "character": 4 },
+        "end": { "line": 2, "character": 30 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 1, "character": 8 },
+        "end": { "line": 1, "character": 16 }
+      },
+      "change": "unchanged"
+    },
+    {
+      "id": "py:retrying_client.RetryingClient",
+      "kind": "class",
+      "label": "RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 5, "character": 0 },
+        "end": { "line": 42, "character": 36 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 5, "character": 6 },
+        "end": { "line": 5, "character": 20 }
+      },
+      "change": "modified",
+      "changeDetail": { "changedDescendants": 3 }
+    },
+    {
+      "id": "py:retrying_client.RetryingClient.__init__",
+      "kind": "method",
+      "label": "__init__",
+      "parent": "py:retrying_client.RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 8, "character": 4 },
+        "end": { "line": 11, "character": 42 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 8, "character": 8 },
+        "end": { "line": 8, "character": 16 }
+      },
+      "change": "unchanged"
+    },
+    {
+      "id": "py:retrying_client.RetryingClient.timeout",
+      "kind": "property",
+      "label": "timeout",
+      "parent": "py:retrying_client.RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 13, "character": 4 },
+        "end": { "line": 15, "character": 28 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 14, "character": 8 },
+        "end": { "line": 14, "character": 15 }
+      },
+      "change": "unchanged"
+    },
+    {
+      "id": "py:retrying_client.RetryingClient.get",
+      "kind": "method",
+      "label": "get",
+      "parent": "py:retrying_client.RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 17, "character": 4 },
+        "end": { "line": 23, "character": 19 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 17, "character": 8 },
+        "end": { "line": 17, "character": 11 }
+      },
+      "change": "modified",
+      "changeDetail": { "docstringOnly": true }
+    },
+    {
+      "id": "py:retrying_client.RetryingClient.close",
+      "kind": "method",
+      "label": "close",
+      "parent": "py:retrying_client.RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 25, "character": 4 },
+        "end": { "line": 26, "character": 27 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 25, "character": 8 },
+        "end": { "line": 25, "character": 13 }
+      },
+      "change": "added"
+    },
+    {
+      "id": "py:retrying_client.RetryingClient._request_with_retry",
+      "kind": "method",
+      "label": "_request_with_retry",
+      "parent": "py:retrying_client.RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 28, "character": 4 },
+        "end": { "line": 34, "character": 47 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 28, "character": 8 },
+        "end": { "line": 28, "character": 27 }
+      },
+      "change": "unchanged"
+    },
+    {
+      "id": "py:retrying_client.RetryingClient._send",
+      "kind": "method",
+      "label": "_send",
+      "parent": "py:retrying_client.RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 36, "character": 4 },
+        "end": { "line": 39, "character": 9 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 36, "character": 8 },
+        "end": { "line": 36, "character": 13 }
+      },
+      "change": "unchanged",
+      "changeDetail": { "formattingOnly": true }
+    },
+    {
+      "id": "py:retrying_client.RetryingClient._log_retry",
+      "kind": "method",
+      "label": "_log_retry",
+      "parent": "py:retrying_client.RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 35, "character": 4 },
+        "end": { "line": 36, "character": 33 },
+        "revision": "3f2c1d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e"
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 35, "character": 8 },
+        "end": { "line": 35, "character": 18 },
+        "revision": "3f2c1d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e"
+      },
+      "change": "deleted"
+    },
+    {
+      "id": "py:retrying_client.RetryingClient.call_by_name",
+      "kind": "method",
+      "label": "call_by_name",
+      "parent": "py:retrying_client.RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 41, "character": 4 },
+        "end": { "line": 42, "character": 36 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 41, "character": 8 },
+        "end": { "line": 41, "character": 20 }
+      },
+      "change": "unchanged"
+    }
+  ],
+  "hunks": [
+    {
+      "base": { "start": 18, "count": 0 },
+      "working": { "start": 18, "count": 1 }
+    },
+    {
+      "base": { "start": 23, "count": 0 },
+      "working": { "start": 24, "count": 3 }
+    },
+    {
+      "base": { "start": 33, "count": 4 },
+      "working": { "start": 37, "count": 3 }
+    }
+  ],
+  "diagnostics": [],
+  "meta": {
+    "engineVersion": "0.0.1",
+    "durationMs": 3.2,
+    "baseRevision": "3f2c1d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e"
+  }
+}

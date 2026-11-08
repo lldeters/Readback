@@ -1,62 +1,232 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "view": "classAnatomy",
+  "focus": "py:retrying_client.RetryingClient.get",
   "nodes": [
     {
-      "id": "py:client.RetryingClient",
+      "id": "py:retrying_client.RetryingClient",
       "kind": "class",
       "label": "RetryingClient",
       "range": {
-        "file": "/workspace/client.py",
-        "start": { "line": 6, "character": 0 },
-        "end": { "line": 40, "character": 35 }
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 5, "character": 0 },
+        "end": { "line": 39, "character": 36 }
       },
-      "props": { "bases": ["BaseClient"], "decorators": [] },
-      "change": "modified"
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 5, "character": 6 },
+        "end": { "line": 5, "character": 20 }
+      },
+      "props": {
+        "bases": ["BaseClient"],
+        "decorators": [],
+        "mro": [
+          "py:retrying_client.RetryingClient",
+          "py:retrying_client.BaseClient",
+          "py:builtins.object"
+        ]
+      },
+      "change": "modified",
+      "changeDetail": { "changedDescendants": 1 }
     },
     {
-      "id": "py:client.RetryingClient.get",
-      "kind": "method",
-      "label": "get",
-      "parent": "py:client.RetryingClient",
-      "props": { "signature": "(self, url: str) -> bytes", "async": false, "complexity": 2 },
-      "change": "added",
-      "attribution": "unknown"
-    },
-    {
-      "id": "py:client.RetryingClient._cache",
+      "id": "py:retrying_client.RetryingClient._cache",
       "kind": "attribute",
       "label": "_cache",
-      "parent": "py:client.RetryingClient"
+      "parent": "py:retrying_client.RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 11, "character": 8 },
+        "end": { "line": 11, "character": 19 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 11, "character": 13 },
+        "end": { "line": 11, "character": 19 }
+      },
+      "props": {
+        "scope": "instance",
+        "annotation": "dict[str, bytes]",
+        "assignments": [
+          {
+            "method": "py:retrying_client.RetryingClient.__init__",
+            "range": {
+              "file": "/workspace/retrying_client.py",
+              "start": { "line": 11, "character": 8 },
+              "end": { "line": 11, "character": 42 }
+            }
+          }
+        ],
+        "outsideInit": false,
+        "owner": "py:retrying_client.RetryingClient"
+      },
+      "change": "unchanged"
     },
     {
-      "id": "unresolved:py:client.RetryingClient.call_by_name#1",
+      "id": "py:retrying_client.RetryingClient.get",
+      "kind": "method",
+      "label": "get",
+      "parent": "py:retrying_client.RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 17, "character": 4 },
+        "end": { "line": 22, "character": 19 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 17, "character": 8 },
+        "end": { "line": 17, "character": 11 }
+      },
+      "props": {
+        "signature": "(self, url: str) -> bytes",
+        "parameters": [
+          { "name": "self", "kind": "positionalOrKeyword" },
+          { "name": "url", "kind": "positionalOrKeyword", "annotation": "str" }
+        ],
+        "async": false,
+        "decorators": [],
+        "visibility": "public",
+        "methodKind": "instance",
+        "group": "public",
+        "metrics": { "complexity": 2, "nesting": 1, "lines": 6, "sloc": 6, "parameters": 1 },
+        "raises": [
+          {
+            "type": "RuntimeError",
+            "target": "py:builtins.RuntimeError",
+            "confidence": "inferred",
+            "via": ["py:retrying_client.RetryingClient._request_with_retry"],
+            "evidence": [
+              {
+                "file": "/workspace/retrying_client.py",
+                "start": { "line": 20, "character": 15 },
+                "end": { "line": 20, "character": 51 }
+              }
+            ]
+          }
+        ]
+      },
+      "change": "added"
+    },
+    {
+      "id": "py:retrying_client.RetryingClient._log_retry",
+      "kind": "method",
+      "label": "_log_retry",
+      "parent": "py:retrying_client.RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 35, "character": 4 },
+        "end": { "line": 36, "character": 33 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 35, "character": 8 },
+        "end": { "line": 35, "character": 18 }
+      },
+      "props": {
+        "signature": "(self, attempt: int) -> None",
+        "parameters": [
+          { "name": "self", "kind": "positionalOrKeyword" },
+          { "name": "attempt", "kind": "positionalOrKeyword", "annotation": "int" }
+        ],
+        "async": false,
+        "decorators": [],
+        "visibility": "private",
+        "methodKind": "instance",
+        "group": "private",
+        "selfUnused": true,
+        "metrics": { "complexity": 1, "nesting": 0, "lines": 2, "sloc": 2, "parameters": 1 },
+        "sideEffects": [
+          {
+            "category": "output",
+            "rule": "output.print",
+            "confidence": "certain",
+            "detail": "print",
+            "evidence": [
+              {
+                "file": "/workspace/retrying_client.py",
+                "start": { "line": 36, "character": 8 },
+                "end": { "line": 36, "character": 33 }
+              }
+            ]
+          }
+        ],
+        "builtinCalls": ["print"]
+      },
+      "change": "unchanged"
+    },
+    {
+      "id": "py:retrying_client.RetryingClient.call_by_name",
+      "kind": "method",
+      "label": "call_by_name",
+      "parent": "py:retrying_client.RetryingClient",
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 38, "character": 4 },
+        "end": { "line": 39, "character": 36 }
+      },
+      "selectionRange": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 38, "character": 8 },
+        "end": { "line": 38, "character": 20 }
+      },
+      "props": {
+        "signature": "(self, name: str)",
+        "parameters": [
+          { "name": "self", "kind": "positionalOrKeyword" },
+          { "name": "name", "kind": "positionalOrKeyword", "annotation": "str" }
+        ],
+        "async": false,
+        "decorators": [],
+        "visibility": "public",
+        "methodKind": "instance",
+        "group": "public",
+        "metrics": { "complexity": 1, "nesting": 0, "lines": 2, "sloc": 2, "parameters": 1 },
+        "sideEffectsComplete": false,
+        "builtinCalls": ["getattr"],
+        "dynamicSelfAccess": true
+      },
+      "change": "unchanged"
+    },
+    {
+      "id": "unresolved:py:retrying_client.RetryingClient.call_by_name/getattr(self, name)()",
       "kind": "unresolved",
       "label": "getattr(self, name)()",
+      "props": { "expression": "getattr(self, name)()", "reasonCode": "dynamic-call" },
+      "change": "unchanged",
       "reason": "dynamic call via getattr"
     }
   ],
   "edges": [
     {
-      "id": "e1",
+      "id": "e:mutates:py:retrying_client.RetryingClient.get->py:retrying_client.RetryingClient._cache",
       "kind": "mutates",
-      "source": "py:client.RetryingClient.get",
-      "target": "py:client.RetryingClient._cache",
+      "source": "py:retrying_client.RetryingClient.get",
+      "target": "py:retrying_client.RetryingClient._cache",
       "confidence": "certain",
       "evidence": [
         {
-          "file": "/workspace/client.py",
+          "file": "/workspace/retrying_client.py",
           "start": { "line": 21, "character": 8 },
-          "end": { "line": 21, "character": 31 }
+          "end": { "line": 21, "character": 24 }
         }
-      ]
+      ],
+      "props": { "mutation": "subscript" },
+      "change": "added"
     },
     {
-      "id": "e2",
+      "id": "e:calls:py:retrying_client.RetryingClient.call_by_name->unresolved:py:retrying_client.RetryingClient.call_by_name/getattr(self, name)()",
       "kind": "calls",
-      "source": "py:client.RetryingClient.get",
-      "target": "unresolved:py:client.RetryingClient.call_by_name#1",
-      "confidence": "unresolved"
+      "source": "py:retrying_client.RetryingClient.call_by_name",
+      "target": "unresolved:py:retrying_client.RetryingClient.call_by_name/getattr(self, name)()",
+      "confidence": "unresolved",
+      "evidence": [
+        {
+          "file": "/workspace/retrying_client.py",
+          "start": { "line": 39, "character": 15 },
+          "end": { "line": 39, "character": 36 }
+        }
+      ],
+      "change": "unchanged"
     }
   ],
   "diagnostics": [
@@ -65,8 +235,17 @@
       "code": "self-unused",
       "message": "_log_retry does not use self.",
       "args": { "method": "_log_retry" },
-      "nodeId": "py:client.RetryingClient.get"
+      "range": {
+        "file": "/workspace/retrying_client.py",
+        "start": { "line": 35, "character": 8 },
+        "end": { "line": 35, "character": 18 }
+      },
+      "nodeId": "py:retrying_client.RetryingClient._log_retry"
     }
   ],
-  "meta": { "engineVersion": "0.0.1", "durationMs": 12.5, "baseRevision": "HEAD" }
+  "meta": {
+    "engineVersion": "0.0.1",
+    "durationMs": 12.5,
+    "baseRevision": "3f2c1d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e"
+  }
 }

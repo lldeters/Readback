@@ -26,6 +26,7 @@ BOOTSTRAP: Final = ENGINE_DIR / "run_engine.py"
 SHARED_DIR: Final = REPO_ROOT / "shared"
 PROTOCOL_SCHEMA: Final = SHARED_DIR / "engine-protocol.schema.json"
 GRAPH_SCHEMA: Final = SHARED_DIR / "graph-schema.json"
+EXAMPLES_DIR: Final = SHARED_DIR / "examples"
 
 # The record format of src/engine/stderrLog.ts, plus its continuation lines.
 LOG_RECORD: Final = re.compile(r"^\[(trace|debug|info|warning|error)\] (.*)$")

@@ -39,7 +39,7 @@ def test_initialize_reports_the_engine(engine: EngineHarness) -> None:
     assert result == {
         "engineVersion": ENGINE_VERSION,
         "protocolVersion": 1,
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "python": runtime_info.python_info(),
         "vendored": runtime_info.vendored_packages(support.VENDOR_DIR),
         "capabilities": {"methods": ENGINE_METHODS},

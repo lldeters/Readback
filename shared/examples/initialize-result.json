@@ -1,7 +1,7 @@
 {
   "engineVersion": "0.0.1",
   "protocolVersion": 1,
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "python": {
     "version": "3.12.3",
     "versionInfo": { "major": 3, "minor": 12, "micro": 3, "releaseLevel": "final", "serial": 0 },
