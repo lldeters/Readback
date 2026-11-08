@@ -12,7 +12,9 @@ CPython's ast reports UTF-8 byte offsets and sqlglot reports code-point offsets,
 be converted before they reach a Position.
 
 Props are typed per kind: NodePropsByKind and EdgePropsByKind name the props def of every node
-and edge kind, and the schema rejects props that do not match the def of their kind.
+and edge kind, and the schema rejects props that do not match the def of their kind. The args of
+diagnostics and unresolved reasons are typed per code in the same way (DiagnosticArgsByCode,
+UnresolvedArgsByCode), because the localized texts of host and webview interpolate them.
 """
 
 from typing import Literal, TypedDict
@@ -175,10 +177,10 @@ FlowBranch = Literal[
 ]
 ImportFlag = Literal["typeOnly", "deferred", "conditional", "lazy", "star", "dynamic"]
 CycleKind = Literal["hard", "soft"]
-
-# Values a localized message can interpolate; the schema allows string, number and boolean.
-MessageArg = str | int | float | bool
-MessageArgs = dict[str, MessageArg]
+UnreadableReason = Literal["notRegular", "notFound", "accessDenied", "decodeFailed", "readFailed"]
+GitUnavailableReason = Literal[
+    "untrusted", "extensionDisabled", "gitDisabled", "gitMissing", "noRepository", "notOpened"
+]
 
 # --- Positions --------------------------------------------------------------------------------
 
@@ -198,6 +200,194 @@ class Range(_RangeRequired, total=False):
     # Set when the positions refer to that Git revision's text (ghosts, deleted evidence).
     revision: str
 
+
+# --- Args of diagnostics and unresolved reasons -------------------------------------------------
+
+
+class NoArgs(TypedDict):
+    """Codes without args."""
+
+
+class DetailArgs(TypedDict):
+    # The failing component's own English message.
+    detail: str
+
+
+class NewerSyntaxArgs(TypedDict):
+    feature: str
+    requiredVersion: str
+    runningVersion: str
+
+
+class SelfUnusedArgs(TypedDict):
+    method: str
+
+
+class AttributeOutsideInitArgs(TypedDict):
+    attribute: str
+    method: str
+
+
+class MroConflictArgs(TypedDict):
+    className: str
+
+
+class DuplicateDefinitionArgs(TypedDict):
+    name: str
+
+
+class ImportCycleArgs(TypedDict):
+    modules: str
+    count: int
+    kind: CycleKind
+
+
+class _RulesFileInvalidArgsRequired(TypedDict):
+    path: str
+    # Never the file's contents.
+    detail: str
+
+
+class RulesFileInvalidArgs(_RulesFileInvalidArgsRequired, total=False):
+    rule: int
+
+
+class GraphTruncatedArgs(TypedDict):
+    limit: int
+
+
+class FileTooLargeArgs(TypedDict):
+    size: int
+    limit: int
+
+
+class FileUnreadableArgs(TypedDict):
+    reason: UnreadableReason
+
+
+class SymbolNotFoundArgs(TypedDict, total=False):
+    symbol: str
+
+
+class JediBudgetExceededArgs(TypedDict):
+    budgetMs: int
+    skipped: int
+
+
+class ChangesPartialArgs(TypedDict):
+    files: int
+
+
+class GitUnavailableArgs(TypedDict):
+    reason: GitUnavailableReason
+
+
+class DynamicCallArgs(TypedDict):
+    function: str
+
+
+class LocalValueArgs(TypedDict):
+    name: str
+
+
+class ReceiverArgs(TypedDict):
+    receiver: str
+    method: str
+
+
+class ExternalBaseArgs(TypedDict):
+    base: str
+    name: str
+
+
+class NeverAssignedArgs(TypedDict):
+    attribute: str
+
+
+class _UndefinedNameArgsRequired(TypedDict):
+    name: str
+
+
+class UndefinedNameArgs(_UndefinedNameArgsRequired, total=False):
+    module: str
+
+
+class ModuleNotFoundArgs(TypedDict):
+    module: str
+
+
+# Codes contain dashes, hence the functional syntax.
+DiagnosticArgsByCode = TypedDict(
+    "DiagnosticArgsByCode",
+    {
+        "syntax-error": DetailArgs,
+        "newer-syntax": NewerSyntaxArgs,
+        "base-syntax-error": DetailArgs,
+        "self-unused": SelfUnusedArgs,
+        "attribute-outside-init": AttributeOutsideInitArgs,
+        "mro-conflict": MroConflictArgs,
+        "duplicate-definition": DuplicateDefinitionArgs,
+        "import-cycle": ImportCycleArgs,
+        "rules-file-invalid": RulesFileInvalidArgs,
+        "graph-truncated": GraphTruncatedArgs,
+        "file-too-large": FileTooLargeArgs,
+        "file-unreadable": FileUnreadableArgs,
+        "symbol-not-found": SymbolNotFoundArgs,
+        "jedi-unavailable": DetailArgs,
+        "jedi-budget-exceeded": JediBudgetExceededArgs,
+        "changes-partial": ChangesPartialArgs,
+        "git-unavailable": GitUnavailableArgs,
+    },
+)
+
+# The args of any diagnostic ($defs/DiagnosticArgs); the code decides which one applies.
+DiagnosticArgs = (
+    DetailArgs
+    | NewerSyntaxArgs
+    | SelfUnusedArgs
+    | AttributeOutsideInitArgs
+    | MroConflictArgs
+    | DuplicateDefinitionArgs
+    | ImportCycleArgs
+    | RulesFileInvalidArgs
+    | GraphTruncatedArgs
+    | FileTooLargeArgs
+    | FileUnreadableArgs
+    | SymbolNotFoundArgs
+    | JediBudgetExceededArgs
+    | ChangesPartialArgs
+    | GitUnavailableArgs
+)
+
+UnresolvedArgsByCode = TypedDict(
+    "UnresolvedArgsByCode",
+    {
+        "dynamic-call": DynamicCallArgs,
+        "subscript-call": NoArgs,
+        "local-value": LocalValueArgs,
+        "unknown-receiver-type": ReceiverArgs,
+        "type-resolution-off": ReceiverArgs,
+        "type-resolution-skipped": ReceiverArgs,
+        "external-base": ExternalBaseArgs,
+        "never-assigned": NeverAssignedArgs,
+        "undefined-name": UndefinedNameArgs,
+        "computed-import": NoArgs,
+        "module-not-found": ModuleNotFoundArgs,
+        "computed-class": NoArgs,
+    },
+)
+
+# The args of any unresolved reason ($defs/UnresolvedArgs); the reason code decides which applies.
+UnresolvedArgs = (
+    DynamicCallArgs
+    | NoArgs
+    | LocalValueArgs
+    | ReceiverArgs
+    | ExternalBaseArgs
+    | NeverAssignedArgs
+    | UndefinedNameArgs
+    | ModuleNotFoundArgs
+)
 
 # --- Node props -------------------------------------------------------------------------------
 
@@ -350,7 +540,8 @@ class _UnresolvedPropsRequired(TypedDict):
 
 class UnresolvedProps(_UnresolvedPropsRequired, total=False):
     expression: str
-    args: MessageArgs
+    # Required by the schema where the def of reasonCode has required keys (UnresolvedArgsByCode).
+    args: UnresolvedArgs
 
 
 class FlowNodeProps(TypedDict, total=False):
@@ -528,7 +719,10 @@ class _DiagnosticRequired(TypedDict):
 
 
 class Diagnostic(_DiagnosticRequired, total=False):
-    args: MessageArgs
+    # Required by the schema where the def of the code has required keys (DiagnosticArgsByCode).
+    args: DiagnosticArgs
+    # The file of a diagnostic about a whole file, such as file-too-large; otherwise range.file.
+    file: str
     range: Range
     nodeId: str
 

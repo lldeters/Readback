@@ -159,7 +159,7 @@ export type AccessorKind = 'get' | 'set' | 'delete';
  */
 export type ExternalGroup = 'stdlib' | 'thirdParty';
 /**
- * Why a target could not be resolved; the UI localizes by code and falls back to Node.reason. dynamic-call: a call through getattr or a similar dynamic lookup. subscript-call: a call of a subscript result, such as handlers[kind](). local-value: a call of a local variable or parameter of unknown value. unknown-receiver-type: the type of the receiver of obj.method() is unknown. type-resolution-off: obj.method() needs type-aware resolution (hearback.engine.useJedi), which is off. type-resolution-skipped: type-aware resolution is on but did not examine the call, because Jedi's time budget ran out (jedi-budget-exceeded) or Jedi failed (jedi-unavailable). external-base: the lookup reached a base class outside the workspace. never-assigned: the attribute is never assigned in the class hierarchy. undefined-name: no scope, import or builtin defines the name, or the workspace module it is imported from does not define it. computed-import: the imported module name is computed at run time. module-not-found: no workspace file provides the imported module, e.g. a relative import of a missing file. computed-class: a base class or an exception class depends on a run-time value, e.g. class A(make_base()), raise make_error() or except self.retryable.
+ * Why a target could not be resolved; the UI localizes by code and args (UnresolvedArgsByCode) and falls back to Node.reason. dynamic-call: a call through getattr or a similar dynamic lookup. subscript-call: a call of a subscript result, such as handlers[kind](). local-value: a call of a local variable or parameter of unknown value. unknown-receiver-type: the type of the receiver of obj.method() is unknown. type-resolution-off: obj.method() needs type-aware resolution (hearback.engine.useJedi), which is off. type-resolution-skipped: type-aware resolution is on but did not examine the call, because Jedi's time budget ran out (jedi-budget-exceeded) or Jedi failed (jedi-unavailable). external-base: the lookup reached a base class outside the workspace. never-assigned: the attribute is never assigned in the class hierarchy. undefined-name: no scope, import or builtin defines the name, or the workspace module it is imported from does not define it. computed-import: the imported module name is computed at run time. module-not-found: no workspace file provides the imported module, e.g. a relative import of a missing file. computed-class: a base class or an exception class depends on a run-time value, e.g. class A(make_base()), raise make_error() or except self.retryable.
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "UnresolvedReasonCode".
@@ -177,6 +177,21 @@ export type UnresolvedReasonCode =
   | 'computed-import'
   | 'module-not-found'
   | 'computed-class';
+/**
+ * The args of any unresolved reason; the reason code decides which def applies (UnresolvedArgsByCode).
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "UnresolvedArgs".
+ */
+export type UnresolvedArgs =
+  | DynamicCallArgs
+  | NoArgs
+  | LocalValueArgs
+  | ReceiverArgs
+  | ExternalBaseArgs
+  | NeverAssignedArgs
+  | UndefinedNameArgs
+  | ModuleNotFoundArgs;
 /**
  * Change relative to the diff base. Absent when no base was compared. A node is modified if and only if the position-free AST of its own part differs; formatting and comments never count.
  *
@@ -275,7 +290,7 @@ export type FlowBranch =
  */
 export type Severity = 'error' | 'warning' | 'information' | 'hint';
 /**
- * Stable diagnostic codes; the UI localizes by code and args and falls back to the English message. syntax-error: the file does not parse (the last valid graph stays visible). newer-syntax: the file uses syntax newer than the engine's interpreter. base-syntax-error: the base version does not parse, so its changes cannot be computed. self-unused: a method does not use self. attribute-outside-init: an instance attribute is first assigned outside the initializers. mro-conflict: the bases allow no consistent method resolution order. duplicate-definition: a name is defined more than once in one scope. import-cycle: modules import each other in a cycle. rules-file-invalid: the side-effect rules file is invalid; the built-in rules still apply. graph-truncated: the engine reached its safety cap (meta.truncated). file-too-large: a file exceeds the size limit and was skipped. file-unreadable: a file is not a regular file or could not be read. symbol-not-found: there is no suitable symbol at the requested position. jedi-unavailable: Jedi failed, the call graph continues without it. jedi-budget-exceeded: Jedi's time budget ran out, the remaining call sites stay unresolved. changes-partial: change information is incomplete. git-unavailable: Git is not available, so there is no diff base.
+ * Stable diagnostic codes; the UI localizes by code and args (DiagnosticArgsByCode) and falls back to the English message. syntax-error: the file does not parse (the last valid graph stays visible). newer-syntax: the file uses syntax newer than the engine's interpreter. base-syntax-error: the base version does not parse, so its changes cannot be computed. self-unused: a method does not use self. attribute-outside-init: an instance attribute is first assigned outside the initializers. mro-conflict: the bases allow no consistent method resolution order. duplicate-definition: a name is defined more than once in one scope. import-cycle: modules import each other in a cycle. rules-file-invalid: the side-effect rules file is invalid; the built-in rules still apply. graph-truncated: the engine reached its safety cap (meta.truncated). file-too-large: a file exceeds the size limit and was skipped. file-unreadable: a file is not a regular file or could not be read. symbol-not-found: there is no suitable symbol at the requested position. jedi-unavailable: Jedi failed, the call graph continues without it. jedi-budget-exceeded: Jedi's time budget ran out, the remaining call sites stay unresolved. changes-partial: change information is incomplete. git-unavailable: Git is not available, so there is no diff base.
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "DiagnosticCode".
@@ -298,6 +313,44 @@ export type DiagnosticCode =
   | 'jedi-budget-exceeded'
   | 'changes-partial'
   | 'git-unavailable';
+/**
+ * The args of any diagnostic; the code decides which def applies (DiagnosticArgsByCode).
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "DiagnosticArgs".
+ */
+export type DiagnosticArgs =
+  | DetailArgs
+  | NewerSyntaxArgs
+  | SelfUnusedArgs
+  | AttributeOutsideInitArgs
+  | MroConflictArgs
+  | DuplicateDefinitionArgs
+  | ImportCycleArgs
+  | RulesFileInvalidArgs
+  | GraphTruncatedArgs
+  | FileTooLargeArgs
+  | FileUnreadableArgs
+  | SymbolNotFoundArgs
+  | JediBudgetExceededArgs
+  | ChangesPartialArgs
+  | GitUnavailableArgs;
+/**
+ * Why the engine could not read a file. notRegular: not a regular file, e.g. a directory, a FIFO or a device. notFound: the file does not exist. accessDenied: the file may not be read. decodeFailed: its bytes do not decode in the file's encoding (PEP 263). readFailed: another file system error.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "UnreadableReason".
+ */
+export type UnreadableReason =
+  'notRegular' | 'notFound' | 'accessDenied' | 'decodeFailed' | 'readFailed';
+/**
+ * Why Git gives no diff base. untrusted: Restricted Mode, in which the Git extension does not run. extensionDisabled: the Git extension is disabled. gitDisabled: git.enabled is false. gitMissing: no Git executable was found. noRepository: the file is in no Git repository. notOpened: its repository is not opened, e.g. a parent folder or an unsafe repository.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "GitUnavailableReason".
+ */
+export type GitUnavailableReason =
+  'untrusted' | 'extensionDisabled' | 'gitDisabled' | 'gitMissing' | 'noRepository' | 'notOpened';
 
 /**
  * Hearback graph model. Single source of truth for the analysis engine (Python), the extension host and the webview (TypeScript). The root is the GraphDocument; the other analysis results (ChangeSummary, IndexResult) and the typed props of every node and edge kind are $defs. Positions are zero-based; 'character' counts UTF-16 code units (LSP semantics).
@@ -724,6 +777,8 @@ export interface ExternalProps {
   symbol?: string;
 }
 /**
+ * Props of unresolved nodes. args must match the def of the reasonCode (UnresolvedArgsByCode).
+ *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "UnresolvedProps".
  */
@@ -733,16 +788,110 @@ export interface UnresolvedProps {
    */
   expression?: string;
   reasonCode: UnresolvedReasonCode;
-  args?: MessageArgs;
+  args?: UnresolvedArgs;
 }
 /**
- * Named values that a localized message interpolates, for diagnostics and unresolved reasons.
+ * Args of dynamic-call.
  *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
- * via the `definition` "MessageArgs".
+ * via the `definition` "DynamicCallArgs".
  */
-export interface MessageArgs {
-  [k: string]: string | number | boolean | undefined;
+export interface DynamicCallArgs {
+  /**
+   * The builtin that looks the target up, e.g. getattr.
+   */
+  function: string;
+}
+/**
+ * For codes without args (subscript-call, computed-import and computed-class): args, if present, must be empty.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "NoArgs".
+ */
+export interface NoArgs {}
+/**
+ * Args of local-value.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "LocalValueArgs".
+ */
+export interface LocalValueArgs {
+  /**
+   * The local variable or parameter that holds the target.
+   */
+  name: string;
+}
+/**
+ * Args of unknown-receiver-type, type-resolution-off and type-resolution-skipped.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "ReceiverArgs".
+ */
+export interface ReceiverArgs {
+  /**
+   * The receiver as written, e.g. self.session or c.
+   */
+  receiver: string;
+  /**
+   * The called method's name, e.g. request.
+   */
+  method: string;
+}
+/**
+ * Args of external-base.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "ExternalBaseArgs".
+ */
+export interface ExternalBaseArgs {
+  /**
+   * The base class outside the workspace where the lookup ended, as a dotted name, e.g. requests.Session.
+   */
+  base: string;
+  /**
+   * The name that was looked up.
+   */
+  name: string;
+}
+/**
+ * Args of never-assigned.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "NeverAssignedArgs".
+ */
+export interface NeverAssignedArgs {
+  /**
+   * The attribute's name.
+   */
+  attribute: string;
+}
+/**
+ * Args of undefined-name.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "UndefinedNameArgs".
+ */
+export interface UndefinedNameArgs {
+  /**
+   * The undefined name.
+   */
+  name: string;
+  /**
+   * For a from-import: the dotted name of the workspace module that does not define it.
+   */
+  module?: string;
+}
+/**
+ * Args of module-not-found.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "ModuleNotFoundArgs".
+ */
+export interface ModuleNotFoundArgs {
+  /**
+   * The module as written, e.g. .missing or shop.missing.
+   */
+  module: string;
 }
 /**
  * What kind of change a node saw, next to its change status, so that later phases can treat some changes as understood without changing the rule for 'modified'.
@@ -881,6 +1030,8 @@ export interface FlowEdgeProps {
   back?: boolean;
 }
 /**
+ * A finding of an analysis. args must match the def of its code (DiagnosticArgsByCode).
+ *
  * This interface was referenced by `GraphDocument`'s JSON-Schema
  * via the `definition` "Diagnostic".
  */
@@ -891,9 +1042,220 @@ export interface Diagnostic {
    * English fallback text.
    */
   message: string;
-  args?: MessageArgs;
+  args?: DiagnosticArgs;
+  /**
+   * Absolute path of the file that a diagnostic about a whole file concerns, such as file-too-large or file-unreadable, exactly as the host passed it. A diagnostic with a range names its file in range.file.
+   */
+  file?: string;
   range?: Range;
   nodeId?: string;
+}
+/**
+ * Args of syntax-error, base-syntax-error and jedi-unavailable.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "DetailArgs".
+ */
+export interface DetailArgs {
+  /**
+   * The failing component's own message in English, e.g. CPython's expected ':' or the type of Jedi's exception.
+   */
+  detail: string;
+}
+/**
+ * Args of newer-syntax.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "NewerSyntaxArgs".
+ */
+export interface NewerSyntaxArgs {
+  /**
+   * The syntax feature, e.g. except* or PEP 701 f-strings.
+   */
+  feature: string;
+  /**
+   * The first Python version that has the feature, e.g. 3.11.
+   */
+  requiredVersion: string;
+  /**
+   * The version of the engine's interpreter, e.g. 3.10.20.
+   */
+  runningVersion: string;
+}
+/**
+ * Args of self-unused.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "SelfUnusedArgs".
+ */
+export interface SelfUnusedArgs {
+  /**
+   * The method's name.
+   */
+  method: string;
+}
+/**
+ * Args of attribute-outside-init.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "AttributeOutsideInitArgs".
+ */
+export interface AttributeOutsideInitArgs {
+  /**
+   * The attribute's name.
+   */
+  attribute: string;
+  /**
+   * The name of the method that assigns it first.
+   */
+  method: string;
+}
+/**
+ * Args of mro-conflict.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "MroConflictArgs".
+ */
+export interface MroConflictArgs {
+  /**
+   * The name of the class that has no consistent method resolution order.
+   */
+  className: string;
+}
+/**
+ * Args of duplicate-definition.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "DuplicateDefinitionArgs".
+ */
+export interface DuplicateDefinitionArgs {
+  /**
+   * The name that is defined more than once in its scope.
+   */
+  name: string;
+}
+/**
+ * Args of import-cycle.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "ImportCycleArgs".
+ */
+export interface ImportCycleArgs {
+  /**
+   * The dotted module names in import order, separated by ' → ', with the first repeated at the end, e.g. a → b → a.
+   */
+  modules: string;
+  /**
+   * The number of modules in the cycle.
+   */
+  count: number;
+  kind: CycleKind;
+}
+/**
+ * Args of rules-file-invalid.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "RulesFileInvalidArgs".
+ */
+export interface RulesFileInvalidArgs {
+  /**
+   * Absolute path of the rules file.
+   */
+  path: string;
+  /**
+   * What is wrong, in English and without the file's contents.
+   */
+  detail: string;
+  /**
+   * The index of the rule at fault in rules, when one rule is.
+   */
+  rule?: number;
+}
+/**
+ * Args of graph-truncated.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "GraphTruncatedArgs".
+ */
+export interface GraphTruncatedArgs {
+  /**
+   * The safety cap that the engine reached: 10 × maxNodes, at most 10,000 nodes.
+   */
+  limit: number;
+}
+/**
+ * Args of file-too-large.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "FileTooLargeArgs".
+ */
+export interface FileTooLargeArgs {
+  /**
+   * The file's size in bytes.
+   */
+  size: number;
+  /**
+   * The largest size the engine reads, in bytes.
+   */
+  limit: number;
+}
+/**
+ * Args of file-unreadable.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "FileUnreadableArgs".
+ */
+export interface FileUnreadableArgs {
+  reason: UnreadableReason;
+}
+/**
+ * Args of symbol-not-found.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "SymbolNotFoundArgs".
+ */
+export interface SymbolNotFoundArgs {
+  /**
+   * The requested symbol id, when the request named one; otherwise the diagnostic's range marks the requested position.
+   */
+  symbol?: string;
+}
+/**
+ * Args of jedi-budget-exceeded.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "JediBudgetExceededArgs".
+ */
+export interface JediBudgetExceededArgs {
+  /**
+   * Jedi's time budget per request, in milliseconds.
+   */
+  budgetMs: number;
+  /**
+   * The number of call sites left unresolved (type-resolution-skipped).
+   */
+  skipped: number;
+}
+/**
+ * Args of changes-partial.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "ChangesPartialArgs".
+ */
+export interface ChangesPartialArgs {
+  /**
+   * The number of changed files without change information (WorkspaceFiles.omittedBases).
+   */
+  files: number;
+}
+/**
+ * Args of git-unavailable.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "GitUnavailableArgs".
+ */
+export interface GitUnavailableArgs {
+  reason: GitUnavailableReason;
 }
 /**
  * This interface was referenced by `GraphDocument`'s JSON-Schema
@@ -914,6 +1276,51 @@ export interface Meta {
    * True when the engine reached its safety cap (10 × hearback.graph.maxNodes, at most 10,000 nodes) and cut the graph; a graph-truncated diagnostic explains it. The webview collapses graphs above maxNodes itself.
    */
   truncated?: boolean;
+}
+/**
+ * The args def of every diagnostic code, as a type-level mapping (never sent). Diagnostic.args must match the def of the diagnostic's code; the localized texts of host and webview interpolate these names.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "DiagnosticArgsByCode".
+ */
+export interface DiagnosticArgsByCode {
+  'syntax-error': DetailArgs;
+  'newer-syntax': NewerSyntaxArgs;
+  'base-syntax-error': DetailArgs;
+  'self-unused': SelfUnusedArgs;
+  'attribute-outside-init': AttributeOutsideInitArgs;
+  'mro-conflict': MroConflictArgs;
+  'duplicate-definition': DuplicateDefinitionArgs;
+  'import-cycle': ImportCycleArgs;
+  'rules-file-invalid': RulesFileInvalidArgs;
+  'graph-truncated': GraphTruncatedArgs;
+  'file-too-large': FileTooLargeArgs;
+  'file-unreadable': FileUnreadableArgs;
+  'symbol-not-found': SymbolNotFoundArgs;
+  'jedi-unavailable': DetailArgs;
+  'jedi-budget-exceeded': JediBudgetExceededArgs;
+  'changes-partial': ChangesPartialArgs;
+  'git-unavailable': GitUnavailableArgs;
+}
+/**
+ * The args def of every unresolved reason code, as a type-level mapping (never sent). UnresolvedProps.args must match the def of its reasonCode; the localized texts of host and webview interpolate these names.
+ *
+ * This interface was referenced by `GraphDocument`'s JSON-Schema
+ * via the `definition` "UnresolvedArgsByCode".
+ */
+export interface UnresolvedArgsByCode {
+  'dynamic-call': DynamicCallArgs;
+  'subscript-call': NoArgs;
+  'local-value': LocalValueArgs;
+  'unknown-receiver-type': ReceiverArgs;
+  'type-resolution-off': ReceiverArgs;
+  'type-resolution-skipped': ReceiverArgs;
+  'external-base': ExternalBaseArgs;
+  'never-assigned': NeverAssignedArgs;
+  'undefined-name': UndefinedNameArgs;
+  'computed-import': NoArgs;
+  'module-not-found': ModuleNotFoundArgs;
+  'computed-class': NoArgs;
 }
 /**
  * The props def of every node kind, as a type-level mapping (never sent). Node.props must match the def of the node's kind.
@@ -1063,7 +1470,7 @@ export interface IndexResult {
    */
   reused: number;
   /**
-   * Files that could not be read or parsed (file-too-large, file-unreadable, syntax-error, newer-syntax).
+   * Files that could not be read or parsed (file-too-large, file-unreadable, syntax-error, newer-syntax); each diagnostic names its file in file, or in range.file when it has a range.
    */
   diagnostics: Diagnostic[];
   meta: Meta;

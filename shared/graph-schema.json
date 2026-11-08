@@ -153,7 +153,7 @@
     },
     "DiagnosticCode": {
       "title": "DiagnosticCode",
-      "description": "Stable diagnostic codes; the UI localizes by code and args and falls back to the English message. syntax-error: the file does not parse (the last valid graph stays visible). newer-syntax: the file uses syntax newer than the engine's interpreter. base-syntax-error: the base version does not parse, so its changes cannot be computed. self-unused: a method does not use self. attribute-outside-init: an instance attribute is first assigned outside the initializers. mro-conflict: the bases allow no consistent method resolution order. duplicate-definition: a name is defined more than once in one scope. import-cycle: modules import each other in a cycle. rules-file-invalid: the side-effect rules file is invalid; the built-in rules still apply. graph-truncated: the engine reached its safety cap (meta.truncated). file-too-large: a file exceeds the size limit and was skipped. file-unreadable: a file is not a regular file or could not be read. symbol-not-found: there is no suitable symbol at the requested position. jedi-unavailable: Jedi failed, the call graph continues without it. jedi-budget-exceeded: Jedi's time budget ran out, the remaining call sites stay unresolved. changes-partial: change information is incomplete. git-unavailable: Git is not available, so there is no diff base.",
+      "description": "Stable diagnostic codes; the UI localizes by code and args (DiagnosticArgsByCode) and falls back to the English message. syntax-error: the file does not parse (the last valid graph stays visible). newer-syntax: the file uses syntax newer than the engine's interpreter. base-syntax-error: the base version does not parse, so its changes cannot be computed. self-unused: a method does not use self. attribute-outside-init: an instance attribute is first assigned outside the initializers. mro-conflict: the bases allow no consistent method resolution order. duplicate-definition: a name is defined more than once in one scope. import-cycle: modules import each other in a cycle. rules-file-invalid: the side-effect rules file is invalid; the built-in rules still apply. graph-truncated: the engine reached its safety cap (meta.truncated). file-too-large: a file exceeds the size limit and was skipped. file-unreadable: a file is not a regular file or could not be read. symbol-not-found: there is no suitable symbol at the requested position. jedi-unavailable: Jedi failed, the call graph continues without it. jedi-budget-exceeded: Jedi's time budget ran out, the remaining call sites stay unresolved. changes-partial: change information is incomplete. git-unavailable: Git is not available, so there is no diff base.",
       "type": "string",
       "enum": [
         "syntax-error",
@@ -177,7 +177,7 @@
     },
     "UnresolvedReasonCode": {
       "title": "UnresolvedReasonCode",
-      "description": "Why a target could not be resolved; the UI localizes by code and falls back to Node.reason. dynamic-call: a call through getattr or a similar dynamic lookup. subscript-call: a call of a subscript result, such as handlers[kind](). local-value: a call of a local variable or parameter of unknown value. unknown-receiver-type: the type of the receiver of obj.method() is unknown. type-resolution-off: obj.method() needs type-aware resolution (hearback.engine.useJedi), which is off. type-resolution-skipped: type-aware resolution is on but did not examine the call, because Jedi's time budget ran out (jedi-budget-exceeded) or Jedi failed (jedi-unavailable). external-base: the lookup reached a base class outside the workspace. never-assigned: the attribute is never assigned in the class hierarchy. undefined-name: no scope, import or builtin defines the name, or the workspace module it is imported from does not define it. computed-import: the imported module name is computed at run time. module-not-found: no workspace file provides the imported module, e.g. a relative import of a missing file. computed-class: a base class or an exception class depends on a run-time value, e.g. class A(make_base()), raise make_error() or except self.retryable.",
+      "description": "Why a target could not be resolved; the UI localizes by code and args (UnresolvedArgsByCode) and falls back to Node.reason. dynamic-call: a call through getattr or a similar dynamic lookup. subscript-call: a call of a subscript result, such as handlers[kind](). local-value: a call of a local variable or parameter of unknown value. unknown-receiver-type: the type of the receiver of obj.method() is unknown. type-resolution-off: obj.method() needs type-aware resolution (hearback.engine.useJedi), which is off. type-resolution-skipped: type-aware resolution is on but did not examine the call, because Jedi's time budget ran out (jedi-budget-exceeded) or Jedi failed (jedi-unavailable). external-base: the lookup reached a base class outside the workspace. never-assigned: the attribute is never assigned in the class hierarchy. undefined-name: no scope, import or builtin defines the name, or the workspace module it is imported from does not define it. computed-import: the imported module name is computed at run time. module-not-found: no workspace file provides the imported module, e.g. a relative import of a missing file. computed-class: a base class or an exception class depends on a run-time value, e.g. class A(make_base()), raise make_error() or except self.retryable.",
       "type": "string",
       "enum": [
         "dynamic-call",
@@ -494,6 +494,7 @@
     },
     "Diagnostic": {
       "title": "Diagnostic",
+      "description": "A finding of an analysis. args must match the def of its code (DiagnosticArgsByCode).",
       "type": "object",
       "additionalProperties": false,
       "required": ["severity", "code", "message"],
@@ -509,7 +510,12 @@
           "type": "string"
         },
         "args": {
-          "$ref": "#/$defs/MessageArgs"
+          "$ref": "#/$defs/DiagnosticArgs"
+        },
+        "file": {
+          "description": "Absolute path of the file that a diagnostic about a whole file concerns, such as file-too-large or file-unreadable, exactly as the host passed it. A diagnostic with a range names its file in range.file.",
+          "type": "string",
+          "minLength": 1
         },
         "range": {
           "$ref": "#/$defs/Range"
@@ -518,15 +524,612 @@
           "type": "string",
           "minLength": 1
         }
+      },
+      "dependentSchemas": {
+        "code": {
+          "description": "Binds args to the def of the diagnostic's code, exactly as DiagnosticArgsByCode maps them, and requires args where that def has required keys. Applies to every diagnostic, because code is required.",
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "code": { "enum": ["syntax-error", "base-syntax-error", "jedi-unavailable"] }
+                }
+              },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/DetailArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["newer-syntax"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/NewerSyntaxArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["self-unused"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/SelfUnusedArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["attribute-outside-init"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/AttributeOutsideInitArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["mro-conflict"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/MroConflictArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["duplicate-definition"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/DuplicateDefinitionArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["import-cycle"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/ImportCycleArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["rules-file-invalid"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/RulesFileInvalidArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["graph-truncated"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/GraphTruncatedArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["file-too-large"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/FileTooLargeArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["file-unreadable"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/FileUnreadableArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["symbol-not-found"] } } },
+              "then": { "properties": { "args": { "$ref": "#/$defs/SymbolNotFoundArgs" } } }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["jedi-budget-exceeded"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/JediBudgetExceededArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["changes-partial"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/ChangesPartialArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "code": { "enum": ["git-unavailable"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/GitUnavailableArgs" } }
+              }
+            }
+          ]
+        }
       }
     },
-    "MessageArgs": {
-      "title": "MessageArgs",
-      "description": "Named values that a localized message interpolates, for diagnostics and unresolved reasons.",
+    "DiagnosticArgs": {
+      "title": "DiagnosticArgs",
+      "description": "The args of any diagnostic; the code decides which def applies (DiagnosticArgsByCode).",
+      "anyOf": [
+        { "$ref": "#/$defs/DetailArgs" },
+        { "$ref": "#/$defs/NewerSyntaxArgs" },
+        { "$ref": "#/$defs/SelfUnusedArgs" },
+        { "$ref": "#/$defs/AttributeOutsideInitArgs" },
+        { "$ref": "#/$defs/MroConflictArgs" },
+        { "$ref": "#/$defs/DuplicateDefinitionArgs" },
+        { "$ref": "#/$defs/ImportCycleArgs" },
+        { "$ref": "#/$defs/RulesFileInvalidArgs" },
+        { "$ref": "#/$defs/GraphTruncatedArgs" },
+        { "$ref": "#/$defs/FileTooLargeArgs" },
+        { "$ref": "#/$defs/FileUnreadableArgs" },
+        { "$ref": "#/$defs/SymbolNotFoundArgs" },
+        { "$ref": "#/$defs/JediBudgetExceededArgs" },
+        { "$ref": "#/$defs/ChangesPartialArgs" },
+        { "$ref": "#/$defs/GitUnavailableArgs" }
+      ]
+    },
+    "DiagnosticArgsByCode": {
+      "title": "DiagnosticArgsByCode",
+      "description": "The args def of every diagnostic code, as a type-level mapping (never sent). Diagnostic.args must match the def of the diagnostic's code; the localized texts of host and webview interpolate these names.",
       "type": "object",
-      "additionalProperties": {
-        "type": ["string", "number", "boolean"]
+      "additionalProperties": false,
+      "required": [
+        "syntax-error",
+        "newer-syntax",
+        "base-syntax-error",
+        "self-unused",
+        "attribute-outside-init",
+        "mro-conflict",
+        "duplicate-definition",
+        "import-cycle",
+        "rules-file-invalid",
+        "graph-truncated",
+        "file-too-large",
+        "file-unreadable",
+        "symbol-not-found",
+        "jedi-unavailable",
+        "jedi-budget-exceeded",
+        "changes-partial",
+        "git-unavailable"
+      ],
+      "properties": {
+        "syntax-error": { "$ref": "#/$defs/DetailArgs" },
+        "newer-syntax": { "$ref": "#/$defs/NewerSyntaxArgs" },
+        "base-syntax-error": { "$ref": "#/$defs/DetailArgs" },
+        "self-unused": { "$ref": "#/$defs/SelfUnusedArgs" },
+        "attribute-outside-init": { "$ref": "#/$defs/AttributeOutsideInitArgs" },
+        "mro-conflict": { "$ref": "#/$defs/MroConflictArgs" },
+        "duplicate-definition": { "$ref": "#/$defs/DuplicateDefinitionArgs" },
+        "import-cycle": { "$ref": "#/$defs/ImportCycleArgs" },
+        "rules-file-invalid": { "$ref": "#/$defs/RulesFileInvalidArgs" },
+        "graph-truncated": { "$ref": "#/$defs/GraphTruncatedArgs" },
+        "file-too-large": { "$ref": "#/$defs/FileTooLargeArgs" },
+        "file-unreadable": { "$ref": "#/$defs/FileUnreadableArgs" },
+        "symbol-not-found": { "$ref": "#/$defs/SymbolNotFoundArgs" },
+        "jedi-unavailable": { "$ref": "#/$defs/DetailArgs" },
+        "jedi-budget-exceeded": { "$ref": "#/$defs/JediBudgetExceededArgs" },
+        "changes-partial": { "$ref": "#/$defs/ChangesPartialArgs" },
+        "git-unavailable": { "$ref": "#/$defs/GitUnavailableArgs" }
       }
+    },
+    "UnresolvedArgs": {
+      "title": "UnresolvedArgs",
+      "description": "The args of any unresolved reason; the reason code decides which def applies (UnresolvedArgsByCode).",
+      "anyOf": [
+        { "$ref": "#/$defs/DynamicCallArgs" },
+        { "$ref": "#/$defs/NoArgs" },
+        { "$ref": "#/$defs/LocalValueArgs" },
+        { "$ref": "#/$defs/ReceiverArgs" },
+        { "$ref": "#/$defs/ExternalBaseArgs" },
+        { "$ref": "#/$defs/NeverAssignedArgs" },
+        { "$ref": "#/$defs/UndefinedNameArgs" },
+        { "$ref": "#/$defs/ModuleNotFoundArgs" }
+      ]
+    },
+    "UnresolvedArgsByCode": {
+      "title": "UnresolvedArgsByCode",
+      "description": "The args def of every unresolved reason code, as a type-level mapping (never sent). UnresolvedProps.args must match the def of its reasonCode; the localized texts of host and webview interpolate these names.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dynamic-call",
+        "subscript-call",
+        "local-value",
+        "unknown-receiver-type",
+        "type-resolution-off",
+        "type-resolution-skipped",
+        "external-base",
+        "never-assigned",
+        "undefined-name",
+        "computed-import",
+        "module-not-found",
+        "computed-class"
+      ],
+      "properties": {
+        "dynamic-call": { "$ref": "#/$defs/DynamicCallArgs" },
+        "subscript-call": { "$ref": "#/$defs/NoArgs" },
+        "local-value": { "$ref": "#/$defs/LocalValueArgs" },
+        "unknown-receiver-type": { "$ref": "#/$defs/ReceiverArgs" },
+        "type-resolution-off": { "$ref": "#/$defs/ReceiverArgs" },
+        "type-resolution-skipped": { "$ref": "#/$defs/ReceiverArgs" },
+        "external-base": { "$ref": "#/$defs/ExternalBaseArgs" },
+        "never-assigned": { "$ref": "#/$defs/NeverAssignedArgs" },
+        "undefined-name": { "$ref": "#/$defs/UndefinedNameArgs" },
+        "computed-import": { "$ref": "#/$defs/NoArgs" },
+        "module-not-found": { "$ref": "#/$defs/ModuleNotFoundArgs" },
+        "computed-class": { "$ref": "#/$defs/NoArgs" }
+      }
+    },
+    "DetailArgs": {
+      "title": "DetailArgs",
+      "description": "Args of syntax-error, base-syntax-error and jedi-unavailable.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["detail"],
+      "properties": {
+        "detail": {
+          "description": "The failing component's own message in English, e.g. CPython's expected ':' or the type of Jedi's exception.",
+          "type": "string"
+        }
+      }
+    },
+    "NewerSyntaxArgs": {
+      "title": "NewerSyntaxArgs",
+      "description": "Args of newer-syntax.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature", "requiredVersion", "runningVersion"],
+      "properties": {
+        "feature": {
+          "description": "The syntax feature, e.g. except* or PEP 701 f-strings.",
+          "type": "string",
+          "minLength": 1
+        },
+        "requiredVersion": {
+          "description": "The first Python version that has the feature, e.g. 3.11.",
+          "type": "string",
+          "minLength": 1
+        },
+        "runningVersion": {
+          "description": "The version of the engine's interpreter, e.g. 3.10.20.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "SelfUnusedArgs": {
+      "title": "SelfUnusedArgs",
+      "description": "Args of self-unused.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "properties": {
+        "method": {
+          "description": "The method's name.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "AttributeOutsideInitArgs": {
+      "title": "AttributeOutsideInitArgs",
+      "description": "Args of attribute-outside-init.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attribute", "method"],
+      "properties": {
+        "attribute": {
+          "description": "The attribute's name.",
+          "type": "string",
+          "minLength": 1
+        },
+        "method": {
+          "description": "The name of the method that assigns it first.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "MroConflictArgs": {
+      "title": "MroConflictArgs",
+      "description": "Args of mro-conflict.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["className"],
+      "properties": {
+        "className": {
+          "description": "The name of the class that has no consistent method resolution order.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "DuplicateDefinitionArgs": {
+      "title": "DuplicateDefinitionArgs",
+      "description": "Args of duplicate-definition.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "description": "The name that is defined more than once in its scope.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ImportCycleArgs": {
+      "title": "ImportCycleArgs",
+      "description": "Args of import-cycle.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modules", "count", "kind"],
+      "properties": {
+        "modules": {
+          "description": "The dotted module names in import order, separated by ' → ', with the first repeated at the end, e.g. a → b → a.",
+          "type": "string",
+          "minLength": 1
+        },
+        "count": {
+          "description": "The number of modules in the cycle.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "kind": { "$ref": "#/$defs/CycleKind" }
+      }
+    },
+    "RulesFileInvalidArgs": {
+      "title": "RulesFileInvalidArgs",
+      "description": "Args of rules-file-invalid.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "detail"],
+      "properties": {
+        "path": {
+          "description": "Absolute path of the rules file.",
+          "type": "string",
+          "minLength": 1
+        },
+        "detail": {
+          "description": "What is wrong, in English and without the file's contents.",
+          "type": "string"
+        },
+        "rule": {
+          "description": "The index of the rule at fault in rules, when one rule is.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "GraphTruncatedArgs": {
+      "title": "GraphTruncatedArgs",
+      "description": "Args of graph-truncated.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limit"],
+      "properties": {
+        "limit": {
+          "description": "The safety cap that the engine reached: 10 × maxNodes, at most 10,000 nodes.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "FileTooLargeArgs": {
+      "title": "FileTooLargeArgs",
+      "description": "Args of file-too-large.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["size", "limit"],
+      "properties": {
+        "size": {
+          "description": "The file's size in bytes.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "limit": {
+          "description": "The largest size the engine reads, in bytes.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "FileUnreadableArgs": {
+      "title": "FileUnreadableArgs",
+      "description": "Args of file-unreadable.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason"],
+      "properties": {
+        "reason": { "$ref": "#/$defs/UnreadableReason" }
+      }
+    },
+    "SymbolNotFoundArgs": {
+      "title": "SymbolNotFoundArgs",
+      "description": "Args of symbol-not-found.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "symbol": {
+          "description": "The requested symbol id, when the request named one; otherwise the diagnostic's range marks the requested position.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "JediBudgetExceededArgs": {
+      "title": "JediBudgetExceededArgs",
+      "description": "Args of jedi-budget-exceeded.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["budgetMs", "skipped"],
+      "properties": {
+        "budgetMs": {
+          "description": "Jedi's time budget per request, in milliseconds.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "skipped": {
+          "description": "The number of call sites left unresolved (type-resolution-skipped).",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "ChangesPartialArgs": {
+      "title": "ChangesPartialArgs",
+      "description": "Args of changes-partial.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files"],
+      "properties": {
+        "files": {
+          "description": "The number of changed files without change information (WorkspaceFiles.omittedBases).",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "GitUnavailableArgs": {
+      "title": "GitUnavailableArgs",
+      "description": "Args of git-unavailable.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason"],
+      "properties": {
+        "reason": { "$ref": "#/$defs/GitUnavailableReason" }
+      }
+    },
+    "DynamicCallArgs": {
+      "title": "DynamicCallArgs",
+      "description": "Args of dynamic-call.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["function"],
+      "properties": {
+        "function": {
+          "description": "The builtin that looks the target up, e.g. getattr.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "LocalValueArgs": {
+      "title": "LocalValueArgs",
+      "description": "Args of local-value.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "description": "The local variable or parameter that holds the target.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ReceiverArgs": {
+      "title": "ReceiverArgs",
+      "description": "Args of unknown-receiver-type, type-resolution-off and type-resolution-skipped.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receiver", "method"],
+      "properties": {
+        "receiver": {
+          "description": "The receiver as written, e.g. self.session or c.",
+          "type": "string",
+          "minLength": 1
+        },
+        "method": {
+          "description": "The called method's name, e.g. request.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ExternalBaseArgs": {
+      "title": "ExternalBaseArgs",
+      "description": "Args of external-base.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base", "name"],
+      "properties": {
+        "base": {
+          "description": "The base class outside the workspace where the lookup ended, as a dotted name, e.g. requests.Session.",
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "description": "The name that was looked up.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "NeverAssignedArgs": {
+      "title": "NeverAssignedArgs",
+      "description": "Args of never-assigned.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attribute"],
+      "properties": {
+        "attribute": {
+          "description": "The attribute's name.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "UndefinedNameArgs": {
+      "title": "UndefinedNameArgs",
+      "description": "Args of undefined-name.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "description": "The undefined name.",
+          "type": "string",
+          "minLength": 1
+        },
+        "module": {
+          "description": "For a from-import: the dotted name of the workspace module that does not define it.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ModuleNotFoundArgs": {
+      "title": "ModuleNotFoundArgs",
+      "description": "Args of module-not-found.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module"],
+      "properties": {
+        "module": {
+          "description": "The module as written, e.g. .missing or shop.missing.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "NoArgs": {
+      "title": "NoArgs",
+      "description": "For codes without args (subscript-call, computed-import and computed-class): args, if present, must be empty.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "UnreadableReason": {
+      "title": "UnreadableReason",
+      "description": "Why the engine could not read a file. notRegular: not a regular file, e.g. a directory, a FIFO or a device. notFound: the file does not exist. accessDenied: the file may not be read. decodeFailed: its bytes do not decode in the file's encoding (PEP 263). readFailed: another file system error.",
+      "type": "string",
+      "enum": ["notRegular", "notFound", "accessDenied", "decodeFailed", "readFailed"]
+    },
+    "GitUnavailableReason": {
+      "title": "GitUnavailableReason",
+      "description": "Why Git gives no diff base. untrusted: Restricted Mode, in which the Git extension does not run. extensionDisabled: the Git extension is disabled. gitDisabled: git.enabled is false. gitMissing: no Git executable was found. noRepository: the file is in no Git repository. notOpened: its repository is not opened, e.g. a parent folder or an unsafe repository.",
+      "type": "string",
+      "enum": [
+        "untrusted",
+        "extensionDisabled",
+        "gitDisabled",
+        "gitMissing",
+        "noRepository",
+        "notOpened"
+      ]
     },
     "Meta": {
       "title": "Meta",
@@ -1193,6 +1796,7 @@
     },
     "UnresolvedProps": {
       "title": "UnresolvedProps",
+      "description": "Props of unresolved nodes. args must match the def of the reasonCode (UnresolvedArgsByCode).",
       "type": "object",
       "additionalProperties": false,
       "required": ["reasonCode"],
@@ -1205,7 +1809,81 @@
           "$ref": "#/$defs/UnresolvedReasonCode"
         },
         "args": {
-          "$ref": "#/$defs/MessageArgs"
+          "$ref": "#/$defs/UnresolvedArgs"
+        }
+      },
+      "dependentSchemas": {
+        "reasonCode": {
+          "description": "Binds args to the def of the reason code, exactly as UnresolvedArgsByCode maps them, and requires args where that def has required keys. Applies to every unresolved node, because reasonCode is required.",
+          "allOf": [
+            {
+              "if": { "properties": { "reasonCode": { "enum": ["dynamic-call"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/DynamicCallArgs" } }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "reasonCode": { "enum": ["subscript-call", "computed-import", "computed-class"] }
+                }
+              },
+              "then": { "properties": { "args": { "$ref": "#/$defs/NoArgs" } } }
+            },
+            {
+              "if": { "properties": { "reasonCode": { "enum": ["local-value"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/LocalValueArgs" } }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "reasonCode": {
+                    "enum": [
+                      "unknown-receiver-type",
+                      "type-resolution-off",
+                      "type-resolution-skipped"
+                    ]
+                  }
+                }
+              },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/ReceiverArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "reasonCode": { "enum": ["external-base"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/ExternalBaseArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "reasonCode": { "enum": ["never-assigned"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/NeverAssignedArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "reasonCode": { "enum": ["undefined-name"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/UndefinedNameArgs" } }
+              }
+            },
+            {
+              "if": { "properties": { "reasonCode": { "enum": ["module-not-found"] } } },
+              "then": {
+                "required": ["args"],
+                "properties": { "args": { "$ref": "#/$defs/ModuleNotFoundArgs" } }
+              }
+            }
+          ]
         }
       }
     },
@@ -1477,7 +2155,7 @@
           "minimum": 0
         },
         "diagnostics": {
-          "description": "Files that could not be read or parsed (file-too-large, file-unreadable, syntax-error, newer-syntax).",
+          "description": "Files that could not be read or parsed (file-too-large, file-unreadable, syntax-error, newer-syntax); each diagnostic names its file in file, or in range.file when it has a range.",
           "type": "array",
           "items": { "$ref": "#/$defs/Diagnostic" }
         },

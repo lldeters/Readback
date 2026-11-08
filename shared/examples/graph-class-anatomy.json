@@ -191,7 +191,11 @@
       "id": "unresolved:py:retrying_client.RetryingClient.call_by_name/getattr(self, name)()",
       "kind": "unresolved",
       "label": "getattr(self, name)()",
-      "props": { "expression": "getattr(self, name)()", "reasonCode": "dynamic-call" },
+      "props": {
+        "expression": "getattr(self, name)()",
+        "reasonCode": "dynamic-call",
+        "args": { "function": "getattr" }
+      },
       "change": "unchanged",
       "reason": "dynamic call via getattr"
     }

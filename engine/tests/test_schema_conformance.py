@@ -3,15 +3,16 @@
 1. The schemas are valid draft 2020-12 schemas; the examples and real engine outputs validate.
 2. Every TypedDict and Literal alias in hearback_engine.protocol and hearback_engine.graph matches
    its $def: required and optional keys, property types, and enumeration values.
-3. The typed props: NodePropsByKind and EdgePropsByKind name a props def for every kind, the
-   schema binds each kind to exactly that def, and the NodeProps and EdgeProps unions list them.
+3. The typed props and args: NodePropsByKind, EdgePropsByKind, DiagnosticArgsByCode and
+   UnresolvedArgsByCode name a def for every kind or code, the schema binds each one to exactly
+   that def, and the unions NodeProps, EdgeProps, DiagnosticArgs and UnresolvedArgs list them.
 """
 
 from __future__ import annotations
 
 import types
 import typing
-from typing import Any, Literal, get_args, get_origin, get_type_hints, is_typeddict
+from typing import Any, Literal, NamedTuple, get_args, get_origin, get_type_hints, is_typeddict
 
 import pytest
 import support
@@ -36,10 +37,25 @@ SCALARS: dict[str, type] = {
 }
 # The results besides the GraphDocument root, each with its own schemaVersion.
 RESULTS = ("ChangeSummary", "IndexResult")
-PROPS_MAPPINGS = (
-    ("Node", "NodePropsByKind", "NodeProps"),
-    ("Edge", "EdgePropsByKind", "EdgeProps"),
+
+
+class Binding(NamedTuple):
+    """A field whose def depends on another key, as NodePropsByKind makes props depend on kind."""
+
+    owner: str
+    key: str
+    field: str
+    mapping: str
+    union: str
+
+
+BINDINGS = (
+    Binding("Node", "kind", "props", "NodePropsByKind", "NodeProps"),
+    Binding("Edge", "kind", "props", "EdgePropsByKind", "EdgeProps"),
+    Binding("Diagnostic", "code", "args", "DiagnosticArgsByCode", "DiagnosticArgs"),
+    Binding("UnresolvedProps", "reasonCode", "args", "UnresolvedArgsByCode", "UnresolvedArgs"),
 )
+BINDING_IDS = [binding.owner for binding in BINDINGS]
 
 
 def public_typeddicts(module: types.ModuleType) -> dict[str, Any]:
@@ -213,51 +229,51 @@ def test_schema_versions_agree(graph_schema: JsonObject) -> None:
         assert get_args(hints["schemaVersion"]) == (SCHEMA_VERSION,), name
 
 
-# --- typed props ---
+# --- typed props and args ---
 
 
-@pytest.mark.parametrize(("owner", "mapping", "union"), PROPS_MAPPINGS)
-def test_props_by_kind_name_a_def_for_every_kind(
-    graph_schema: JsonObject, owner: str, mapping: str, union: str
+@pytest.mark.parametrize("binding", BINDINGS, ids=BINDING_IDS)
+def test_the_mappings_name_a_def_for_every_value(
+    graph_schema: JsonObject, binding: Binding
 ) -> None:
+    owner, key, _, mapping, _ = binding
     defs = graph_schema["$defs"]
-    kinds = defs[defs[owner]["properties"]["kind"]["$ref"].rsplit("/", 1)[-1]]["enum"]
-    assert list(defs[mapping]["properties"]) == kinds
-    assert defs[mapping]["required"] == kinds
-    assert list(get_type_hints(getattr(graph, mapping))) == kinds
-    for kind, node in defs[mapping]["properties"].items():
+    values = defs[ref_name(defs[owner]["properties"][key])]["enum"]
+    assert list(defs[mapping]["properties"]) == values
+    assert defs[mapping]["required"] == values
+    assert list(get_type_hints(getattr(graph, mapping))) == values
+    for value, node in defs[mapping]["properties"].items():
         target = defs[ref_name(node)]
-        assert target["type"] == "object", kind
-        assert target["additionalProperties"] is False, kind
+        assert target["type"] == "object", value
+        assert target["additionalProperties"] is False, value
 
 
-@pytest.mark.parametrize(("owner", "mapping", "union"), PROPS_MAPPINGS)
-def test_the_schema_binds_each_kind_to_its_props_def(
-    graph_schema: JsonObject, owner: str, mapping: str, union: str
-) -> None:
+@pytest.mark.parametrize("binding", BINDINGS, ids=BINDING_IDS)
+def test_the_schema_binds_each_value_to_its_def(graph_schema: JsonObject, binding: Binding) -> None:
+    owner, key, field, mapping, union = binding
     defs = graph_schema["$defs"]
-    rules = defs[owner]["dependentSchemas"]["kind"]["allOf"]
+    assert key in defs[owner]["required"]  # so the binding applies to every instance
+    rules = defs[owner]["dependentSchemas"][key]["allOf"]
     bound: dict[str, str] = {}
     for rule in rules:
         assert set(rule) == {"if", "then"}
         assert set(rule["if"]) == {"properties"}
-        assert set(rule["if"]["properties"]) == {"kind"}
-        target = ref_name(rule["then"]["properties"]["props"])
-        # Props are required exactly where their def has required keys.
-        required = "props" in rule["then"].get("required", [])
+        assert set(rule["if"]["properties"]) == {key}
+        target = ref_name(rule["then"]["properties"][field])
+        # The field is required exactly where its def has required keys.
+        required = field in rule["then"].get("required", [])
         assert required is bool(defs[target].get("required")), target
-        for kind in rule["if"]["properties"]["kind"]["enum"]:
-            assert kind not in bound, f"{kind} is bound twice"
-            bound[kind] = target
-    expected = {kind: ref_name(node) for kind, node in defs[mapping]["properties"].items()}
+        for value in rule["if"]["properties"][key]["enum"]:
+            assert value not in bound, f"{value} is bound twice"
+            bound[value] = target
+    expected = {value: ref_name(node) for value, node in defs[mapping]["properties"].items()}
     assert bound == expected
-    assert defs[owner]["properties"]["props"] == {"$ref": f"#/$defs/{union}"}
+    assert defs[owner]["properties"][field] == {"$ref": f"#/$defs/{union}"}
 
 
-@pytest.mark.parametrize(("owner", "mapping", "union"), PROPS_MAPPINGS)
-def test_the_props_unions_list_each_props_def_once(
-    graph_schema: JsonObject, owner: str, mapping: str, union: str
-) -> None:
+@pytest.mark.parametrize("binding", BINDINGS, ids=BINDING_IDS)
+def test_the_unions_list_each_def_once(graph_schema: JsonObject, binding: Binding) -> None:
+    _, _, _, mapping, union = binding
     defs = graph_schema["$defs"]
     members = [ref_name(alternative) for alternative in defs[union]["anyOf"]]
     assert len(members) == len(set(members))
@@ -279,13 +295,53 @@ def test_props_are_rejected_unless_they_match_the_def_of_their_kind(
     assert valid("class", {"bases": []})
     assert not valid("table", {"bases": []})  # NoProps
     assert valid("table", {})
-    assert valid("unresolved", {"reasonCode": "dynamic-call"}, reason="dynamic call")
+    getattr_call = {"reasonCode": "dynamic-call", "args": {"function": "getattr"}}
+    assert valid("unresolved", getattr_call, reason="dynamic call")
     assert not valid("unresolved", {}, reason="dynamic call")  # no reasonCode
     assert not valid("unresolved", {"reasonCode": "maybe"}, reason="dynamic call")
     assert valid("external", {"group": "stdlib", "package": "json"})
     assert not valid("external", {"group": "stdlib"})  # no package
     duplicates = ["json.dumps", "json.dumps"]
     assert not valid("external", {"group": "stdlib", "package": "json", "names": duplicates})
+
+
+def test_args_are_rejected_unless_they_match_the_def_of_their_code(
+    graph_schema: JsonObject,
+) -> None:
+    def diagnostic(code: str, **extra: object) -> bool:
+        entry = {"severity": "warning", "code": code, "message": "m", **extra}
+        document = {**graph.empty_document("classAnatomy"), "diagnostics": [entry]}
+        return bool(support.validator(graph_schema).is_valid(document))
+
+    def unresolved(props: JsonObject) -> bool:
+        node = {"id": "unresolved:py:m.f/x()", "kind": "unresolved", "label": "x()"}
+        document = {
+            **graph.empty_document("callGraph"),
+            "nodes": [{**node, "reason": "why", **props}],
+        }
+        return bool(support.validator(graph_schema).is_valid(document))
+
+    assert diagnostic("self-unused", args={"method": "_log_retry"})
+    assert not diagnostic("self-unused")  # its def has required keys
+    assert not diagnostic("self-unused", args={"name": "_log_retry"})  # not a key of its def
+    assert not diagnostic("self-unused", args={"detail": "x"})  # a key of another code's def
+    version = {"feature": "except*", "requiredVersion": "3.11", "runningVersion": "3.10.20"}
+    assert diagnostic("newer-syntax", args=version)
+    assert not diagnostic("newer-syntax", args={**version, "requiredVersion": 3.11})
+    assert diagnostic("symbol-not-found")  # nothing required
+    assert diagnostic("symbol-not-found", args={"symbol": "py:m.f"})
+    assert diagnostic("file-unreadable", args={"reason": "notRegular"}, file="/w/fifo.py")
+    assert not diagnostic("file-unreadable", args={"reason": "broken"})
+    assert not diagnostic("file-unreadable", args={"reason": "notFound"}, file="")
+    rules = {"path": "/w/hearback-rules.json", "detail": "rules[2].category is unknown"}
+    assert diagnostic("rules-file-invalid", args={**rules, "rule": 2})
+    assert not diagnostic("rules-file-invalid", args={**rules, "rule": -1})
+    assert unresolved({"props": {"reasonCode": "subscript-call"}})
+    assert not unresolved({"props": {"reasonCode": "subscript-call", "args": {"name": "x"}}})
+    receiver = {"receiver": "c", "method": "get"}
+    assert unresolved({"props": {"reasonCode": "type-resolution-off", "args": receiver}})
+    assert not unresolved({"props": {"reasonCode": "type-resolution-off"}})
+    assert unresolved({"props": {"reasonCode": "undefined-name", "args": {"name": "x"}}})
 
 
 def test_external_nodes_need_props(graph_schema: JsonObject) -> None:
@@ -459,7 +515,11 @@ def test_graph_constructors_produce_valid_documents(graph_schema: JsonObject) ->
             "unresolved:py:a.f/getattr(x, n)()",
             "getattr(x, n)()",
             "dynamic call via getattr",
-            {"reasonCode": "dynamic-call", "expression": "getattr(x, n)()", "args": {"n": 1}},
+            {
+                "reasonCode": "dynamic-call",
+                "expression": "getattr(x, n)()",
+                "args": {"function": "getattr"},
+            },
             parent="py:a.f",
         )
     )
@@ -474,7 +534,7 @@ def test_graph_constructors_produce_valid_documents(graph_schema: JsonObject) ->
         }
     )
     document["diagnostics"].append(
-        {"severity": "hint", "code": "self-unused", "message": "m", "args": {"n": 1, "ok": True}}
+        {"severity": "hint", "code": "self-unused", "message": "m", "args": {"method": "f"}}
     )
     document["meta"] = graph.meta(duration_ms=3.5, base_revision="3f2c1d9e")
     support.assert_valid(graph_schema, None, document)

@@ -5,10 +5,14 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type {
+  DiagnosticArgsByCode,
+  DiagnosticCode,
   EdgeKind,
   EdgePropsByKind,
   NodeKind,
   NodePropsByKind,
+  UnresolvedArgsByCode,
+  UnresolvedReasonCode,
 } from '../../src/shared/generated/graph';
 import { asRecord, readJson, repoRoot } from './helpers';
 
@@ -127,11 +131,39 @@ describe('graph schema', () => {
     expect(validateGraph(documentWith(nodeOf('unresolved', { reasonCode: 'dynamic-call' })))).toBe(
       false,
     );
+    const getattrCall = { reasonCode: 'dynamic-call', args: { function: 'getattr' } };
+    expect(validateGraph(documentWith(nodeOf('unresolved', getattrCall, { reason: 'why' })))).toBe(
+      true,
+    );
+  });
+
+  it('binds the args of diagnostics and unresolved reasons to their code', () => {
+    const withDiagnostic = (diagnostic: JsonObject): JsonObject => ({
+      ...documentWith(nodeOf('class', {})),
+      diagnostics: [{ severity: 'warning', message: 'm', ...diagnostic }],
+    });
+    const selfUnused = { code: 'self-unused', args: { method: '_log_retry' } };
+    expect(validateGraph(withDiagnostic(selfUnused))).toBe(true);
+    // A renamed or missing arg fails, so the localized templates can rely on the names.
+    expect(validateGraph(withDiagnostic({ ...selfUnused, args: { name: '_log_retry' } }))).toBe(
+      false,
+    );
+    expect(validateGraph(withDiagnostic({ code: 'self-unused' }))).toBe(false);
+    expect(validateGraph(withDiagnostic({ code: 'symbol-not-found' }))).toBe(true);
+    // A diagnostic about a whole file names it in file.
+    const unreadable = { code: 'file-unreadable', args: { reason: 'notRegular' } };
+    expect(validateGraph(withDiagnostic({ ...unreadable, file: '/w/fifo.py' }))).toBe(true);
+    expect(validateGraph(withDiagnostic({ ...unreadable, args: { reason: 'gone' } }))).toBe(false);
+    const unresolved = (props: JsonObject): JsonObject =>
+      documentWith(nodeOf('unresolved', props, { reason: 'why' }));
+    const receiver = { receiver: 'c', method: 'get' };
     expect(
-      validateGraph(
-        documentWith(nodeOf('unresolved', { reasonCode: 'dynamic-call' }, { reason: 'why' })),
-      ),
+      validateGraph(unresolved({ reasonCode: 'type-resolution-off', args: receiver })),
+      JSON.stringify(validateGraph.errors),
     ).toBe(true);
+    expect(validateGraph(unresolved({ reasonCode: 'type-resolution-off' }))).toBe(false);
+    expect(validateGraph(unresolved({ reasonCode: 'subscript-call' }))).toBe(true);
+    expect(validateGraph(unresolved({ reasonCode: 'subscript-call', args: receiver }))).toBe(false);
   });
 
   it('rejects props keys that the def of the node kind lacks', () => {
@@ -242,17 +274,26 @@ describe('graph schema', () => {
     expect(validateGraph(document)).toBe(false);
   });
 
-  it('maps every node and edge kind to a props def', () => {
+  it('maps every node and edge kind to a props def and every code to an args def', () => {
     const defs = defsOf(graphSchema);
     const kinds = (name: string) => (defs[name] as { enum: string[] }).enum;
     const mapped = (name: string) => Object.keys(defs[name]?.properties as JsonObject);
     expect(mapped('NodePropsByKind')).toEqual(kinds('NodeKind'));
     expect(mapped('EdgePropsByKind')).toEqual(kinds('EdgeKind'));
-    // The same holds for the generated types that propsOf() in the webview relies on: the
-    // assignments fail to typecheck when the key sets differ.
+    expect(mapped('DiagnosticArgsByCode')).toEqual(kinds('DiagnosticCode'));
+    expect(mapped('UnresolvedArgsByCode')).toEqual(kinds('UnresolvedReasonCode'));
+    // The same holds for the generated types that propsOf() and the localization tables rely
+    // on: the assignments fail to typecheck when the key sets differ.
     const nodeKindsMatch: SameKeys<keyof NodePropsByKind, NodeKind> = true;
     const edgeKindsMatch: SameKeys<keyof EdgePropsByKind, EdgeKind> = true;
-    expect([nodeKindsMatch, edgeKindsMatch]).toEqual([true, true]);
+    const codesMatch: SameKeys<keyof DiagnosticArgsByCode, DiagnosticCode> = true;
+    const reasonsMatch: SameKeys<keyof UnresolvedArgsByCode, UnresolvedReasonCode> = true;
+    expect([nodeKindsMatch, edgeKindsMatch, codesMatch, reasonsMatch]).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
   });
 });
 
