@@ -19,9 +19,11 @@ visualizations; an optional comprehension mode follows in later phases.
 - Three parts: the extension host (TypeScript, `src/`), a sandboxed Python analysis engine
   (`engine/`, CPython 3.10 or newer, JSON-RPC 2.0 over stdio) and a React webview (`webview/`).
   The contracts are the JSON Schemas in `shared/`.
-- Current state: Phase 0 (foundation). Phase 1 brings the Python visualizations (release 0.1.0,
-  pre-release), Phase 2 SQL and dbt, Phase 3 the comprehension ledger and checks, Phase 4 the
-  commit gate and agent hooks, Phase 5 LLM-assisted checks.
+- Current state: Phase 1 in progress, the Python visualizations (release 0.1.0, pre-release),
+  following the approved plan in [`docs/plans/phase-1-plan.md`](docs/plans/phase-1-plan.md) (work
+  packages WP01 to WP29). Phase 0 (foundation) is finished. Phase 2 brings SQL and dbt, Phase 3
+  the comprehension ledger and checks, Phase 4 the commit gate and agent hooks, Phase 5
+  LLM-assisted checks.
 - Read [`docs/architecture.md`](docs/architecture.md) for the design and
   [`docs/adr/`](docs/adr/README.md) for the decisions behind it.
 
